@@ -2714,6 +2714,11 @@ function signOut(){
 auth.onAuthStateChanged(function(user){
   if(user){
     currentUser = user;
+    // Show loading in overlay while data loads
+    var loadDiv = document.getElementById('auth-loading');
+    var btnDiv = document.getElementById('google-signin-btn');
+    if(loadDiv){loadDiv.style.display='block';loadDiv.querySelector('div').style.display='none';loadDiv.innerHTML='<div style="font-size:14px;color:#7b2ff7;font-weight:700">✓ Signed in! Loading your data...</div><div style="width:28px;height:28px;border:3px solid #f0f0f0;border-top-color:#7b2ff7;border-radius:50%;animation:spin .8s linear infinite;margin:10px auto 0"></div>';}
+    if(btnDiv)btnDiv.style.display='none';
     // Show user info in header
     var userEl = document.getElementById('user-display');
     if(userEl){
@@ -2743,7 +2748,10 @@ function getUserDoc(){
 
 function save(){
   // Always save to localStorage as offline backup
-  try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); } catch(e){}
+  try{
+    localStorage.setItem(DB_KEY, JSON.stringify(DB));
+    if(currentUser) localStorage.setItem(DB_KEY+'_'+currentUser.uid, JSON.stringify(DB));
+  } catch(e){}
   // Debounced save to Firestore (300ms)
   if(saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(function(){
@@ -2814,7 +2822,6 @@ function saveToFirestore(){
 function loadFromFirestore(){
   var docRef = getUserDoc();
   if(!docRef){
-    // No user — load from localStorage
     loadFromLocal();
     startApp();
     return;
@@ -2823,39 +2830,54 @@ function loadFromFirestore(){
   var si = document.getElementById('save-indicator');
   if(si){si.textContent='Loading...';si.style.opacity='1';}
 
+  // Show cached data instantly if available
+  var cached = null;
+  try{var s=localStorage.getItem(DB_KEY+'_'+currentUser.uid);if(s){cached=JSON.parse(s);Object.assign(DB,cached);}}catch(e){}
+  if(cached&&cached.students&&cached.students.length){
+    // Start app with cache immediately — Firestore will update in background
+    startApp();
+    if(si){si.textContent='Syncing...';si.style.opacity='1';}
+  }
+
   // Load all 5 chunks in parallel
+  // Load critical data first (main + students), then rest in background
   Promise.all([
     docRef.collection('data').doc('main').get(),
-    docRef.collection('data').doc('students').get(),
-    docRef.collection('data').doc('tracking').get(),
-    docRef.collection('data').doc('comms').get(),
-    docRef.collection('data').doc('planning').get()
+    docRef.collection('data').doc('students').get()
   ]).then(function(docs){
     var hasData = docs.some(function(d){return d.exists;});
     if(hasData){
-      var main   = docs[0].exists ? docs[0].data() : {};
-      var studs  = docs[1].exists ? docs[1].data() : {};
-      var track  = docs[2].exists ? docs[2].data() : {};
-      var comms  = docs[3].exists ? docs[3].data() : {};
-      var plan   = docs[4].exists ? docs[4].data() : {};
-
-      // Merge into DB
-      Object.assign(DB, main, studs, track, comms, plan);
-      // Remove Firestore timestamp from DB
+      var main  = docs[0].exists ? docs[0].data() : {};
+      var studs = docs[1].exists ? docs[1].data() : {};
+      Object.assign(DB, main, studs);
       delete DB.lastSaved;
-      // Sync to localStorage
-      try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
-      if(si){si.textContent='✓ Loaded';setTimeout(function(){si.style.opacity='0';},2000);}
     } else {
-      // New user — no Firestore data yet, try localStorage
       loadFromLocal();
-      // If still no students, load sample data
       if(!DB.students.length) loadSampleData();
     }
+    // Start app immediately with core data
     startApp();
+    if(si){si.textContent='✓ Ready';setTimeout(function(){si.style.opacity='0';},2000);}
+    // Load remaining data in background
+    if(hasData){
+      Promise.all([
+        docRef.collection('data').doc('tracking').get(),
+        docRef.collection('data').doc('comms').get(),
+        docRef.collection('data').doc('planning').get()
+      ]).then(function(rest){
+        var track = rest[0].exists ? rest[0].data() : {};
+        var comms = rest[1].exists ? rest[1].data() : {};
+        var plan  = rest[2].exists ? rest[2].data() : {};
+        Object.assign(DB, track, comms, plan);
+        delete DB.lastSaved;
+        try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
+        // Refresh any open panels quietly
+        updatePills();
+        refreshAllPeriodTabs();
+      }).catch(function(e){console.warn('Background load error:',e);});
+    }
   }).catch(function(err){
     console.warn('Firestore load error:', err);
-    // Fallback to localStorage
     loadFromLocal();
     startApp();
   });
