@@ -206,7 +206,7 @@ textarea{resize:vertical;min-height:64px}
   <!-- Firebase SDK - single module bundle for faster load -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -223,7 +223,7 @@ textarea{resize:vertical;min-height:64px}
     const db = getFirestore(app);
 
     // Expose to global scope for the main script
-    window._firebase = { auth, db, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, fbSignOut, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp };
+    window._firebase = { auth, db, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, fbSignOut, setPersistence, browserLocalPersistence, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp };
 
     // Notify main script Firebase is ready
     window.dispatchEvent(new Event('firebase-ready'));
@@ -2697,9 +2697,12 @@ function signInWithGoogle(){
   if(errEl) errEl.style.display = 'none';
 
   var f = window._firebase; if(!f){toast('Firebase not ready yet, please wait');return;}
-  var provider = new f.GoogleAuthProvider();
-  provider.setCustomParameters({prompt: 'select_account'});
-  f.signInWithPopup(f.auth, provider).catch(function(err){
+  // Set persistence to LOCAL so teacher stays signed in permanently
+  f.setPersistence(f.auth, f.browserLocalPersistence).then(function(){
+    var provider = new f.GoogleAuthProvider();
+    provider.setCustomParameters({prompt: 'select_account'});
+    return f.signInWithPopup(f.auth, provider);
+  }).catch(function(err){
     if(btn) btn.style.display = 'flex';
     if(loading) loading.style.display = 'none';
     if(errEl){
@@ -2740,9 +2743,9 @@ window.addEventListener('firebase-ready', function(){
         + '<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+user.email+'">'+user.displayName.split(' ')[0]+'</span>'
         + '<button onclick="signOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer">Sign out</button>';
     }
-    // Hide overlay
+    // Fade out overlay instantly — teacher goes straight to hub
     var overlay = document.getElementById('auth-overlay');
-    if(overlay) overlay.classList.add('hidden');
+    if(overlay){overlay.style.opacity='0';setTimeout(function(){overlay.classList.add('hidden');overlay.style.opacity='1';},300);}
     // Load data from Firestore
     loadFromFirestore();
   } else {
@@ -2902,22 +2905,26 @@ function loadFromLocal(){
    APP STARTUP — called after auth + data load
 ══════════════════════════════════════════════════════ */
 function startApp(){
+  // Critical path first — show hub immediately
   restoreCustomizations();
   restoreRowOrder();
   if(DB.setup&&DB.setup.panelWidth) panelW=DB.setup.panelWidth;
   initPanelResize();
   updatePills();
-  refreshAllPeriodTabs();
-  applyFeatureToggles();
   tick();
-  setInterval(tick,10000);
-  var today=new Date().toISOString().split('T')[0];
-  ['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(f){
-    var e=document.getElementById(f);if(e&&!e.value)e.value=today;
+  // Defer non-critical setup to next frame
+  requestAnimationFrame(function(){
+    refreshAllPeriodTabs();
+    applyFeatureToggles();
+    setInterval(tick,10000);
+    var today=new Date().toISOString().split('T')[0];
+    ['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(f){
+      var e=document.getElementById(f);if(e&&!e.value)e.value=today;
+    });
+    var now=new Date();
+    var ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    var ct=document.getElementById('cm-time');if(ct)ct.value=ts;
   });
-  var now=new Date();
-  var ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  var ct=document.getElementById('cm-time');if(ct)ct.value=ts;
 }
 
 
@@ -7269,6 +7276,7 @@ function loadSampleData(){
   background:linear-gradient(135deg,#7b2ff7,#f107a3);
   display:flex;align-items:center;justify-content:center;
   font-family:'Nunito',sans-serif;
+  transition:opacity .3s;
 ">
   <div style="
     background:#fff;border-radius:20px;padding:48px 44px;
