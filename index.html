@@ -2683,7 +2683,7 @@ var db = null, auth = null;
 
 var currentUser = null;
 var saveTimeout = null;
-var DB_KEY = 'tcc_p1'; // kept for offline fallback
+// Storage: Firebase Firestore only
 
 /* ══════════════════════════════════════════════════════
    AUTHENTICATION
@@ -2769,12 +2769,7 @@ function getDataDoc(name){
 }
 
 function save(){
-  // Always save to localStorage as offline backup
-  try{
-    localStorage.setItem(DB_KEY, JSON.stringify(DB));
-    if(currentUser) localStorage.setItem(DB_KEY+'_'+currentUser.uid, JSON.stringify(DB));
-  } catch(e){}
-  // Debounced save to Firestore (300ms)
+  // Save to Firebase (debounced 300ms)
   if(saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(function(){
     saveToFirestore();
@@ -2852,14 +2847,7 @@ function loadFromFirestore(){
   var si = document.getElementById('save-indicator');
   if(si){si.textContent='Loading...';si.style.opacity='1';}
 
-  // Show cached data instantly if available
-  var cached = null;
-  try{var s=localStorage.getItem(DB_KEY+'_'+currentUser.uid);if(s){cached=JSON.parse(s);Object.assign(DB,cached);}}catch(e){}
-  if(cached&&cached.students&&cached.students.length){
-    // Start app with cache immediately — Firestore will update in background
-    startApp();
-    if(si){si.textContent='Syncing...';si.style.opacity='1';}
-  }
+  // Load from Firebase only
 
   // Load all 5 chunks in parallel
   // Load critical data first (main + students), then rest in background
@@ -2893,7 +2881,7 @@ function loadFromFirestore(){
         var plan  = rest[2].exists ? rest[2].data() : {};
         Object.assign(DB, track, comms, plan);
         delete DB.lastSaved;
-        try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
+        // Data loaded from Firebase
         // Refresh any open panels quietly
         updatePills();
         refreshAllPeriodTabs();
@@ -2907,10 +2895,7 @@ function loadFromFirestore(){
 }
 
 function loadFromLocal(){
-  try{
-    var stored = localStorage.getItem(DB_KEY);
-    if(stored) Object.assign(DB, JSON.parse(stored));
-  } catch(e){}
+  // localStorage removed — Firebase is the only storage
 }
 
 /* ══════════════════════════════════════════════════════
@@ -2993,18 +2978,8 @@ function getSchedule(){return (DB.setup&&DB.setup.schedule&&DB.setup.schedule.le
 var BOY_FORMS=['Emergency Form','Media Release','Tech Agreement','Supply List','Parent Contact','Handbook Sig','Lunch App','IEP/504 Form','Health Form'];
 var curGradePeriod=(function(){var s=getSchedule().filter(function(r){return r.type==='Class';});var m=s[0]&&s[0].label.match(/\d+/);return m?m[0]:'1';})();
 
-function save(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}}
-function load(){try{var r=localStorage.getItem(DB_KEY);if(r){var p=JSON.parse(r);DB=Object.assign(DB,p);}}catch(e){}}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
-
-/* CLOCK */
-function tick(){
-  var n=new Date();
-  document.getElementById('hdr-date').textContent=n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
-  var h=n.getHours(),m=n.getMinutes(),ap=h>=12?'PM':'AM';h=h%12||12;
-  document.getElementById('hdr-time').textContent=h+':'+(m<10?'0':'')+m+' '+ap;
-}
+function save(){if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(function(){saveToFirestore();},300);}
+function load(){/* Firebase handles loading */}
 
 /* NAVIGATION */
 var panelW=380;
@@ -6990,8 +6965,7 @@ function importBackupFile(input){
       var parsed=JSON.parse(e.target.result);
       if(!parsed.DB){alert('Invalid backup file.');return;}
       Object.assign(DB,parsed.DB);
-      // Save to localStorage immediately
-      try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}
+      // Save to Firebase
       // Save to Firestore if signed in
       if(currentUser){
         saveToFirestore();
@@ -7284,8 +7258,7 @@ function loadSampleData(){
   updatePills();
 }
 
-// Startup is handled by Firebase auth state change → loadFromFirestore() → startApp()
-// If Firebase fails to initialize or user is offline, startApp() falls back to localStorage
+// Startup handled by Firebase auth state change → loadFromFirestore() → startApp()
 </script>
 
 <!-- ══════════════════════════════════════════
