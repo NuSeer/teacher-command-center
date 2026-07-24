@@ -2696,7 +2696,30 @@ function signInWithGoogle(){
   if(loading) loading.style.display = 'block';
   if(errEl) errEl.style.display = 'none';
 
-  var f = window._firebase; if(!f){toast('Firebase not ready yet, please wait');return;}
+  // If Firebase not ready yet, wait for it (max 5 seconds)
+  var f = window._firebase;
+  if(!f){
+    var waited = 0;
+    var waitInterval = setInterval(function(){
+      waited += 100;
+      f = window._firebase;
+      if(f){ clearInterval(waitInterval); doSignIn(f); }
+      else if(waited > 5000){ 
+        clearInterval(waitInterval);
+        if(btn)btn.style.display='flex';
+        if(loading)loading.style.display='none';
+        if(errEl){errEl.style.display='block';errEl.textContent='Connection timeout. Please refresh and try again.';}
+      }
+    }, 100);
+    return;
+  }
+  doSignIn(f);
+}
+
+function doSignIn(f){
+  var btn = document.getElementById('google-signin-btn');
+  var loading = document.getElementById('auth-loading');
+  var errEl = document.getElementById('auth-error');
   // Set persistence to LOCAL so teacher stays signed in permanently
   f.setPersistence(f.auth, f.browserLocalPersistence).then(function(){
     var provider = new f.GoogleAuthProvider();
@@ -2707,7 +2730,12 @@ function signInWithGoogle(){
     if(loading) loading.style.display = 'none';
     if(errEl){
       errEl.style.display = 'block';
-      errEl.textContent = 'Sign-in failed: ' + err.message;
+      // Friendly error messages
+      var msg = err.message;
+      if(err.code === 'auth/popup-closed-by-user') msg = 'Sign-in cancelled. Click the button to try again.';
+      if(err.code === 'auth/popup-blocked') msg = 'Popup blocked. Please allow popups for this site and try again.';
+      if(err.code === 'auth/unauthorized-domain') msg = 'Domain not authorized. Contact support.';
+      errEl.textContent = msg;
     }
   });
 }
@@ -7314,12 +7342,18 @@ function loadSampleData(){
 
     <!-- Personal account tip -->
     <div style="
-      margin-top:20px;padding:12px 16px;
+      margin-top:16px;padding:10px 14px;
       background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
       font-size:12px;color:#166534;text-align:left;line-height:1.6
     ">
-      💡 <strong>Use your personal Gmail</strong> — not your school account.
-      Your data will follow you to any school, any computer, forever.
+      💡 <strong>One-time sign-in per device.</strong> After this you go straight to your dashboard — no login screen again.
+    </div>
+    <div style="
+      margin-top:10px;padding:10px 14px;
+      background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;
+      font-size:12px;color:#0369a1;text-align:left;line-height:1.6
+    ">
+      🔒 Use your <strong>personal Gmail</strong> — not your school account. Your data follows you to any school, forever.
     </div>
 
     <!-- Loading state -->
