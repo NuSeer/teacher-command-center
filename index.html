@@ -202,7 +202,6 @@ textarea{resize:vertical;min-height:64px}
 .empty{text-align:center;padding:28px;color:#c090c0;font-size:13px}
 .empty svg{width:36px;height:36px;margin:0 auto 8px;display:block;opacity:.4}
 </style>
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -240,7 +239,7 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
   </div>
-  <div class="hdr-right" style="display:flex;align-items:center;gap:8px"><div id="save-indicator" style="font-size:11px;color:rgba(255,255,255,.7);opacity:0;transition:opacity .5s;white-space:nowrap"></div><div id="user-display" style="display:flex;align-items:center;gap:6px"></div>
+  <div class="hdr-right" style="display:flex;align-items:center;gap:8px"><div id="save-indicator" style="font-size:11px;color:rgba(255,255,255,.7);opacity:0;transition:opacity .5s;white-space:nowrap"></div><div id="user-display" style="display:flex;align-items:center;gap:4px"></div>
     <div class="hdr-date" id="hdr-date"></div>
     <div class="hdr-time" id="hdr-time"></div>
   </div>
@@ -2651,11 +2650,10 @@ textarea{resize:vertical;min-height:64px}
 </div>
 
 <script>
-/* ══ FIREBASE EMAIL/PASSWORD AUTH ══ */
+/* ══ FIREBASE EMAIL/PASSWORD AUTH + FIRESTORE ══ */
 var firebaseConfig={apiKey:"AIzaSyDw_uOgBNmVDSzKzWw8-xQoWzVFyZbQWNo",authDomain:"teacher-command-center-88805.firebaseapp.com",projectId:"teacher-command-center-88805",storageBucket:"teacher-command-center-88805.firebasestorage.app",messagingSenderId:"284637394973",appId:"1:284637394973:web:a35f48286775fd799b6ef4"};
 firebase.initializeApp(firebaseConfig);
-var fbAuth=firebase.auth();
-var fbDb=firebase.firestore();
+var fbAuth=firebase.auth();var fbDb=firebase.firestore();
 fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 var currentUser=null;var saveTimeout=null;var authMode='signin';
 
@@ -2669,7 +2667,6 @@ function authToggleMode(){
   document.getElementById('auth-error').style.display='none';
   document.getElementById('auth-success').style.display='none';
 }
-
 function authSubmit(){
   var email=(document.getElementById('auth-email').value||'').trim();
   var pw=(document.getElementById('auth-password').value||'');
@@ -2679,37 +2676,28 @@ function authSubmit(){
   errEl.style.display='none';
   if(!email){errEl.style.display='block';errEl.textContent='Please enter your email address.';return;}
   if(pw.length<6){errEl.style.display='block';errEl.textContent='Password must be at least 6 characters.';return;}
-  if(authMode==='register'){
-    var pw2=(document.getElementById('auth-password2').value||'');
-    if(pw!==pw2){errEl.style.display='block';errEl.textContent='Passwords do not match.';return;}
-  }
+  if(authMode==='register'){var pw2=(document.getElementById('auth-password2').value||'');if(pw!==pw2){errEl.style.display='block';errEl.textContent='Passwords do not match.';return;}}
   loadEl.style.display='block';btnEl.style.display='none';
   var fn=authMode==='register'?fbAuth.createUserWithEmailAndPassword.bind(fbAuth):fbAuth.signInWithEmailAndPassword.bind(fbAuth);
-  fn(email,pw).then(function(c){currentUser=c.user;authSuccess();}).catch(function(e){authShowError(e,loadEl,btnEl);});
+  fn(email,pw).then(function(c){currentUser=c.user;authDone();}).catch(function(e){
+    loadEl.style.display='none';btnEl.style.display='block';errEl.style.display='block';
+    var m={'auth/user-not-found':'No account found. Click "Create account".','auth/wrong-password':'Incorrect password. Try again or reset it.','auth/email-already-in-use':'Account exists. Click "Sign In".','auth/invalid-email':'Enter a valid email address.','auth/weak-password':'Password must be at least 6 characters.','auth/too-many-requests':'Too many attempts. Wait a few minutes.','auth/invalid-credential':'Incorrect email or password.'};
+    errEl.textContent=m[e.code]||e.message;
+  });
 }
-
 function authForgotPassword(){
   var email=(document.getElementById('auth-email').value||'').trim();
   var errEl=document.getElementById('auth-error');var sucEl=document.getElementById('auth-success');
   errEl.style.display='none';sucEl.style.display='none';
   if(!email){errEl.style.display='block';errEl.textContent='Enter your email address above first.';return;}
-  fbAuth.sendPasswordResetEmail(email).then(function(){sucEl.style.display='block';sucEl.textContent='✅ Reset email sent to '+email+'. Check your inbox.';}).catch(function(e){authShowError(e,null,null);});
+  fbAuth.sendPasswordResetEmail(email).then(function(){sucEl.style.display='block';sucEl.textContent='Reset email sent to '+email+'. Check your inbox.';}).catch(function(e){errEl.style.display='block';errEl.textContent=e.message;});
 }
-
-function authShowError(err,loadEl,btnEl){
-  if(loadEl)loadEl.style.display='none';if(btnEl)btnEl.style.display='block';
-  var errEl=document.getElementById('auth-error');errEl.style.display='block';
-  var msgs={'auth/user-not-found':'No account found. Click "Create account" to register.','auth/wrong-password':'Incorrect password. Try again or reset it.','auth/email-already-in-use':'Account exists. Click "Sign In".','auth/invalid-email':'Enter a valid email address.','auth/weak-password':'Password must be at least 6 characters.','auth/too-many-requests':'Too many attempts. Wait a few minutes.','auth/invalid-credential':'Incorrect email or password. Please try again.'};
-  errEl.textContent=msgs[err.code]||err.message;
-}
-
-function authSuccess(){
+function authDone(){
   var o=document.getElementById('auth-overlay');if(o){o.style.transition='opacity .3s';o.style.opacity='0';setTimeout(function(){o.classList.add('hidden');o.style.opacity='1';},300);}
   var uel=document.getElementById('user-display');
-  if(uel&&currentUser)uel.innerHTML='<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+currentUser.email+'</span><button onclick="authSignOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:6px">Sign out</button>';
+  if(uel&&currentUser)uel.innerHTML='<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+currentUser.email+'</span><button onclick="authSignOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:6px">Sign out</button>';
   loadFromFirestore();
 }
-
 function authSignOut(){
   if(!confirm('Sign out?'))return;
   fbAuth.signOut().then(function(){
@@ -2724,15 +2712,13 @@ function authSignOut(){
     authMode='signin';
   });
 }
-
 fbAuth.onAuthStateChanged(function(user){
-  if(user){currentUser=user;authSuccess();}
+  if(user){currentUser=user;authDone();}
   else{var o=document.getElementById('auth-overlay');if(o)o.classList.remove('hidden');}
 });
 
-/* ══ FIRESTORE ══ */
+/* ══ FIRESTORE SAVE/LOAD ══ */
 function save(){if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(saveToFirestore,400);}
-
 function saveToFirestore(){
   if(!currentUser)return;
   var ref=fbDb.collection('teachers').doc(currentUser.uid);
@@ -2742,24 +2728,21 @@ function saveToFirestore(){
   b.set(ref.collection('data').doc('tracking'),{missing:DB.missing||[],participation:DB.participation||[],behavior:DB.behavior||[],attendance:DB.attendance||{},iep:DB.iep||[],smallGroups:DB.smallGroups||[]},{merge:true});
   b.set(ref.collection('data').doc('comms'),{comms:DB.comms||[],conferences:DB.conferences||[],concerns:DB.concerns||[],groups:DB.groups||[]},{merge:true});
   b.set(ref.collection('data').doc('planning'),{lessons:DB.lessons||[],subPlans:DB.subPlans||[],curriculum:DB.curriculum||[],tests:DB.tests||[],testScores:DB.testScores||{},assignments:DB.assignments||[]},{merge:true});
-  b.commit().then(function(){var si=document.getElementById('save-indicator');if(si){si.textContent='✓ Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}}).catch(function(e){console.warn('Save:',e);});
+  b.commit().then(function(){var si=document.getElementById('save-indicator');if(si){si.textContent='Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}}).catch(function(e){console.warn('Save:',e);});
 }
-
 function loadFromFirestore(){
   if(!currentUser){startApp();return;}
   var ref=fbDb.collection('teachers').doc(currentUser.uid);
   Promise.all([ref.collection('data').doc('main').get(),ref.collection('data').doc('students').get()]).then(function(docs){
-    var hasData=docs.some(function(d){return d.exists;});
-    if(hasData){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});}
+    var has=docs.some(function(d){return d.exists;});
+    if(has){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});}
     else{loadSampleData();}
     startApp();
     Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){});
   }).catch(function(){startApp();});
 }
-
 function load(){}
 function loadFromLocal(){}
-
 function startApp(){
   restoreCustomizations();restoreRowOrder();
   if(DB.setup&&DB.setup.panelWidth)panelW=DB.setup.panelWidth;
@@ -2769,34 +2752,32 @@ function startApp(){
   var now=new Date();var ct=document.getElementById('cm-time');
   if(ct)ct.value=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
 }
-
 function exportAllData(){
   var date=new Date().toISOString().split('T')[0];
   var name=currentUser?currentUser.email.split('@')[0]:'Teacher';
   var fn='TCC_Backup_'+name+'_'+date+'.json';
   var b=new Blob([JSON.stringify({version:1,exported:new Date().toISOString(),DB:DB},null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);
-  toast('✅ Backup saved to Downloads: '+fn);
+  toast('Backup saved to Downloads: '+fn);
 }
-
 function importBackupFile(input){
   var file=input.files[0];if(!file)return;
   if(!confirm('Restore from "'+file.name+'"? This replaces all current data.'))return;
   var r=new FileReader();
-  r.onload=function(e){try{var p=JSON.parse(e.target.result);if(!p.DB){alert('Invalid backup.');return;}Object.assign(DB,p.DB);save();updatePills();refreshAllPeriodTabs();applyFeatureToggles();toast('✅ Backup restored!');closeFull('setup');setTimeout(function(){openFull('setup');},100);}catch(err){alert('Error: '+err.message);}};
+  r.onload=function(e){try{var p=JSON.parse(e.target.result);if(!p.DB){alert('Invalid backup.');return;}Object.assign(DB,p.DB);save();updatePills();refreshAllPeriodTabs();applyFeatureToggles();toast('Backup restored!');closeFull('setup');setTimeout(function(){openFull('setup');},100);}catch(err){alert('Error: '+err.message);}};
   r.readAsText(file);input.value='';
 }
-
 function yearEndReset(){
-  if(!confirm('Year-End Reset:\n1. Data exported automatically\n2. Students/grades/behavior/attendance cleared\n3. Schedule and lessons kept\n\nContinue?'))return;
+  if(!confirm('Year-End Reset: auto-exports data then clears students, grades, behavior, and attendance. Keep schedule and lessons. Continue?'))return;
   exportAllData();
   setTimeout(function(){
     ['students','grades','behavior','missing','attendance','participation','comms','conferences','concerns','iep','smallGroups','seating','boyForms','tests','testScores','assignments'].forEach(function(k){DB[k]=Array.isArray(DB[k])?[]:{};});
-    if(DB.setup&&DB.setup.year){var m=DB.setup.year.match(/(\d{4})[\u2013-](\d{4})/);if(m)DB.setup.year=(parseInt(m[1])+1)+'\u2013'+(parseInt(m[2])+1);}
-    save();updatePills();toast('\uD83C\uDF89 Year-end reset complete!');
+    if(DB.setup&&DB.setup.year){var m=DB.setup.year.match(/(\d{4})[–-](\d{4})/);if(m)DB.setup.year=(parseInt(m[1])+1)+'–'+(parseInt(m[2])+1);}
+    save();updatePills();toast('Year-end reset complete!');
   },800);
 }
 
+/* ══ HEADER USER DISPLAY ══ */
 
 var DB_KEY='tcc_p1';
 var DEFAULT_SCHEDULE=[
@@ -7132,9 +7113,8 @@ function loadSampleData(){
   updatePills();
 }
 
-// App starts via Firebase auth → loadFromFirestore() → startApp()
+// Firebase auth drives startup via onAuthStateChanged → authDone() → loadFromFirestore() → startApp()
 </script>
-
 <!-- AUTH SCREEN -->
 <div id="auth-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#7b2ff7,#f107a3);display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;">
   <div style="background:#fff;border-radius:20px;padding:40px 36px;max-width:400px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.25);">
@@ -7165,4 +7145,58 @@ function loadSampleData(){
 <style>@keyframes spin{to{transform:rotate(360deg)}}#auth-overlay.hidden{display:none!important}</style>
 
 </body>
-</html>
+</html    <div class="sb-section-label">STUDENT</div>
+    <div class="sb-link sl-pink"   onclick="openFull('students')">Student Info</div>
+    <div class="sb-link sl-teal"   onclick="openFull('attendance')">Attendance</div>
+    <div class="sb-link sl-mint"   onclick="openFull('seating')">Seating Charts</div>
+    <div class="sb-link sl-purple" onclick="openFull('iep')">IEP / 504</div>
+    <div class="sb-link sl-coral opt-show" data-opt="behavior" onclick="openFull('behavior')">Behavior Log</div>
+    <div class="sb-link sl-peach opt-show" data-opt="missing" onclick="openFull('missing')">Missing Work</div>
+    <div class="sb-link sl-yellow opt-show" data-opt="participation" onclick="openFull('participation')">Participation</div>
+    <div class="sb-link sl-green opt-show" data-opt="smallgroups" onclick="openFull('smallgroups')">Small Groups</div>
+    <div class="sb-link sl-yellow opt-show" data-opt="boy" onclick="openFull('boy-dash')">BOY Dashboard</div>
+    <div class="sb-link sl-lav opt-show" data-opt="boy" onclick="openFull('boy')">BOY Forms</div>
+
+    <div class="sb-section-label">GRADES</div>
+    <div class="sb-link sl-mint"   onclick="openFull('grades')">Gradebook</div>
+    <div class="sb-link sl-pink"   onclick="openFull('dash-academic')">Grade Dashboard</div>
+    <div class="sb-link sl-green"  onclick="openFull('dash-progress')">Progress Reports</div>
+
+    <div class="sb-section-label">COMMUNICATION</div>
+    <div class="sb-link sl-peach"  onclick="openFull('comms')">Parent Comm Log</div>
+    <div class="sb-link sl-teal"   onclick="openFull('dash-commdash')">Comm Dashboard</div>
+    <div class="sb-link sl-lav opt-show" data-opt="conferences" onclick="openFull('conferences')">Conferences</div>
+    <div class="sb-link sl-coral opt-show" data-opt="counseling" onclick="openFull('counseling')">Student Concerns</div>
+    <div class="sb-link sl-lav"   onclick="openFull('dash-counseldash')">Concern Dashboard</div>
+
+    <div class="sb-section-label">PLANNING</div>
+    <div class="sb-link sl-yellow" onclick="openFull('planner')">Daily Planner</div>
+    <div class="sb-link sl-lav"    onclick="openFull('lessons')">Lesson Plans</div>
+    <div class="sb-link sl-coral"  onclick="openFull('subplans')">Sub Plans</div>
+    <div class="sb-link sl-peach"  onclick="openFull('tasks')">Task List</div>
+    <div class="sb-link sl-blue opt-show" data-opt="curriculum" onclick="openFull('curriculum')">Curriculum Map</div>
+
+    <div class="sb-section-label">DASHBOARDS</div>
+    <div class="sb-link sl-blue"   onclick="openFull('dash-master')">Master Dashboard</div>
+
+    <div class="sb-section-label">ROSTERS</div>
+    <div id="sb-roster-links"></div>
+
+    <div class="sb-section-label">REPORTS</div>
+    <div class="sb-link sl-lav"   onclick="openFull('rpt-student')">Student Summary</div>
+    <div class="sb-link sl-mint"  onclick="openFull('rpt-class')">Class Report</div>
+    <div class="sb-link sl-peach" onclick="openFull('rpt-missing')">Missing Work Report</div>
+    <div class="sb-link sl-green" onclick="openFull('rpt-grade')">Grade Report</div>
+    <div class="sb-link sl-blue"  onclick="openFull('rpt-comm')">Comm Report</div>
+    <div class="sb-link sl-coral" onclick="openFull('rpt-atrisk')">At-Risk Students</div>
+    <div class="sb-link sl-lav"   onclick="openFull('rpt-parent-meeting')">Parent Meeting</div>
+    <div class="sb-link sl-peach" onclick="openFull('rpt-sub')">Sub Packet</div>
+    <div class="sb-link sl-teal"  onclick="openFull('dismissal')">Dismissal List</div>
+    <div class="sb-link sl-lav opt-show" data-opt="counseling" onclick="openFull('rpt-comm-student')">Student Comm Report</div>
+    <div class="sb-link sl-yellow opt-show" data-opt="behavior" onclick="openFull('rpt-period-pattern')">Period Patterns</div>
+
+    <div class="sb-section-label">SETTINGS</div>
+    <div class="sb-link" style="border-left:3px solid #888" onclick="openFull('setup')">⚙️ Schedule Setup</div>
+    <div class="sb-link" style="border-left:3px solid var(--accent1)" onclick="openFull('feature-toggles')">🎛️ Customize Features</div>
+    <div class="sb-link" style="border-left:3px solid #059669" onclick="openFull('howto')">📖 How to Use</div>
+  >
