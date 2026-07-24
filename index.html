@@ -468,10 +468,7 @@ textarea{resize:vertical;min-height:64px}
           <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><rect x="8" y="6" width="32" height="36" rx="3"/><line x1="14" y1="16" x2="34" y2="16"/><line x1="14" y1="22" x2="34" y2="22"/><line x1="14" y1="28" x2="26" y2="28"/></svg></div></div>
           <div class="fl">Curriculum Map</div>
         </div>
-        <div class="folder-card" onclick="openFull('setup')">
-          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><circle cx="24" cy="24" r="8"/><path d="M24 4v4M24 40v4M4 24h4M40 24h4M9.4 9.4l2.8 2.8M35.8 35.8l2.8 2.8M9.4 38.6l2.8-2.8M35.8 12.2l2.8-2.8"/></svg></div></div>
-          <div class="fl">Schedule Setup</div>
-        </div>
+
       </div>
     </div>
 
@@ -6093,7 +6090,9 @@ function addScheduleRow(){
 }
 function removeScheduleRow(i){
   var sched=getSchedule().slice();sched.splice(i,1);
-  if(!DB.setup)DB.setup={};DB.setup.schedule=sched;save();renderScheduleRows();renderSetupPreview();
+  if(!DB.setup)DB.setup={};DB.setup.schedule=sched;save();
+  renderScheduleRows();renderSetupPreview();
+  updateHdrSubtitle(); // refreshes roster folders, tabs, and all period UI
 }
 function saveSchedule(){
   var sched=[];var rows=document.getElementById('schedule-rows');if(!rows)return;
