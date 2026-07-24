@@ -202,6 +202,10 @@ textarea{resize:vertical;min-height:64px}
 .empty{text-align:center;padding:28px;color:#c090c0;font-size:13px}
 .empty svg{width:36px;height:36px;margin:0 auto 8px;display:block;opacity:.4}
 </style>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -236,7 +240,7 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
   </div>
-  <div class="hdr-right">
+  <div class="hdr-right" style="display:flex;align-items:center;gap:8px"><div id="save-indicator" style="font-size:11px;color:rgba(255,255,255,.7);opacity:0;transition:opacity .5s;white-space:nowrap"></div><div id="user-display" style="display:flex;align-items:center;gap:6px"></div>
     <div class="hdr-date" id="hdr-date"></div>
     <div class="hdr-time" id="hdr-time"></div>
   </div>
@@ -2647,6 +2651,153 @@ textarea{resize:vertical;min-height:64px}
 </div>
 
 <script>
+/* ══ FIREBASE EMAIL/PASSWORD AUTH ══ */
+var firebaseConfig={apiKey:"AIzaSyDw_uOgBNmVDSzKzWw8-xQoWzVFyZbQWNo",authDomain:"teacher-command-center-88805.firebaseapp.com",projectId:"teacher-command-center-88805",storageBucket:"teacher-command-center-88805.firebasestorage.app",messagingSenderId:"284637394973",appId:"1:284637394973:web:a35f48286775fd799b6ef4"};
+firebase.initializeApp(firebaseConfig);
+var fbAuth=firebase.auth();
+var fbDb=firebase.firestore();
+fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+var currentUser=null;var saveTimeout=null;var authMode='signin';
+
+function authToggleMode(){
+  authMode=authMode==='signin'?'register':'signin';var r=authMode==='register';
+  document.getElementById('auth-subtitle').textContent=r?'Create your account':'Sign in to your account';
+  document.getElementById('auth-submit-btn').textContent=r?'Create Account':'Sign In';
+  document.getElementById('auth-toggle-btn').innerHTML=r?'Already have an account? <strong style="color:#7b2ff7">Sign In</strong>':'New teacher? <strong style="color:#7b2ff7">Create account</strong>';
+  document.getElementById('auth-password2').style.display=r?'block':'none';
+  document.getElementById('auth-forgot-btn').style.display=r?'none':'block';
+  document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-success').style.display='none';
+}
+
+function authSubmit(){
+  var email=(document.getElementById('auth-email').value||'').trim();
+  var pw=(document.getElementById('auth-password').value||'');
+  var errEl=document.getElementById('auth-error');
+  var loadEl=document.getElementById('auth-loading');
+  var btnEl=document.getElementById('auth-submit-btn');
+  errEl.style.display='none';
+  if(!email){errEl.style.display='block';errEl.textContent='Please enter your email address.';return;}
+  if(pw.length<6){errEl.style.display='block';errEl.textContent='Password must be at least 6 characters.';return;}
+  if(authMode==='register'){
+    var pw2=(document.getElementById('auth-password2').value||'');
+    if(pw!==pw2){errEl.style.display='block';errEl.textContent='Passwords do not match.';return;}
+  }
+  loadEl.style.display='block';btnEl.style.display='none';
+  var fn=authMode==='register'?fbAuth.createUserWithEmailAndPassword.bind(fbAuth):fbAuth.signInWithEmailAndPassword.bind(fbAuth);
+  fn(email,pw).then(function(c){currentUser=c.user;authSuccess();}).catch(function(e){authShowError(e,loadEl,btnEl);});
+}
+
+function authForgotPassword(){
+  var email=(document.getElementById('auth-email').value||'').trim();
+  var errEl=document.getElementById('auth-error');var sucEl=document.getElementById('auth-success');
+  errEl.style.display='none';sucEl.style.display='none';
+  if(!email){errEl.style.display='block';errEl.textContent='Enter your email address above first.';return;}
+  fbAuth.sendPasswordResetEmail(email).then(function(){sucEl.style.display='block';sucEl.textContent='✅ Reset email sent to '+email+'. Check your inbox.';}).catch(function(e){authShowError(e,null,null);});
+}
+
+function authShowError(err,loadEl,btnEl){
+  if(loadEl)loadEl.style.display='none';if(btnEl)btnEl.style.display='block';
+  var errEl=document.getElementById('auth-error');errEl.style.display='block';
+  var msgs={'auth/user-not-found':'No account found. Click "Create account" to register.','auth/wrong-password':'Incorrect password. Try again or reset it.','auth/email-already-in-use':'Account exists. Click "Sign In".','auth/invalid-email':'Enter a valid email address.','auth/weak-password':'Password must be at least 6 characters.','auth/too-many-requests':'Too many attempts. Wait a few minutes.','auth/invalid-credential':'Incorrect email or password. Please try again.'};
+  errEl.textContent=msgs[err.code]||err.message;
+}
+
+function authSuccess(){
+  var o=document.getElementById('auth-overlay');if(o){o.style.transition='opacity .3s';o.style.opacity='0';setTimeout(function(){o.classList.add('hidden');o.style.opacity='1';},300);}
+  var uel=document.getElementById('user-display');
+  if(uel&&currentUser)uel.innerHTML='<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+currentUser.email+'</span><button onclick="authSignOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:6px">Sign out</button>';
+  loadFromFirestore();
+}
+
+function authSignOut(){
+  if(!confirm('Sign out?'))return;
+  fbAuth.signOut().then(function(){
+    currentUser=null;
+    Object.keys(DB).forEach(function(k){if(Array.isArray(DB[k]))DB[k]=[];else if(typeof DB[k]==='object'&&k!=='setup')DB[k]={};});
+    var o=document.getElementById('auth-overlay');if(o)o.classList.remove('hidden');
+    var uel=document.getElementById('user-display');if(uel)uel.innerHTML='';
+    ['auth-email','auth-password'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+    document.getElementById('auth-error').style.display='none';
+    document.getElementById('auth-loading').style.display='none';
+    document.getElementById('auth-submit-btn').style.display='block';
+    authMode='signin';
+  });
+}
+
+fbAuth.onAuthStateChanged(function(user){
+  if(user){currentUser=user;authSuccess();}
+  else{var o=document.getElementById('auth-overlay');if(o)o.classList.remove('hidden');}
+});
+
+/* ══ FIRESTORE ══ */
+function save(){if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(saveToFirestore,400);}
+
+function saveToFirestore(){
+  if(!currentUser)return;
+  var ref=fbDb.collection('teachers').doc(currentUser.uid);
+  var b=fbDb.batch();
+  b.set(ref.collection('data').doc('main'),{setup:DB.setup||{},tasks:DB.tasks||[],calendarEvents:DB.calendarEvents||[],plannerNotes:DB.plannerNotes||{},subInfo:DB.subInfo||{},customOptions:DB.customOptions||{}},{merge:true});
+  b.set(ref.collection('data').doc('students'),{students:DB.students||[],grades:DB.grades||{},seating:DB.seating||{},boyForms:DB.boyForms||{}},{merge:true});
+  b.set(ref.collection('data').doc('tracking'),{missing:DB.missing||[],participation:DB.participation||[],behavior:DB.behavior||[],attendance:DB.attendance||{},iep:DB.iep||[],smallGroups:DB.smallGroups||[]},{merge:true});
+  b.set(ref.collection('data').doc('comms'),{comms:DB.comms||[],conferences:DB.conferences||[],concerns:DB.concerns||[],groups:DB.groups||[]},{merge:true});
+  b.set(ref.collection('data').doc('planning'),{lessons:DB.lessons||[],subPlans:DB.subPlans||[],curriculum:DB.curriculum||[],tests:DB.tests||[],testScores:DB.testScores||{},assignments:DB.assignments||[]},{merge:true});
+  b.commit().then(function(){var si=document.getElementById('save-indicator');if(si){si.textContent='✓ Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}}).catch(function(e){console.warn('Save:',e);});
+}
+
+function loadFromFirestore(){
+  if(!currentUser){startApp();return;}
+  var ref=fbDb.collection('teachers').doc(currentUser.uid);
+  Promise.all([ref.collection('data').doc('main').get(),ref.collection('data').doc('students').get()]).then(function(docs){
+    var hasData=docs.some(function(d){return d.exists;});
+    if(hasData){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});}
+    else{loadSampleData();}
+    startApp();
+    Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){});
+  }).catch(function(){startApp();});
+}
+
+function load(){}
+function loadFromLocal(){}
+
+function startApp(){
+  restoreCustomizations();restoreRowOrder();
+  if(DB.setup&&DB.setup.panelWidth)panelW=DB.setup.panelWidth;
+  initPanelResize();updatePills();refreshAllPeriodTabs();applyFeatureToggles();tick();setInterval(tick,10000);
+  var today=new Date().toISOString().split('T')[0];
+  ['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value)e.value=today;});
+  var now=new Date();var ct=document.getElementById('cm-time');
+  if(ct)ct.value=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+
+function exportAllData(){
+  var date=new Date().toISOString().split('T')[0];
+  var name=currentUser?currentUser.email.split('@')[0]:'Teacher';
+  var fn='TCC_Backup_'+name+'_'+date+'.json';
+  var b=new Blob([JSON.stringify({version:1,exported:new Date().toISOString(),DB:DB},null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);
+  toast('✅ Backup saved to Downloads: '+fn);
+}
+
+function importBackupFile(input){
+  var file=input.files[0];if(!file)return;
+  if(!confirm('Restore from "'+file.name+'"? This replaces all current data.'))return;
+  var r=new FileReader();
+  r.onload=function(e){try{var p=JSON.parse(e.target.result);if(!p.DB){alert('Invalid backup.');return;}Object.assign(DB,p.DB);save();updatePills();refreshAllPeriodTabs();applyFeatureToggles();toast('✅ Backup restored!');closeFull('setup');setTimeout(function(){openFull('setup');},100);}catch(err){alert('Error: '+err.message);}};
+  r.readAsText(file);input.value='';
+}
+
+function yearEndReset(){
+  if(!confirm('Year-End Reset:\n1. Data exported automatically\n2. Students/grades/behavior/attendance cleared\n3. Schedule and lessons kept\n\nContinue?'))return;
+  exportAllData();
+  setTimeout(function(){
+    ['students','grades','behavior','missing','attendance','participation','comms','conferences','concerns','iep','smallGroups','seating','boyForms','tests','testScores','assignments'].forEach(function(k){DB[k]=Array.isArray(DB[k])?[]:{};});
+    if(DB.setup&&DB.setup.year){var m=DB.setup.year.match(/(\d{4})[\u2013-](\d{4})/);if(m)DB.setup.year=(parseInt(m[1])+1)+'\u2013'+(parseInt(m[2])+1);}
+    save();updatePills();toast('\uD83C\uDF89 Year-end reset complete!');
+  },800);
+}
+
+
 var DB_KEY='tcc_p1';
 var DEFAULT_SCHEDULE=[
   {label:'Homeroom',start:'8:00',end:'8:10',type:'Homeroom'},
@@ -6981,23 +7132,37 @@ function loadSampleData(){
   updatePills();
 }
 
-load();
-// Load sample data if DB is empty
-if(!DB.students.length){loadSampleData();}
-restoreCustomizations();
-restoreRowOrder();
-if(DB.setup&&DB.setup.panelWidth)panelW=DB.setup.panelWidth;
-initPanelResize();
-updatePills();
-refreshAllPeriodTabs();
-applyFeatureToggles();
-tick();
-setInterval(tick,10000);
-
-var today=new Date().toISOString().split('T')[0];
-['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(f){var e=document.getElementById(f);if(e&&!e.value)e.value=today;});
-var now=new Date();var h=now.getHours();var m=now.getMinutes();var ts=h.toString().padStart(2,'0')+':'+m.toString().padStart(2,'0');
-var ct=document.getElementById('cm-time');if(ct)ct.value=ts;
+// App starts via Firebase auth → loadFromFirestore() → startApp()
 </script>
+
+<!-- AUTH SCREEN -->
+<div id="auth-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#7b2ff7,#f107a3);display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;">
+  <div style="background:#fff;border-radius:20px;padding:40px 36px;max-width:400px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.25);">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:40px;margin-bottom:8px">⭐</div>
+      <div style="font-size:22px;font-weight:900;color:#1a1a2e">Teacher Command Center</div>
+      <div id="auth-subtitle" style="font-size:13px;color:#888;margin-top:4px">Sign in to your account</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <input id="auth-email" type="email" placeholder="Email address" style="padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
+      <input id="auth-password" type="password" placeholder="Password (min 6 characters)" style="padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()">
+      <input id="auth-password2" type="password" placeholder="Confirm password" style="display:none;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <div id="auth-error" style="display:none;margin-top:10px;padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626"></div>
+    <div id="auth-success" style="display:none;margin-top:10px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534"></div>
+    <button id="auth-submit-btn" onclick="authSubmit()" style="margin-top:16px;width:100%;padding:13px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">Sign In</button>
+    <div id="auth-loading" style="display:none;text-align:center;margin-top:12px">
+      <div style="width:24px;height:24px;border:3px solid #f0f0f0;border-top-color:#7b2ff7;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 6px"></div>
+      <div style="font-size:12px;color:#888">Please wait...</div>
+    </div>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;text-align:center">
+      <button id="auth-forgot-btn" onclick="authForgotPassword()" style="background:none;border:none;color:#7b2ff7;font-size:12px;cursor:pointer;text-decoration:underline">Forgot password? Send reset email</button>
+      <div style="font-size:11px;color:#ddd">───────────────────</div>
+      <button id="auth-toggle-btn" onclick="authToggleMode()" style="background:none;border:none;color:#555;font-size:13px;cursor:pointer">New teacher? <strong style="color:#7b2ff7">Create account</strong></button>
+    </div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}#auth-overlay.hidden{display:none!important}</style>
+
 </body>
 </html>
