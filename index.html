@@ -203,10 +203,31 @@ textarea{resize:vertical;min-height:64px}
 .empty svg{width:36px;height:36px;margin:0 auto 8px;display:block;opacity:.4}
 </style>
 
-  <!-- Firebase SDK (compat version - works in plain HTML) -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <!-- Firebase SDK - single module bundle for faster load -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDw_uOgBNmVDSzKzWw8-xQoWzVFyZbQWNo",
+      authDomain: "teacher-command-center-88805.firebaseapp.com",
+      projectId: "teacher-command-center-88805",
+      storageBucket: "teacher-command-center-88805.firebasestorage.app",
+      messagingSenderId: "284637394973",
+      appId: "1:284637394973:web:a35f48286775fd799b6ef4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Expose to global scope for the main script
+    window._firebase = { auth, db, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, fbSignOut, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp };
+
+    // Notify main script Firebase is ready
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
 </head>
 <body>
 
@@ -2657,18 +2678,8 @@ textarea{resize:vertical;min-height:64px}
 /* ══════════════════════════════════════════════════════
    FIREBASE CONFIGURATION & INITIALIZATION
 ══════════════════════════════════════════════════════ */
-var firebaseConfig = {
-  apiKey: "AIzaSyDw_uOgBNmVDSzKzWw8-xQoWzVFyZbQWNo",
-  authDomain: "teacher-command-center-88805.firebaseapp.com",
-  projectId: "teacher-command-center-88805",
-  storageBucket: "teacher-command-center-88805.firebasestorage.app",
-  messagingSenderId: "284637394973",
-  appId: "1:284637394973:web:a35f48286775fd799b6ef4"
-};
-
-firebase.initializeApp(firebaseConfig);
-var db = firebase.firestore();
-var auth = firebase.auth();
+// Firebase initialized via ES module — db and auth set when firebase-ready fires
+var db = null, auth = null;
 
 var currentUser = null;
 var saveTimeout = null;
@@ -2685,11 +2696,10 @@ function signInWithGoogle(){
   if(loading) loading.style.display = 'block';
   if(errEl) errEl.style.display = 'none';
 
-  var provider = new firebase.auth.GoogleAuthProvider();
-  // Force personal account selection every time
+  var f = window._firebase; if(!f){toast('Firebase not ready yet, please wait');return;}
+  var provider = new f.GoogleAuthProvider();
   provider.setCustomParameters({prompt: 'select_account'});
-
-  auth.signInWithPopup(provider).catch(function(err){
+  f.signInWithPopup(f.auth, provider).catch(function(err){
     if(btn) btn.style.display = 'flex';
     if(loading) loading.style.display = 'none';
     if(errEl){
@@ -2701,7 +2711,8 @@ function signInWithGoogle(){
 
 function signOut(){
   if(!confirm('Sign out? Make sure your data is saved.')) return;
-  auth.signOut().then(function(){
+  var f=window._firebase;if(!f)return;
+  f.fbSignOut(f.auth).then(function(){
     document.getElementById('auth-overlay').classList.remove('hidden');
     var btn = document.getElementById('google-signin-btn');
     var loading = document.getElementById('auth-loading');
@@ -2711,7 +2722,10 @@ function signOut(){
 }
 
 // Listen for auth state changes
-auth.onAuthStateChanged(function(user){
+window.addEventListener('firebase-ready', function(){
+  var f = window._firebase;
+  db = f.db; auth = f.auth;
+  f.onAuthStateChanged(f.auth, function(user){
   if(user){
     currentUser = user;
     // Show loading in overlay while data loads
@@ -2736,14 +2750,22 @@ auth.onAuthStateChanged(function(user){
     var overlay = document.getElementById('auth-overlay');
     if(overlay) overlay.classList.remove('hidden');
   }
-});
+  }); // end onAuthStateChanged
+}); // end firebase-ready
 
 /* ══════════════════════════════════════════════════════
    FIRESTORE SAVE / LOAD
 ══════════════════════════════════════════════════════ */
 function getUserDoc(){
-  if(!currentUser) return null;
-  return db.collection('teachers').doc(currentUser.uid);
+  if(!currentUser||!db) return null;
+  var f=window._firebase;
+  return f.doc(f.collection(db,'teachers',currentUser.uid,'data'),'__ref__');
+}
+
+function getDataDoc(name){
+  if(!currentUser||!db)return null;
+  var f=window._firebase;
+  return f.doc(db,'teachers',currentUser.uid,'data',name);
 }
 
 function save(){
@@ -2760,8 +2782,8 @@ function save(){
 }
 
 function saveToFirestore(){
-  var docRef = getUserDoc();
-  if(!docRef) return;
+  if(!currentUser||!db)return;
+  var f=window._firebase;
   // Split DB into chunks — Firestore has 1MB doc limit
   // Store main data in one doc, large arrays separately
   var mainData = {
@@ -2771,7 +2793,7 @@ function saveToFirestore(){
     calendarEvents: DB.calendarEvents||[],
     tasks: DB.tasks||[],
     subInfo: DB.subInfo||{},
-    lastSaved: firebase.firestore.FieldValue.serverTimestamp()
+    lastSaved: f.serverTimestamp()
   };
   var studentData = {
     students: DB.students||[],
@@ -2802,12 +2824,12 @@ function saveToFirestore(){
     assignments: DB.assignments||[]
   };
 
-  var batch = db.batch();
-  batch.set(docRef.collection('data').doc('main'), mainData, {merge:true});
-  batch.set(docRef.collection('data').doc('students'), studentData, {merge:true});
-  batch.set(docRef.collection('data').doc('tracking'), trackingData, {merge:true});
-  batch.set(docRef.collection('data').doc('comms'), commData, {merge:true});
-  batch.set(docRef.collection('data').doc('planning'), planningData, {merge:true});
+  var batch = f.writeBatch(db);
+  batch.set(f.doc(db,'teachers',currentUser.uid,'data','main'), mainData, {merge:true});
+  batch.set(f.doc(db,'teachers',currentUser.uid,'data','students'), studentData, {merge:true});
+  batch.set(f.doc(db,'teachers',currentUser.uid,'data','tracking'), trackingData, {merge:true});
+  batch.set(f.doc(db,'teachers',currentUser.uid,'data','comms'), commData, {merge:true});
+  batch.set(f.doc(db,'teachers',currentUser.uid,'data','planning'), planningData, {merge:true});
 
   batch.commit().then(function(){
     var si = document.getElementById('save-indicator');
@@ -2841,9 +2863,10 @@ function loadFromFirestore(){
 
   // Load all 5 chunks in parallel
   // Load critical data first (main + students), then rest in background
+  var f=window._firebase;
   Promise.all([
-    docRef.collection('data').doc('main').get(),
-    docRef.collection('data').doc('students').get()
+    f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','main')),
+    f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','students'))
   ]).then(function(docs){
     var hasData = docs.some(function(d){return d.exists;});
     if(hasData){
@@ -2861,9 +2884,9 @@ function loadFromFirestore(){
     // Load remaining data in background
     if(hasData){
       Promise.all([
-        docRef.collection('data').doc('tracking').get(),
-        docRef.collection('data').doc('comms').get(),
-        docRef.collection('data').doc('planning').get()
+        f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','tracking')),
+        f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','comms')),
+        f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','planning'))
       ]).then(function(rest){
         var track = rest[0].exists ? rest[0].data() : {};
         var comms = rest[1].exists ? rest[1].data() : {};
