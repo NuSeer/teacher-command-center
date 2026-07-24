@@ -202,32 +202,6 @@ textarea{resize:vertical;min-height:64px}
 .empty{text-align:center;padding:28px;color:#c090c0;font-size:13px}
 .empty svg{width:36px;height:36px;margin:0 auto 8px;display:block;opacity:.4}
 </style>
-
-  <!-- Firebase SDK - single module bundle for faster load -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDw_uOgBNmVDSzKzWw8-xQoWzVFyZbQWNo",
-      authDomain: "teacher-command-center-88805.firebaseapp.com",
-      projectId: "teacher-command-center-88805",
-      storageBucket: "teacher-command-center-88805.firebasestorage.app",
-      messagingSenderId: "284637394973",
-      appId: "1:284637394973:web:a35f48286775fd799b6ef4"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // Expose to global scope for the main script
-    window._firebase = { auth, db, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, fbSignOut, setPersistence, browserLocalPersistence, doc, collection, getDoc, setDoc, writeBatch, serverTimestamp };
-
-    // Notify main script Firebase is ready
-    window.dispatchEvent(new Event('firebase-ready'));
-  </script>
 </head>
 <body>
 
@@ -262,9 +236,7 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
   </div>
-  <div class="hdr-right" style="display:flex;align-items:center;gap:10px">
-        <div id="save-indicator" style="font-size:11px;color:rgba(255,255,255,.7);opacity:0;transition:opacity .5s;white-space:nowrap"></div>
-        <div id="user-display" style="display:flex;align-items:center;gap:6px"></div>
+  <div class="hdr-right">
     <div class="hdr-date" id="hdr-date"></div>
     <div class="hdr-time" id="hdr-time"></div>
   </div>
@@ -2675,287 +2647,6 @@ textarea{resize:vertical;min-height:64px}
 </div>
 
 <script>
-/* ══════════════════════════════════════════════════════
-   FIREBASE CONFIGURATION & INITIALIZATION
-══════════════════════════════════════════════════════ */
-// Firebase initialized via ES module — db and auth set when firebase-ready fires
-var db = null, auth = null;
-
-var currentUser = null;
-var saveTimeout = null;
-// Storage: Firebase Firestore only
-
-/* ══════════════════════════════════════════════════════
-   AUTHENTICATION
-══════════════════════════════════════════════════════ */
-function signInWithGoogle(){
-  var btn = document.getElementById('google-signin-btn');
-  var loading = document.getElementById('auth-loading');
-  var errEl = document.getElementById('auth-error');
-  if(btn) btn.style.display = 'none';
-  if(loading) loading.style.display = 'block';
-  if(errEl) errEl.style.display = 'none';
-
-  // If Firebase not ready yet, wait for it (max 5 seconds)
-  var f = window._firebase;
-  if(!f){
-    var waited = 0;
-    var waitInterval = setInterval(function(){
-      waited += 100;
-      f = window._firebase;
-      if(f){ clearInterval(waitInterval); doSignIn(f); }
-      else if(waited > 5000){ 
-        clearInterval(waitInterval);
-        if(btn)btn.style.display='flex';
-        if(loading)loading.style.display='none';
-        if(errEl){errEl.style.display='block';errEl.textContent='Connection timeout. Please refresh and try again.';}
-      }
-    }, 100);
-    return;
-  }
-  doSignIn(f);
-}
-
-function doSignIn(f){
-  var btn = document.getElementById('google-signin-btn');
-  var loading = document.getElementById('auth-loading');
-  var errEl = document.getElementById('auth-error');
-  // Set persistence to LOCAL so teacher stays signed in permanently
-  f.setPersistence(f.auth, f.browserLocalPersistence).then(function(){
-    var provider = new f.GoogleAuthProvider();
-    provider.setCustomParameters({prompt: 'select_account'});
-    return f.signInWithPopup(f.auth, provider);
-  }).catch(function(err){
-    if(btn) btn.style.display = 'flex';
-    if(loading) loading.style.display = 'none';
-    if(errEl){
-      errEl.style.display = 'block';
-      // Friendly error messages
-      var msg = err.message;
-      if(err.code === 'auth/popup-closed-by-user') msg = 'Sign-in cancelled. Click the button to try again.';
-      if(err.code === 'auth/popup-blocked') msg = 'Popup blocked. Please allow popups for this site and try again.';
-      if(err.code === 'auth/unauthorized-domain') msg = 'Domain not authorized. Contact support.';
-      errEl.textContent = msg;
-    }
-  });
-}
-
-function signOut(){
-  if(!confirm('Sign out? Make sure your data is saved.')) return;
-  var f=window._firebase;if(!f)return;
-  f.fbSignOut(f.auth).then(function(){
-    document.getElementById('auth-overlay').classList.remove('hidden');
-    var btn = document.getElementById('google-signin-btn');
-    var loading = document.getElementById('auth-loading');
-    if(btn) btn.style.display = 'flex';
-    if(loading) loading.style.display = 'none';
-  });
-}
-
-// Listen for auth state changes
-window.addEventListener('firebase-ready', function(){
-  var f = window._firebase;
-  db = f.db; auth = f.auth;
-  f.onAuthStateChanged(f.auth, function(user){
-  if(user){
-    currentUser = user;
-    // Show loading in overlay while data loads
-    var loadDiv = document.getElementById('auth-loading');
-    var btnDiv = document.getElementById('google-signin-btn');
-    if(loadDiv){loadDiv.style.display='block';loadDiv.querySelector('div').style.display='none';loadDiv.innerHTML='<div style="font-size:14px;color:#7b2ff7;font-weight:700">✓ Signed in! Loading your data...</div><div style="width:28px;height:28px;border:3px solid #f0f0f0;border-top-color:#7b2ff7;border-radius:50%;animation:spin .8s linear infinite;margin:10px auto 0"></div>';}
-    if(btnDiv)btnDiv.style.display='none';
-    // Show user info in header
-    var userEl = document.getElementById('user-display');
-    if(userEl){
-      userEl.innerHTML = '<img src="'+user.photoURL+'" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.5)" title="'+user.displayName+' ('+user.email+')">'
-        + '<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+user.email+'">'+user.displayName.split(' ')[0]+'</span>'
-        + '<button onclick="signOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer">Sign out</button>';
-    }
-    // Fade out overlay instantly — teacher goes straight to hub
-    var overlay = document.getElementById('auth-overlay');
-    if(overlay){overlay.style.opacity='0';setTimeout(function(){overlay.classList.add('hidden');overlay.style.opacity='1';},300);}
-    // Load data from Firestore
-    loadFromFirestore();
-  } else {
-    currentUser = null;
-    var overlay = document.getElementById('auth-overlay');
-    if(overlay) overlay.classList.remove('hidden');
-  }
-  }); // end onAuthStateChanged
-}); // end firebase-ready
-
-/* ══════════════════════════════════════════════════════
-   FIRESTORE SAVE / LOAD
-══════════════════════════════════════════════════════ */
-function getUserDoc(){
-  if(!currentUser||!db) return null;
-  var f=window._firebase;
-  return f.doc(f.collection(db,'teachers',currentUser.uid,'data'),'__ref__');
-}
-
-function getDataDoc(name){
-  if(!currentUser||!db)return null;
-  var f=window._firebase;
-  return f.doc(db,'teachers',currentUser.uid,'data',name);
-}
-
-function save(){
-  // Save to Firebase (debounced 300ms)
-  if(saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(function(){
-    saveToFirestore();
-  }, 300);
-}
-
-function saveToFirestore(){
-  if(!currentUser||!db)return;
-  var f=window._firebase;
-  // Split DB into chunks — Firestore has 1MB doc limit
-  // Store main data in one doc, large arrays separately
-  var mainData = {
-    setup: DB.setup||{},
-    customOptions: DB.customOptions||{},
-    plannerNotes: DB.plannerNotes||{},
-    calendarEvents: DB.calendarEvents||[],
-    tasks: DB.tasks||[],
-    subInfo: DB.subInfo||{},
-    lastSaved: f.serverTimestamp()
-  };
-  var studentData = {
-    students: DB.students||[],
-    grades: DB.grades||{},
-    seating: DB.seating||{},
-    boyForms: DB.boyForms||{}
-  };
-  var trackingData = {
-    missing: DB.missing||[],
-    participation: DB.participation||[],
-    behavior: DB.behavior||[],
-    attendance: DB.attendance||{},
-    iep: DB.iep||[],
-    smallGroups: DB.smallGroups||[]
-  };
-  var commData = {
-    comms: DB.comms||[],
-    conferences: DB.conferences||[],
-    concerns: DB.concerns||[],
-    groups: DB.groups||[]
-  };
-  var planningData = {
-    lessons: DB.lessons||[],
-    subPlans: DB.subPlans||[],
-    curriculum: DB.curriculum||[],
-    tests: DB.tests||[],
-    testScores: DB.testScores||{},
-    assignments: DB.assignments||[]
-  };
-
-  var batch = f.writeBatch(db);
-  batch.set(f.doc(db,'teachers',currentUser.uid,'data','main'), mainData, {merge:true});
-  batch.set(f.doc(db,'teachers',currentUser.uid,'data','students'), studentData, {merge:true});
-  batch.set(f.doc(db,'teachers',currentUser.uid,'data','tracking'), trackingData, {merge:true});
-  batch.set(f.doc(db,'teachers',currentUser.uid,'data','comms'), commData, {merge:true});
-  batch.set(f.doc(db,'teachers',currentUser.uid,'data','planning'), planningData, {merge:true});
-
-  batch.commit().then(function(){
-    var si = document.getElementById('save-indicator');
-    if(si){si.textContent='✓ Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}
-  }).catch(function(err){
-    console.warn('Firestore save error:', err);
-    var si = document.getElementById('save-indicator');
-    if(si){si.textContent='⚠ Save failed';si.style.color='#fca5a5';si.style.opacity='1';}
-  });
-}
-
-function loadFromFirestore(){
-  var docRef = getUserDoc();
-  if(!docRef){
-    loadFromLocal();
-    startApp();
-    return;
-  }
-
-  var si = document.getElementById('save-indicator');
-  if(si){si.textContent='Loading...';si.style.opacity='1';}
-
-  // Load from Firebase only
-
-  // Load all 5 chunks in parallel
-  // Load critical data first (main + students), then rest in background
-  var f=window._firebase;
-  Promise.all([
-    f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','main')),
-    f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','students'))
-  ]).then(function(docs){
-    var hasData = docs.some(function(d){return d.exists;});
-    if(hasData){
-      var main  = docs[0].exists ? docs[0].data() : {};
-      var studs = docs[1].exists ? docs[1].data() : {};
-      Object.assign(DB, main, studs);
-      delete DB.lastSaved;
-    } else {
-      loadFromLocal();
-      if(!DB.students.length) loadSampleData();
-    }
-    // Start app immediately with core data
-    startApp();
-    if(si){si.textContent='✓ Ready';setTimeout(function(){si.style.opacity='0';},2000);}
-    // Load remaining data in background
-    if(hasData){
-      Promise.all([
-        f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','tracking')),
-        f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','comms')),
-        f.getDoc(f.doc(db,'teachers',currentUser.uid,'data','planning'))
-      ]).then(function(rest){
-        var track = rest[0].exists ? rest[0].data() : {};
-        var comms = rest[1].exists ? rest[1].data() : {};
-        var plan  = rest[2].exists ? rest[2].data() : {};
-        Object.assign(DB, track, comms, plan);
-        delete DB.lastSaved;
-        // Data loaded from Firebase
-        // Refresh any open panels quietly
-        updatePills();
-        refreshAllPeriodTabs();
-      }).catch(function(e){console.warn('Background load error:',e);});
-    }
-  }).catch(function(err){
-    console.warn('Firestore load error:', err);
-    loadFromLocal();
-    startApp();
-  });
-}
-
-function loadFromLocal(){
-  // localStorage removed — Firebase is the only storage
-}
-
-/* ══════════════════════════════════════════════════════
-   APP STARTUP — called after auth + data load
-══════════════════════════════════════════════════════ */
-function startApp(){
-  // Critical path first — show hub immediately
-  restoreCustomizations();
-  restoreRowOrder();
-  if(DB.setup&&DB.setup.panelWidth) panelW=DB.setup.panelWidth;
-  initPanelResize();
-  updatePills();
-  tick();
-  // Defer non-critical setup to next frame
-  requestAnimationFrame(function(){
-    refreshAllPeriodTabs();
-    applyFeatureToggles();
-    setInterval(tick,10000);
-    var today=new Date().toISOString().split('T')[0];
-    ['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(f){
-      var e=document.getElementById(f);if(e&&!e.value)e.value=today;
-    });
-    var now=new Date();
-    var ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-    var ct=document.getElementById('cm-time');if(ct)ct.value=ts;
-  });
-}
-
-
 var DB_KEY='tcc_p1';
 var DEFAULT_SCHEDULE=[
   {label:'Homeroom',start:'8:00',end:'8:10',type:'Homeroom'},
@@ -3013,8 +2704,18 @@ function getSchedule(){return (DB.setup&&DB.setup.schedule&&DB.setup.schedule.le
 var BOY_FORMS=['Emergency Form','Media Release','Tech Agreement','Supply List','Parent Contact','Handbook Sig','Lunch App','IEP/504 Form','Health Form'];
 var curGradePeriod=(function(){var s=getSchedule().filter(function(r){return r.type==='Class';});var m=s[0]&&s[0].label.match(/\d+/);return m?m[0]:'1';})();
 
-function save(){if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(function(){saveToFirestore();},300);}
-function load(){/* Firebase handles loading */}
+function save(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}}
+function load(){try{var r=localStorage.getItem(DB_KEY);if(r){var p=JSON.parse(r);DB=Object.assign(DB,p);}}catch(e){}}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
+
+/* CLOCK */
+function tick(){
+  var n=new Date();
+  document.getElementById('hdr-date').textContent=n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  var h=n.getHours(),m=n.getMinutes(),ap=h>=12?'PM':'AM';h=h%12||12;
+  document.getElementById('hdr-time').textContent=h+':'+(m<10?'0':'')+m+' '+ap;
+}
 
 /* NAVIGATION */
 var panelW=380;
@@ -5850,7 +5551,7 @@ function printReport(type){
     +'<button onclick="window.close()" style="padding:8px 16px;background:#ccc;color:#333;border:none;border-radius:6px;font-size:13px;cursor:pointer">✕ Close</button>'
     +'<span style="font-size:12px;color:#666">Tip: In print dialog, choose "Save as PDF" to save</span>'
     +'</div>'
-    +html+'</html>');
+    +html+'</body></html>');
   w.document.close();
   w.focus();
 }
@@ -6682,13 +6383,7 @@ function printHowTo(){
   w.document.write('<div class="no-print"><button onclick="window.print()" style="padding:8px 20px;background:#333;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer">🖨️ Print Guide</button><button onclick="window.close()" style="padding:8px 16px;background:#ccc;color:#333;border:none;border-radius:6px;font-size:13px;cursor:pointer">✕ Close</button></div>');
   w.document.write('<h1>📖 Teacher Command Center — How to Use</h1><p style="color:#555;margin-bottom:14px">'+esc(teacher)+(school?' · '+esc(school):'')+'</p>');
   var el=document.querySelector('#fp-howto .fp-body');
-  if(el){
-    // Clone and remove auth overlay from print output
-    var clone=el.cloneNode(true);
-    var overlay=clone.querySelector('#auth-overlay');
-    if(overlay)overlay.remove();
-    w.document.write(clone.innerHTML);
-  }
+  if(el)w.document.write(el.innerHTML);
   w.document.write('</body></html>');
   w.document.close();w.focus();
 }
@@ -6987,8 +6682,7 @@ function exportAllData(){
   a.download=filename;
   a.click();
   URL.revokeObjectURL(a.href);
-  var userLabel = currentUser ? ' ('+currentUser.email+')' : '';
-  toast('✅ Backup saved to Downloads: '+filename+userLabel+' — store this file safely!');
+  toast('✅ Backup saved to your Downloads folder: '+filename+' — keep this file safe!');
 }
 
 function importBackupFile(input){
@@ -7000,17 +6694,11 @@ function importBackupFile(input){
       var parsed=JSON.parse(e.target.result);
       if(!parsed.DB){alert('Invalid backup file.');return;}
       Object.assign(DB,parsed.DB);
-      // Save to Firebase
-      // Save to Firestore if signed in
-      if(currentUser){
-        saveToFirestore();
-        toast('✅ Backup restored and synced to your account! Available on all devices.');
-      } else {
-        toast('✅ Backup restored locally.');
-      }
+      save();
       updatePills();
       refreshAllPeriodTabs();
       applyFeatureToggles();
+      toast('✅ Backup restored successfully!');
       closeFull('setup');
       setTimeout(function(){openFull('setup');},100);
     }catch(err){
@@ -7293,101 +6981,23 @@ function loadSampleData(){
   updatePills();
 }
 
-// Startup handled by Firebase auth state change → loadFromFirestore() → startApp()
+load();
+// Load sample data if DB is empty
+if(!DB.students.length){loadSampleData();}
+restoreCustomizations();
+restoreRowOrder();
+if(DB.setup&&DB.setup.panelWidth)panelW=DB.setup.panelWidth;
+initPanelResize();
+updatePills();
+refreshAllPeriodTabs();
+applyFeatureToggles();
+tick();
+setInterval(tick,10000);
+
+var today=new Date().toISOString().split('T')[0];
+['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(f){var e=document.getElementById(f);if(e&&!e.value)e.value=today;});
+var now=new Date();var h=now.getHours();var m=now.getMinutes();var ts=h.toString().padStart(2,'0')+':'+m.toString().padStart(2,'0');
+var ct=document.getElementById('cm-time');if(ct)ct.value=ts;
 </script>
-
-<!-- ══════════════════════════════════════════
-     FIREBASE AUTH OVERLAY
-══════════════════════════════════════════ -->
-<div id="auth-overlay" class="no-print" style="
-  position:fixed;inset:0;z-index:99999;
-  background:linear-gradient(135deg,#7b2ff7,#f107a3);
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Nunito',sans-serif;
-  transition:opacity .3s;
-">
-  <div style="
-    background:#fff;border-radius:20px;padding:48px 44px;
-    max-width:420px;width:90%;text-align:center;
-    box-shadow:0 24px 60px rgba(0,0,0,.25);
-  ">
-    <!-- Logo / Title -->
-    <div style="font-size:48px;margin-bottom:12px">⭐</div>
-    <div style="font-size:24px;font-weight:900;color:#1a1a2e;margin-bottom:4px">
-      Teacher Command Center
-    </div>
-    <div style="font-size:13px;color:#888;margin-bottom:32px">
-      Your classroom, organized.
-    </div>
-
-    <!-- Sign in button -->
-    <button id="google-signin-btn" onclick="signInWithGoogle()" style="
-      width:100%;padding:14px 20px;
-      background:#fff;border:2px solid #e0e0e0;border-radius:12px;
-      display:flex;align-items:center;justify-content:center;gap:12px;
-      font-size:15px;font-weight:700;color:#1a1a2e;
-      cursor:pointer;transition:.2s;
-      box-shadow:0 2px 8px rgba(0,0,0,.08);
-    "
-    onmouseover="this.style.borderColor='#7b2ff7';this.style.boxShadow='0 4px 16px rgba(123,47,247,.2)'"
-    onmouseout="this.style.borderColor='#e0e0e0';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'">
-      <svg width="20" height="20" viewBox="0 0 48 48">
-        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-      </svg>
-      Sign in with Google
-    </button>
-
-    <!-- Personal account tip -->
-    <div style="
-      margin-top:16px;padding:10px 14px;
-      background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
-      font-size:12px;color:#166534;text-align:left;line-height:1.6
-    ">
-      💡 <strong>One-time sign-in per device.</strong> After this you go straight to your dashboard — no login screen again.
-    </div>
-    <div style="
-      margin-top:10px;padding:10px 14px;
-      background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;
-      font-size:12px;color:#0369a1;text-align:left;line-height:1.6
-    ">
-      🔒 Use your <strong>personal Gmail</strong> — not your school account. Your data follows you to any school, forever.
-    </div>
-
-    <!-- Loading state -->
-    <div id="auth-loading" style="display:none;margin-top:20px;color:#888;font-size:13px">
-      <div style="
-        width:28px;height:28px;border:3px solid #f0f0f0;
-        border-top-color:#7b2ff7;border-radius:50%;
-        animation:spin .8s linear infinite;margin:0 auto 8px;
-      "></div>
-      Signing you in...
-    </div>
-
-    <!-- Error message -->
-    <div id="auth-error" style="
-      display:none;margin-top:16px;padding:10px 14px;
-      background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;
-      font-size:12px;color:#dc2626;
-    "></div>
-
-    <div style="margin-top:24px;font-size:11px;color:#bbb">
-      Your data is private and only visible to you.
-    </div>
-  </div>
-</div>
-
-<style>
-@keyframes spin{to{transform:rotate(360deg)}}
-#auth-overlay.hidden{display:none}
-</style>
-
-<style>
-@keyframes spin{to{transform:rotate(360deg)}}
-#auth-overlay.hidden{display:none}
-</style>
-
 </body>
 </html>
