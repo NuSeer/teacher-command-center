@@ -1,4 +1,31 @@
-# Firestore Security Rules — Private Beta
+# Private Beta Access — Status & Setup
+
+## Status: not active yet
+
+As of now, this is **dormant**. The invite-code UI and claim logic are already live in
+`index.html` (`authSubmit()` / `claimInviteCode()`), but they have no real effect until
+you publish the Firestore rules below — **until then, sign-in works exactly as it
+always has, for any existing account.** Nothing changes on its own and nothing is
+time-sensitive; do the setup whenever you're ready to actually gate access, whether
+that's now or the day you get your first real tester.
+
+## When you're ready to activate it — 2 one-time steps
+
+1. **Grandfather in every account that already exists** (including your own, and
+   anyone you've already shared the app with) so nothing already signed up can lock
+   itself out. See the ⚠️ section below.
+2. **Publish the rules** at the bottom of this file, in Firebase Console → Firestore
+   Database → Rules.
+
+Do step 1 *before* step 2 — the order matters.
+
+## Ongoing — whenever you get a new tester after that
+
+No code changes, no redeploy. Just: Firestore → Data → `invites` collection → new
+document, ID = a code you make up (e.g. `TESTER-ALPHA-01`), one field `used: false`.
+Hand that code string to the tester. They enter it once, on signup.
+
+---
 
 These rules gate Firestore reads/writes to invite-approved accounts only. **Pasting
 the rules alone doesn't do anything by itself — this file is instructions for you,
@@ -22,13 +49,13 @@ the page.
   already using the app before you turn this on) without needing to know every UID
   in advance.
 
-## ⚠️ Do this BEFORE publishing the rules — protect your existing testers
+## ⚠️ Do this BEFORE publishing the rules — protect existing accounts
 
-You've already shared the app with people under the old open-signup system, and at
-least one of them has already logged in. The grandfather clause below (`exists(.../data/main)`)
-only protects someone who has *already saved data at least once* — if any existing
-tester signed up but hasn't done enough yet to trigger a save, publishing these rules
-would lock them out immediately.
+Whatever accounts exist by the time you publish these rules — your own, and anyone
+you've shown the app to, even just once — need to survive the switch. The grandfather
+clause below (`exists(.../data/main)`) only protects an account that has *already
+saved data at least once*; anything short of that gets locked out the moment the
+rules go live.
 
 **Don't rely on that — explicitly approve every existing account first:**
 
