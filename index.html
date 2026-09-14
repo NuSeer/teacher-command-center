@@ -306,6 +306,8 @@ textarea{resize:vertical;min-height:64px}
     <div class="sb-link sl-coral opt-show" data-opt="subplans"  onclick="openFull('subplans')">Sub Plans</div>
     <div class="sb-link sl-peach opt-show" data-opt="tasklist"  onclick="openFull('tasks')">Task List</div>
     <div class="sb-link sl-blue opt-show" data-opt="curriculum" onclick="openFull('curriculum')">Curriculum Map</div>
+    <div class="sb-link sl-mint opt-show" data-opt="calendar" onclick="openMonthCal()">Calendar</div>
+    <div class="sb-link sl-lav opt-show" data-opt="personalplanner" onclick="openFull('personal-planner')">Personal Planner</div>
 
     <div class="sb-section-label">DASHBOARDS</div>
     <div class="sb-link sl-blue opt-show" data-opt="dashboards"   onclick="openFull('dash-master')">Master Dashboard</div>
@@ -334,7 +336,57 @@ textarea{resize:vertical;min-height:64px}
   <!-- HUB -->
   <div class="hub" id="hub">
 
-    <!-- ROW 1: STUDENT MANAGEMENT — always visible -->
+    <!-- ROW 1: DASHBOARDS — always visible -->
+    <div class="cat-section" id="row-dashboards" draggable="true" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event)" ondragend="rowDragEnd(event)" ondragleave="rowDragLeave(event)">
+      <div class="cat-header ch-blue" id="cat-lbl-dashboards" ondblclick="editCatLabel('dashboards')" title="Double-click to rename">🌟 Dashboards</div>
+      <div class="cat-grid cg-blue">
+        <div class="folder-card opt-show" data-opt="dashboards" onclick="openFull('dash-master')">
+          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><rect x="6" y="6" width="16" height="16" rx="2"/><rect x="26" y="6" width="16" height="16" rx="2"/><rect x="6" y="26" width="16" height="16" rx="2"/><rect x="26" y="26" width="16" height="16" rx="2"/></svg></div></div>
+          <div class="fl">Master Dashboard</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: PLANNING — always visible -->
+    <div class="cat-section" id="row-planning" draggable="true" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event)" ondragend="rowDragEnd(event)" ondragleave="rowDragLeave(event)">
+      <div class="cat-header ch-yellow" id="cat-lbl-planning" ondblclick="editCatLabel('planning')" title="Double-click to rename">📅 Planning</div>
+      <div class="cat-grid cg-yellow">
+        <div class="folder-card opt-show" data-opt="planner" onclick="openFull('planner')">
+          <div class="fw"><div class="ft ft-yellow"></div><div class="fb f-yellow"><svg viewBox="0 0 48 48" fill="none" stroke="#6a4800" stroke-width="2.8" stroke-linecap="round"><rect x="6" y="8" width="36" height="34" rx="3"/><line x1="6" y1="18" x2="42" y2="18"/><line x1="16" y1="6" x2="16" y2="12"/><line x1="32" y1="6" x2="32" y2="12"/><rect x="12" y="24" width="6" height="6" rx="1" fill="#ffe066"/><rect x="22" y="24" width="6" height="6" rx="1" fill="#ffe066"/></svg></div></div>
+          <div class="fl">Daily Planner</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="lessons" onclick="openFull('lessons')">
+          <div class="fw"><div class="ft ft-lav"></div><div class="fb f-lav"><svg viewBox="0 0 48 48" fill="none" stroke="#4a1890" stroke-width="2.8" stroke-linecap="round"><path d="M8 40V10l16-4 16 4v30"/><line x1="24" y1="6" x2="24" y2="40"/><rect x="12" y="16" width="8" height="8" rx="1"/><rect x="28" y="16" width="8" height="8" rx="1"/></svg></div></div>
+          <div class="fl">Lesson Plans</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="subplans" onclick="openFull('subplans')">
+          <div class="fw"><div class="ft ft-coral"></div><div class="fb f-coral"><svg viewBox="0 0 48 48" fill="none" stroke="#882020" stroke-width="2.8" stroke-linecap="round"><path d="M8 14l8-6h24v32H8z"/><path d="M8 14h32"/><line x1="16" y1="22" x2="32" y2="22"/><line x1="16" y1="29" x2="32" y2="29"/></svg></div></div>
+          <div class="fl">Sub Plans</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="tasklist" onclick="openFull('tasks')">
+          <div class="fw"><div class="ft ft-peach"></div><div class="fb f-peach"><svg viewBox="0 0 48 48" fill="none" stroke="#a03820" stroke-width="2.8" stroke-linecap="round"><rect x="10" y="8" width="28" height="34" rx="3"/><polyline points="17 24 22 30 32 18"/><line x1="16" y1="14" x2="32" y2="14"/></svg></div></div>
+          <div class="fl">Task List</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="curriculum" onclick="openFull('curriculum')">
+          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><rect x="8" y="6" width="32" height="36" rx="3"/><line x1="14" y1="16" x2="34" y2="16"/><line x1="14" y1="22" x2="34" y2="22"/><line x1="14" y1="28" x2="26" y2="28"/></svg></div></div>
+          <div class="fl">Curriculum Map</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="calendar" onclick="openMonthCal()">
+          <div class="fw"><div class="ft ft-mint"></div><div class="fb f-mint"><svg viewBox="0 0 48 48" fill="none" stroke="#0a6048" stroke-width="2.8" stroke-linecap="round"><rect x="8" y="10" width="32" height="30" rx="3"/><line x1="8" y1="18" x2="40" y2="18"/><line x1="16" y1="10" x2="16" y2="18"/><line x1="32" y1="10" x2="32" y2="18"/><line x1="15" y1="26" x2="19" y2="26"/><line x1="23" y1="26" x2="27" y2="26"/><line x1="31" y1="26" x2="35" y2="26"/><line x1="15" y1="33" x2="19" y2="33"/><line x1="23" y1="33" x2="27" y2="33"/></svg></div></div>
+          <div class="fl">Calendar</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="personalplanner" onclick="openFull('personal-planner')">
+          <div class="fw"><div class="ft ft-lav"></div><div class="fb f-lav"><svg viewBox="0 0 48 48" fill="none" stroke="#4a1890" stroke-width="2.8" stroke-linecap="round"><rect x="10" y="6" width="28" height="36" rx="3"/><circle cx="24" cy="20" r="5"/><path d="M16 34c0-4.4 3.6-8 8-8s8 3.6 8 8"/><rect x="19" y="4" width="10" height="6" rx="1"/></svg></div></div>
+          <div class="fl">Personal Planner</div>
+        </div>
+        <div class="folder-card" onclick="openFull('setup')">
+          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><circle cx="24" cy="24" r="8"/><path d="M24 4v4M24 40v4M4 24h4M40 24h4M9.4 9.4l2.8 2.8M35.8 35.8l2.8 2.8M9.4 38.6l2.8-2.8M35.8 12.2l2.8-2.8"/></svg></div></div>
+          <div class="fl">Schedule Setup</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: STUDENT MANAGEMENT — always visible -->
     <div class="cat-section" id="row-students" draggable="true" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event)" ondragend="rowDragEnd(event)" ondragleave="rowDragLeave(event)">
       <div class="cat-header ch-pink" id="cat-lbl-students" ondblclick="editCatLabel('students')" title="Double-click to rename">👩‍🎓 Student Management</div>
       <div class="cat-grid cg-pink">
@@ -423,48 +475,6 @@ textarea{resize:vertical;min-height:64px}
         <div class="folder-card opt-show" data-opt="dashboards" onclick="openFull('dash-counseldash')">
           <div class="fw"><div class="ft ft-lav"></div><div class="fb f-lav"><svg viewBox="0 0 48 48" fill="none" stroke="#4a1890" stroke-width="2.8" stroke-linecap="round"><circle cx="24" cy="16" r="8"/><path d="M10 40c0-7.73 6.27-14 14-14s14 6.27 14 14"/><line x1="24" y1="12" x2="24" y2="20"/><circle cx="24" cy="23" r="1.5" fill="#4a1890"/></svg></div></div>
           <div class="fl">Concern Dashboard</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ROW 4: PLANNING — always visible -->
-    <div class="cat-section" id="row-planning" draggable="true" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event)" ondragend="rowDragEnd(event)" ondragleave="rowDragLeave(event)">
-      <div class="cat-header ch-yellow" id="cat-lbl-planning" ondblclick="editCatLabel('planning')" title="Double-click to rename">📅 Planning</div>
-      <div class="cat-grid cg-yellow">
-        <div class="folder-card opt-show" data-opt="planner" onclick="openFull('planner')">
-          <div class="fw"><div class="ft ft-yellow"></div><div class="fb f-yellow"><svg viewBox="0 0 48 48" fill="none" stroke="#6a4800" stroke-width="2.8" stroke-linecap="round"><rect x="6" y="8" width="36" height="34" rx="3"/><line x1="6" y1="18" x2="42" y2="18"/><line x1="16" y1="6" x2="16" y2="12"/><line x1="32" y1="6" x2="32" y2="12"/><rect x="12" y="24" width="6" height="6" rx="1" fill="#ffe066"/><rect x="22" y="24" width="6" height="6" rx="1" fill="#ffe066"/></svg></div></div>
-          <div class="fl">Daily Planner</div>
-        </div>
-        <div class="folder-card opt-show" data-opt="lessons" onclick="openFull('lessons')">
-          <div class="fw"><div class="ft ft-lav"></div><div class="fb f-lav"><svg viewBox="0 0 48 48" fill="none" stroke="#4a1890" stroke-width="2.8" stroke-linecap="round"><path d="M8 40V10l16-4 16 4v30"/><line x1="24" y1="6" x2="24" y2="40"/><rect x="12" y="16" width="8" height="8" rx="1"/><rect x="28" y="16" width="8" height="8" rx="1"/></svg></div></div>
-          <div class="fl">Lesson Plans</div>
-        </div>
-        <div class="folder-card opt-show" data-opt="subplans" onclick="openFull('subplans')">
-          <div class="fw"><div class="ft ft-coral"></div><div class="fb f-coral"><svg viewBox="0 0 48 48" fill="none" stroke="#882020" stroke-width="2.8" stroke-linecap="round"><path d="M8 14l8-6h24v32H8z"/><path d="M8 14h32"/><line x1="16" y1="22" x2="32" y2="22"/><line x1="16" y1="29" x2="32" y2="29"/></svg></div></div>
-          <div class="fl">Sub Plans</div>
-        </div>
-        <div class="folder-card opt-show" data-opt="tasklist" onclick="openFull('tasks')">
-          <div class="fw"><div class="ft ft-peach"></div><div class="fb f-peach"><svg viewBox="0 0 48 48" fill="none" stroke="#a03820" stroke-width="2.8" stroke-linecap="round"><rect x="10" y="8" width="28" height="34" rx="3"/><polyline points="17 24 22 30 32 18"/><line x1="16" y1="14" x2="32" y2="14"/></svg></div></div>
-          <div class="fl">Task List</div>
-        </div>
-        <div class="folder-card opt-show" data-opt="curriculum" onclick="openFull('curriculum')">
-          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><rect x="8" y="6" width="32" height="36" rx="3"/><line x1="14" y1="16" x2="34" y2="16"/><line x1="14" y1="22" x2="34" y2="22"/><line x1="14" y1="28" x2="26" y2="28"/></svg></div></div>
-          <div class="fl">Curriculum Map</div>
-        </div>
-        <div class="folder-card" onclick="openFull('setup')">
-          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><circle cx="24" cy="24" r="8"/><path d="M24 4v4M24 40v4M4 24h4M40 24h4M9.4 9.4l2.8 2.8M35.8 35.8l2.8 2.8M9.4 38.6l2.8-2.8M35.8 12.2l2.8-2.8"/></svg></div></div>
-          <div class="fl">Schedule Setup</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ROW 5: MASTER DASHBOARD — always visible -->
-    <div class="cat-section" id="row-dashboards" draggable="true" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event)" ondragend="rowDragEnd(event)" ondragleave="rowDragLeave(event)">
-      <div class="cat-header ch-blue" id="cat-lbl-dashboards" ondblclick="editCatLabel('dashboards')" title="Double-click to rename">🌟 Dashboards</div>
-      <div class="cat-grid cg-blue">
-        <div class="folder-card opt-show" data-opt="dashboards" onclick="openFull('dash-master')">
-          <div class="fw"><div class="ft ft-blue"></div><div class="fb f-blue"><svg viewBox="0 0 48 48" fill="none" stroke="#1040a0" stroke-width="2.8" stroke-linecap="round"><rect x="6" y="6" width="16" height="16" rx="2"/><rect x="26" y="6" width="16" height="16" rx="2"/><rect x="6" y="26" width="16" height="16" rx="2"/><rect x="26" y="26" width="16" height="16" rx="2"/></svg></div></div>
-          <div class="fl">Master Dashboard</div>
         </div>
       </div>
     </div>
@@ -1342,6 +1352,7 @@ textarea{resize:vertical;min-height:64px}
       <span style="font-size:13px;color:rgba(255,255,255,.9);font-weight:700" id="planner-day-label"></span>
       <button class="btn btn-sm" onclick="plannerNav(1)" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff">Next →</button>
       <button class="btn btn-sm" onclick="plannerGoToday()" style="background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.5);color:#fff;font-weight:800">Today</button>
+      <button class="btn btn-sm" onclick="openMonthCal()" style="background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.5);color:#fff;font-weight:800">📆 Monthly Calendar</button>
     </div>
   </div>
   <div class="fp-body" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 56px);overflow:hidden">
@@ -1373,36 +1384,50 @@ textarea{resize:vertical;min-height:64px}
         <div id="planner-schedule" style="flex:1;overflow-y:auto"></div>
       </div>
 
-      <!-- COL 2: TASKS (pink/green/red sections like screenshot) -->
-      <div style="border-right:2px solid var(--border);overflow-y:auto;display:flex;flex-direction:column">
+      <!-- COL 2: TASKS (pink/green/red sections like screenshot) — each sub-section gets its
+           own bounded, independently-scrolling area instead of one long shared scroll, so a
+           long Overdue list can never crowd Upcoming out of view. -->
+      <div style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
         <!-- TO DO TODAY -->
-        <div style="background:#e040a0;color:#fff;padding:7px 12px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-          TASKS — TO DO TODAY
-          <button onclick="openFull('tasks')" style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer">+ Add</button>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
+          <div style="background:#e040a0;color:#fff;padding:7px 12px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+            TASKS — TO DO TODAY
+            <button onclick="openFull('tasks')" style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer">+ Add</button>
+          </div>
+          <div id="planner-todo" style="padding:8px;flex:1;overflow-y:auto"></div>
         </div>
-        <div id="planner-todo" style="padding:8px;min-height:80px"></div>
 
-        <!-- UPCOMING (green like screenshot) -->
-        <div style="background:#059669;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">⏰ UPCOMING</div>
-        <div id="planner-upcoming-col" style="padding:8px;min-height:60px"></div>
+        <!-- UPCOMING (green like screenshot) — sized larger (flex:1.4) than Today/Overdue -->
+        <div style="flex:1.4;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
+          <div style="background:#059669;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">⏰ UPCOMING</div>
+          <div id="planner-upcoming-col" style="padding:8px;flex:1;overflow-y:auto"></div>
+        </div>
 
         <!-- OVERDUE (red like screenshot) -->
-        <div style="background:#dc2626;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">🔴 OVERDUE</div>
-        <div id="planner-overdue-col" style="padding:8px"></div>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+          <div style="background:#dc2626;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">🔴 OVERDUE</div>
+          <div id="planner-overdue-col" style="padding:8px;flex:1;overflow-y:auto"></div>
+        </div>
       </div>
 
-      <!-- COL 3: BIRTHDAYS (yellow like screenshot) -->
-      <div style="border-right:2px solid var(--border);overflow-y:auto;display:flex;flex-direction:column">
+      <!-- COL 3: BIRTHDAYS (yellow like screenshot) — Today/Recent/Soon each scroll independently -->
+      <div style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
         <div style="background:#d97706;color:#fff;padding:7px 10px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;flex-shrink:0">🎂 BIRTHDAYS</div>
         <!-- Today -->
-        <div style="padding:6px 10px 2px;font-size:10px;font-weight:800;color:var(--accent1);text-transform:uppercase;letter-spacing:.5px">Today</div>
-        <div id="pl-bday-today" style="padding:2px 10px 8px;border-bottom:1px solid var(--border)"></div>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:1px solid var(--border)">
+          <div style="padding:6px 10px 2px;font-size:10px;font-weight:800;color:var(--accent1);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Today</div>
+          <div id="pl-bday-today" style="padding:2px 10px 8px;flex:1;overflow-y:auto"></div>
+        </div>
         <!-- Recent (last 7 days) -->
-        <div style="padding:6px 10px 2px;font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;letter-spacing:.5px">Recent</div>
-        <div id="pl-bday-recent" style="padding:2px 10px 8px;border-bottom:1px solid var(--border)"></div>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:1px solid var(--border)">
+          <div style="padding:6px 10px 2px;font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Recent</div>
+          <div id="pl-bday-recent" style="padding:2px 10px 8px;flex:1;overflow-y:auto"></div>
+        </div>
         <!-- Soon (next 30 days) -->
-        <div style="padding:6px 10px 2px;font-size:10px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.5px">Soon</div>
-        <div id="pl-bday-soon" style="padding:2px 10px 8px"></div>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+          <div style="padding:6px 10px 2px;font-size:10px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Soon</div>
+          <div id="pl-bday-soon" style="padding:2px 10px 8px;flex:1;overflow-y:auto"></div>
+        </div>
         <div style="padding:6px 10px;margin-top:auto;border-top:1px solid var(--border)">
           <button class="btn btn-sm" style="width:100%;font-size:10px" onclick="openFull('students')">+ Add DOB to students</button>
         </div>
@@ -1445,6 +1470,67 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
       <div class="card-body" id="tasks-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PERSONAL PLANNER ── -->
+<div class="fullpage" id="fp-personal-planner">
+  <div class="fp-hdr"><button class="fp-back" onclick="closeFull('personal-planner')">← Hub</button><div class="fp-title">🔒 Personal Planner</div></div>
+  <div class="fp-body">
+    <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0369a1">
+      Personal items never show in the shared Daily Planner or Monthly Calendar details — they appear there only as a greyed "🔒 Personal" placeholder. This is the only place they show in full.
+    </div>
+    <div class="card"><div class="card-hdr"><span class="card-title">Add personal item</span></div><div class="card-body">
+      <div class="form-row">
+        <div class="fg"><label>Title</label><input type="text" id="pp-title" placeholder="What's this about?"></div>
+        <div class="fg"><label>Due date</label><input type="date" id="pp-due"></div>
+        <div class="fg"><label>Priority</label><select id="pp-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+      </div>
+      <button class="btn btn-primary" onclick="savePersonalTask()">Add</button>
+    </div></div>
+    <div class="card"><div class="card-hdr"><span class="card-title">Your personal items</span></div>
+      <div class="card-body" id="personal-planner-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MONTHLY CALENDAR ── -->
+<div class="fullpage" id="fp-monthcal">
+  <div class="fp-hdr">
+    <button class="fp-back" onclick="closeFull('monthcal')">← Hub</button>
+    <div class="fp-title">📆 Monthly Calendar</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+      <button class="btn btn-sm" onclick="monthCalNav(-1)" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff">← Prev</button>
+      <span style="font-size:14px;color:#fff;font-weight:800" id="monthcal-label"></span>
+      <button class="btn btn-sm" onclick="monthCalNav(1)" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff">Next →</button>
+      <button class="btn btn-sm" onclick="monthCalToday()" style="background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.5);color:#fff;font-weight:800">This Month</button>
+    </div>
+  </div>
+  <div class="fp-body">
+    <div style="font-size:11px;color:var(--mid);margin-bottom:10px">Click any day to add something — it shows up in your Daily Planner automatically. Mark it <strong>Personal</strong> to keep it private there.</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Sun</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Mon</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Tue</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Wed</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Thu</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Fri</div>
+      <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Sat</div>
+    </div>
+    <div id="monthcal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+  </div>
+</div>
+
+<div id="monthcal-add-popup" style="display:none;position:fixed;z-index:9999;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);align-items:center;justify-content:center">
+  <div style="background:var(--card-bg);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.25);padding:18px;min-width:280px;border:2px solid var(--accent1)">
+    <div style="font-size:14px;font-weight:800;color:var(--dark);margin-bottom:12px" id="monthcal-add-date-label"></div>
+    <div class="fg" style="margin-bottom:8px"><label>Title</label><input type="text" id="mc-add-title" placeholder="What's due / happening?"></div>
+    <div class="fg" style="margin-bottom:8px"><label>Priority</label><select id="mc-add-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    <div class="fg" style="margin-bottom:12px"><label>Category</label><div id="mc-add-cat-wrap"></div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveMonthCalTask()">Add</button>
+      <button class="btn" onclick="closeMonthCalAdd()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2786,7 +2872,7 @@ var DEFAULT_OPTIONS={
   bhType:['Cell Phone','Technology Misuse','Fighting','Disrespect','Off-Task','Disruptive','Tardiness','Dress Code','Positive — Model behavior','Other'],
   bhAction:['Verbal warning','Seat change','Call Home','Email Home','Detention','Parent Meeting','Office referral','Counselor referral','None — documented only'],
   asType:['Homework','Classwork','Project','Quiz','Test','Lab','Exit Ticket'],
-  tkCat:['General','Grading','Communication','Planning','Admin','Copies','Data Entry'],
+  tkCat:['General','Grading','Communication','Planning','Admin','Copies','Data Entry','Training','Meeting','Personal'],
   cnType:['Academic concern','Behavioral','Social-emotional','Attendance','Bullying / peer conflict','Family situation','Mental health concern','Safety concern'],
   cnReferred:['Counselor','Admin','Parent','Social worker','Special Ed coordinator','Not referred yet'],
   mwStatus:['Missing','Excused','Partial','Late - Submitted','Parent Notified']
@@ -2942,6 +3028,8 @@ function openFull(id){
     if(id==='planner'){plannerInit();renderPlanner();}
     if(id==='tasks'){renderTasks();
       var tkw=document.getElementById('tkcat-wrap');if(tkw)tkw.innerHTML=buildSelect('tk-cat','tkCat','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');}
+    if(id==='personal-planner')renderPersonalPlanner();
+    if(id==='monthcal')renderMonthCal();
     if(id==='curriculum')renderCurriculum();
     if(id==='counseling'){renderConcerns();renderConcernStats();populateStudentSelect('cn-student','cn-period');
       var cntw=document.getElementById('cntype-wrap');if(cntw)cntw.innerHTML=buildSelect('cn-type','cnType','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
@@ -4384,8 +4472,110 @@ function renderTasks(){
         +'</div>';
     }).join('');
 }
-function toggleTask(id){DB.tasks.forEach(function(t){if(t.id===id)t.done=!t.done;});save();renderTasks();}
-function delTask(id){DB.tasks=DB.tasks.filter(function(t){return t.id!==id;});save();renderTasks();}
+function toggleTask(id){DB.tasks.forEach(function(t){if(t.id===id)t.done=!t.done;});save();refreshTaskViews();}
+function delTask(id){DB.tasks=DB.tasks.filter(function(t){return t.id!==id;});save();refreshTaskViews();}
+// Tasks are rendered in several places (Task List, Daily Planner, Personal Planner, Monthly
+// Calendar) — refresh whichever of them currently exist in the DOM after any task change.
+function refreshTaskViews(){
+  renderTasks();
+  if(document.getElementById('personal-planner-list'))renderPersonalPlanner();
+  if(document.getElementById('planner-todo'))renderPlanner();
+  if(document.getElementById('monthcal-grid'))renderMonthCal();
+}
+
+/* ── PERSONAL PLANNER ── */
+function savePersonalTask(){
+  var t=(document.getElementById('pp-title')||{}).value.trim();if(!t){toast('Enter a title');return;}
+  DB.tasks.push({id:Date.now()+'',title:t,due:(document.getElementById('pp-due')||{}).value,priority:(document.getElementById('pp-priority')||{}).value||'Medium',cat:'Personal',done:false});
+  save();document.getElementById('pp-title').value='';document.getElementById('pp-due').value='';
+  toast('Personal item added');refreshTaskViews();
+}
+function renderPersonalPlanner(){
+  var el=document.getElementById('personal-planner-list');if(!el)return;
+  var today=new Date().toISOString().split('T')[0];
+  var list=DB.tasks.filter(function(t){return t.cat==='Personal';}).sort(function(a,b){return (a.due||'9999').localeCompare(b.due||'9999');});
+  el.innerHTML=list.length===0?'<div class="empty">No personal items yet</div>'
+    :list.map(function(t){
+      var overdue=!t.done&&t.due&&t.due<today;
+      var pc={High:'b-red',Medium:'b-yellow',Low:'b-mint'}[t.priority]||'b-gray';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f9eef8">'
+        +'<input type="checkbox"'+(t.done?' checked':'')+' onchange="toggleTask(\''+t.id+'\')" style="accent-color:#e040a0;width:15px;height:15px;flex-shrink:0;cursor:pointer">'
+        +'<span style="flex:1;font-size:13px;color:#5a2060;'+(t.done?'text-decoration:line-through;opacity:.5;':'')+'">'+esc(t.title)+'</span>'
+        +'<span class="badge '+pc+'" style="font-size:9px">'+t.priority+'</span>'
+        +(t.due?'<span style="font-size:11px;color:'+(overdue?'#dc2626':'#a060a0')+'">'+esc(t.due)+'</span>':'')
+        +'<button class="btn btn-sm btn-danger" onclick="delTask(\''+t.id+'\')">✕</button>'
+        +'</div>';
+    }).join('');
+}
+
+/* ── MONTHLY CALENDAR ── */
+var monthCalDate=new Date();
+var monthCalAddDate=null;
+function openMonthCal(){
+  monthCalDate=new Date();
+  openFull('monthcal');
+  renderMonthCal();
+}
+function monthCalNav(delta){
+  monthCalDate=new Date(monthCalDate.getFullYear(),monthCalDate.getMonth()+delta,1);
+  renderMonthCal();
+}
+function monthCalToday(){
+  monthCalDate=new Date();
+  renderMonthCal();
+}
+function renderMonthCal(){
+  var grid=document.getElementById('monthcal-grid');if(!grid)return;
+  var label=document.getElementById('monthcal-label');
+  var y=monthCalDate.getFullYear(),m=monthCalDate.getMonth();
+  if(label)label.textContent=monthCalDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  var startWeekday=new Date(y,m,1).getDay();
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var todayStr=new Date().toISOString().split('T')[0];
+  var cells=[];
+  for(var i=0;i<startWeekday;i++)cells.push('<div></div>');
+  var pc={High:'#dc2626',Medium:'#d97706',Low:'#059669'};
+  for(var day=1;day<=daysInMonth;day++){
+    var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    var dayTasks=DB.tasks.filter(function(t){return t.due===ds;});
+    var isToday=ds===todayStr;
+    var items=dayTasks.slice(0,3).map(function(t){
+      var personal=t.cat==='Personal';
+      var color=personal?'#9ca3af':(pc[t.priority]||'#666');
+      return '<div style="font-size:9px;padding:1px 4px;margin-top:2px;border-radius:4px;background:'+color+'22;color:'+color+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(personal?'🔒 Personal':esc(t.title))+'</div>';
+    }).join('');
+    var more=dayTasks.length>3?'<div style="font-size:8px;color:var(--mid)">+'+(dayTasks.length-3)+' more</div>':'';
+    cells.push('<div onclick="openMonthCalAdd(\''+ds+'\')" style="min-height:80px;border:1.5px solid '+(isToday?'var(--accent1)':'var(--border)')+';border-radius:8px;padding:5px;cursor:pointer;background:'+(isToday?'var(--light)':'var(--card-bg)')+'">'
+      +'<div style="font-size:11px;font-weight:800;color:'+(isToday?'var(--accent1)':'var(--dark)')+'">'+day+'</div>'
+      +items+more+'</div>');
+  }
+  grid.innerHTML=cells.join('');
+}
+function openMonthCalAdd(ds){
+  monthCalAddDate=ds;
+  var lbl=document.getElementById('monthcal-add-date-label');
+  if(lbl)lbl.textContent='Add to '+new Date(ds+'T00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  var catWrap=document.getElementById('mc-add-cat-wrap');
+  if(catWrap)catWrap.innerHTML=buildSelect('mc-add-cat','tkCat','width:100%;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
+  var t=document.getElementById('mc-add-title');if(t)t.value='';
+  var popup=document.getElementById('monthcal-add-popup');
+  if(popup)popup.style.display='flex';
+}
+function closeMonthCalAdd(){
+  var popup=document.getElementById('monthcal-add-popup');if(popup)popup.style.display='none';
+  monthCalAddDate=null;
+}
+function saveMonthCalTask(){
+  var title=(document.getElementById('mc-add-title')||{}).value.trim();
+  if(!title){toast('Enter a title');return;}
+  if(!monthCalAddDate)return;
+  var cat=(document.getElementById('mc-add-cat')||{}).value||'General';
+  DB.tasks.push({id:Date.now()+'',title:title,due:monthCalAddDate,priority:(document.getElementById('mc-add-priority')||{}).value||'Medium',cat:cat,done:false});
+  save();
+  closeMonthCalAdd();
+  refreshTaskViews();
+  toast(cat==='Personal'?'✅ Added — private in your Personal Planner':'✅ Added — it will show in your Daily Planner');
+}
 
 /* ── CURRICULUM ── */
 function saveCurriculum(){
@@ -5260,11 +5450,18 @@ function renderPlanner(){
   }
 
   /* ── TASKS ── */
+  // Personal-category tasks show as a greyed placeholder everywhere in the shared planner —
+  // full details only live in Personal Planner, since Sub Plans/shared views can expose this.
+  function personalPlaceholder(){
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--border);opacity:.55;cursor:pointer" onclick="openFull(\'personal-planner\')" title="Click to open in Personal Planner">'
+      +'<div style="font-size:11px;color:var(--mid);font-style:italic">🔒 Personal — open in Personal Planner</div></div>';
+  }
   var todo=document.getElementById('planner-todo');
   if(todo){
     todo.innerHTML=todayTasks.length===0
       ?'<div style="font-size:12px;color:var(--mid);text-align:center;padding:10px">✅ Nothing due today</div>'
       :todayTasks.map(function(t){
+        if(t.cat==='Personal')return personalPlaceholder();
         var pc={High:'#dc2626',Medium:'#d97706',Low:'#059669'}[t.priority]||'var(--mid)';
         return '<div style="display:flex;align-items:flex-start;gap:7px;padding:5px 0;border-bottom:1px solid var(--border)">'
           +'<input type="checkbox" onchange="toggleTask(\''+t.id+'\')" style="margin-top:2px;accent-color:var(--accent1);cursor:pointer;flex-shrink:0">'
@@ -5277,19 +5474,25 @@ function renderPlanner(){
   if(upcol){
     var upcoming=[];
     for(var i=1;i<=7;i++){var nd2=new Date(d);nd2.setDate(d.getDate()+i);var nds=nd2.toISOString().split('T')[0];
-      DB.tasks.filter(function(t){return t.due===nds&&!t.done;}).forEach(function(t){upcoming.push({date:nds,label:t.title,priority:t.priority});});
+      DB.tasks.filter(function(t){return t.due===nds&&!t.done;}).forEach(function(t){upcoming.push({date:nds,label:t.title,priority:t.priority,cat:t.cat});});
       DB.lessons.filter(function(l){return l.date===nds;}).forEach(function(l){upcoming.push({date:nds,label:'Lesson P'+l.period+': '+l.title,priority:'Low'});});
     }
     upcol.innerHTML=upcoming.length===0
       ?'<div style="font-size:11px;color:var(--mid);padding:4px 0">Nothing in next 7 days</div>'
-      :upcoming.slice(0,6).map(function(u){return '<div style="font-size:11px;color:var(--dark);padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--mid);font-size:10px">'+u.date.slice(5)+'</span> '+esc(u.label)+'</div>';}).join('');
+      :upcoming.map(function(u){
+        if(u.cat==='Personal')return personalPlaceholder();
+        return '<div style="font-size:11px;color:var(--dark);padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--mid);font-size:10px">'+u.date.slice(5)+'</span> '+esc(u.label)+'</div>';
+      }).join('');
   }
 
   var ovcol=document.getElementById('planner-overdue-col');
   if(ovcol){
     ovcol.innerHTML=overdue.length===0
       ?'<div style="font-size:11px;color:#059669;padding:4px 0">✅ Nothing overdue!</div>'
-      :overdue.slice(0,5).map(function(t){return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)"><input type="checkbox" onchange="toggleTask(\''+t.id+'\')" style="accent-color:#dc2626;cursor:pointer;flex-shrink:0"><div style="flex:1;min-width:0"><div style="font-size:11px;color:#dc2626;font-weight:700;word-break:break-word">'+esc(t.title)+'</div><div style="font-size:10px;color:var(--mid)">Due '+t.due+'</div></div></div>';}).join('');
+      :overdue.map(function(t){
+        if(t.cat==='Personal')return personalPlaceholder();
+        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)"><input type="checkbox" onchange="toggleTask(\''+t.id+'\')" style="accent-color:#dc2626;cursor:pointer;flex-shrink:0"><div style="flex:1;min-width:0"><div style="font-size:11px;color:#dc2626;font-weight:700;word-break:break-word">'+esc(t.title)+'</div><div style="font-size:10px;color:var(--mid)">Due '+t.due+'</div></div></div>';
+      }).join('');
   }
 
   /* ── BIRTHDAYS ── */
@@ -6698,6 +6901,8 @@ var OPTIONAL_FEATURES=[
   {id:'subplans',   label:'Sub Plans',        icon:'📝', desc:'Saved substitute plans ready to print anytime.',                                    defaultOn:true},
   {id:'tasklist',   label:'Task List',        icon:'✔️', desc:'Your personal to-do list.',                                                         defaultOn:true},
   {id:'reports',    label:'Printable Reports',icon:'🖨️', desc:'Student, class, missing work, grade, comm, at-risk, parent meeting, and dismissal reports.',defaultOn:true},
+  {id:'calendar',   label:'Monthly Calendar', icon:'📆', desc:'Month-grid view — click any day to add a task or event that flows into your Daily Planner.', defaultOn:true},
+  {id:'personalplanner',label:'Personal Planner',icon:'🔒',desc:'Private space for personal to-dos — hidden as a placeholder everywhere else (Daily Planner, Monthly Calendar).',defaultOn:true},
 ];
 
 // The only hub/sidebar items with no data-opt toggle — every other card and link is wired to an
