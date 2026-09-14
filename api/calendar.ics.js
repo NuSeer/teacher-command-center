@@ -8,19 +8,21 @@
 // function (using the Firebase Admin SDK, which bypasses client security rules)
 // fetches that teacher's own doc and checks the secret embedded there
 // (teachers/{uid}/data/main.setup.calendarSecret) before returning anything.
-const admin = require('firebase-admin');
+// firebase-admin v10+ dropped the classic admin.initializeApp()/admin.credential.cert()
+// namespaced API from the top-level `require('firebase-admin')` export — it's modular now.
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
-function getApp() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
+function ensureApp() {
+  if (!getApps().length) {
+    initializeApp({
+      credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
       }),
     });
   }
-  return admin.app();
 }
 
 function icsEscape(s) {
@@ -56,30 +58,13 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // TEMP diagnostics while wiring up credentials — reports which env vars are
-    // present/shaped correctly without ever revealing their actual values.
-    if (req.query.diag) {
-      var pk = process.env.FIREBASE_PRIVATE_KEY || '';
-      res.status(200).json({
-        hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-        hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-        clientEmailLooksLikeEmail: /^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(process.env.FIREBASE_CLIENT_EMAIL || ''),
-        hasPrivateKey: !!pk,
-        privateKeyLength: pk.length,
-        privateKeyHasBeginMarker: pk.indexOf('BEGIN PRIVATE KEY') !== -1,
-        privateKeyHasLiteralBackslashN: pk.indexOf('\\n') !== -1,
-        privateKeyHasRealNewline: pk.indexOf('\n') !== -1,
-      });
-      return;
-    }
-
     try {
-      getApp();
+      ensureApp();
     } catch (initErr) {
       res.status(500).send('Firebase init failed: ' + initErr.message);
       return;
     }
-    var db = admin.firestore();
+    var db = getFirestore();
     var doc;
     try {
       doc = await db.collection('teachers').doc(u).collection('data').doc('main').get();
