@@ -56,9 +56,37 @@ module.exports = async (req, res) => {
       return;
     }
 
-    getApp();
+    // TEMP diagnostics while wiring up credentials — reports which env vars are
+    // present/shaped correctly without ever revealing their actual values.
+    if (req.query.diag) {
+      var pk = process.env.FIREBASE_PRIVATE_KEY || '';
+      res.status(200).json({
+        hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+        hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+        clientEmailLooksLikeEmail: /^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(process.env.FIREBASE_CLIENT_EMAIL || ''),
+        hasPrivateKey: !!pk,
+        privateKeyLength: pk.length,
+        privateKeyHasBeginMarker: pk.indexOf('BEGIN PRIVATE KEY') !== -1,
+        privateKeyHasLiteralBackslashN: pk.indexOf('\\n') !== -1,
+        privateKeyHasRealNewline: pk.indexOf('\n') !== -1,
+      });
+      return;
+    }
+
+    try {
+      getApp();
+    } catch (initErr) {
+      res.status(500).send('Firebase init failed: ' + initErr.message);
+      return;
+    }
     var db = admin.firestore();
-    var doc = await db.collection('teachers').doc(u).collection('data').doc('main').get();
+    var doc;
+    try {
+      doc = await db.collection('teachers').doc(u).collection('data').doc('main').get();
+    } catch (fsErr) {
+      res.status(500).send('Firestore fetch failed: ' + fsErr.message);
+      return;
+    }
     if (!doc.exists) {
       res.status(404).send('Calendar not found.');
       return;
