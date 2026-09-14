@@ -2143,7 +2143,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="fp-hdr">
     <button class="fp-back" onclick="closeFull('dash-master')">← Hub</button>
     <div class="fp-title">📊 Master Dashboard</div>
-    <button class="fp-back" onclick="renderFullDashboard('master')" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
+    <button class="fp-back" onclick="renderFullDashboard('master',true)" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
   </div>
   <div class="fp-body" id="fdash-master-body"></div>
 </div>
@@ -2158,7 +2158,7 @@ textarea{resize:vertical;min-height:64px}
         <option value="all">All Periods</option>
         
       </select>
-      <button class="fp-back" onclick="renderFullDashboard('academic')" style="background:rgba(255,255,255,.3)">🔄 Refresh</button>
+      <button class="fp-back" onclick="renderFullDashboard('academic',true)" style="background:rgba(255,255,255,.3)">🔄 Refresh</button>
     </div>
   </div>
   <div class="fp-body" id="fdash-academic-body"></div>
@@ -2169,7 +2169,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="fp-hdr">
     <button class="fp-back" onclick="closeFull('dash-commdash')">← Hub</button>
     <div class="fp-title">💬 Communication Dashboard</div>
-    <button class="fp-back" onclick="renderFullDashboard('commdash')" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
+    <button class="fp-back" onclick="renderFullDashboard('commdash',true)" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
   </div>
   <div class="fp-body" id="fdash-commdash-body"></div>
 </div>
@@ -2179,7 +2179,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="fp-hdr">
     <button class="fp-back" onclick="closeFull('dash-counseldash')">← Hub</button>
     <div class="fp-title">🧠 Concern Dashboard</div>
-    <button class="fp-back" onclick="renderFullDashboard('counseldash')" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
+    <button class="fp-back" onclick="renderFullDashboard('counseldash',true)" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
   </div>
   <div class="fp-body" id="fdash-counseldash-body"></div>
 </div>
@@ -2189,7 +2189,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="fp-hdr">
     <button class="fp-back" onclick="closeFull('dash-progress')">← Hub</button>
     <div class="fp-title">📋 Progress Reports</div>
-    <button class="fp-back" onclick="renderFullDashboard('progress')" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
+    <button class="fp-back" onclick="renderFullDashboard('progress',true)" style="background:rgba(255,255,255,.3);margin-left:auto">🔄 Refresh</button>
   </div>
   <div class="fp-body" id="fdash-progress-body"></div>
 </div>
@@ -4929,7 +4929,7 @@ function renderCounselDashPanel(){
 /* ══════════════════════════════════════════════
    FULL-SCREEN DASHBOARD RENDERERS
 ══════════════════════════════════════════════ */
-function renderFullDashboard(type){
+function renderFullDashboard(type,isManualRefresh){
   var bodyId='fdash-'+type+'-body';
   var el=document.getElementById(bodyId);
   if(!el)return;
@@ -4985,7 +4985,7 @@ function renderFullDashboard(type){
       +'<div style="background:var(--surface);border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900;color:#d97706">'+DB.assignments.length+'</div><div style="font-size:10px;color:var(--mid)">Assignments</div></div>'
       +'</div>'
       +'<div style="font-size:11px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:6px">Open Tasks</div>'
-      +DB.tasks.filter(function(t){return !t.done;}).slice(0,6).map(function(t){var late=t.due&&t.due<today;return '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between"><span>'+esc(t.text)+'</span><span style="color:'+(late?'#dc2626':'var(--mid)')+';font-size:10px">'+(t.due?esc(t.due):'')+'</span></div>';}).join('')||(openTasks===0?'<div style="color:#059669;font-size:12px">All tasks done! 🎉</div>':'')
+      +DB.tasks.filter(function(t){return !t.done;}).slice(0,6).map(function(t){var late=t.due&&t.due<today;return '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between"><span>'+esc(t.title)+'</span><span style="color:'+(late?'#dc2626':'var(--mid)')+';font-size:10px">'+(t.due?esc(t.due):'')+'</span></div>';}).join('')||(openTasks===0?'<div style="color:#059669;font-size:12px">All tasks done! 🎉</div>':'')
       +'</div></div>'
       // Column 3: Recent contacts + concerns
       +'<div class="card"><div class="card-hdr"><span class="card-title">📞 Recent Parent Contacts</span></div><div class="card-body">'
@@ -5127,6 +5127,7 @@ function renderFullDashboard(type){
       +'</div>'
       :'<div class="card"><div class="card-body empty">No grade data yet — enter grades in the Grade Tracker first.</div></div>');
   }
+  if(isManualRefresh)toast('🔄 Refreshed');
 }
 
 function renderFullRoster(period){
