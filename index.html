@@ -206,6 +206,7 @@ textarea{resize:vertical;min-height:64px}
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -599,7 +600,7 @@ textarea{resize:vertical;min-height:64px}
             <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px">📊 Import from CSV or Excel</div>
             <div style="font-size:11px;color:var(--mid);margin-bottom:10px">Your file should have columns: <strong>Name, Period, Contact, Phone, Email, Dismissal, Notes</strong> (in any order). First row = headers.</div>
             <input type="file" id="import-file-students" accept=".csv,.xlsx,.xls" style="margin-bottom:10px" onchange="handleImportFile(this,'students')">
-            <div style="font-size:11px;color:var(--mid)">Tip: Export your current roster from PowerSchool, Infinite Campus, or Google Sheets as CSV and import it here.</div>
+            <div style="font-size:11px;color:var(--mid)">Tip: Export your current roster from PowerSchool, Infinite Campus, Focus, or your school's SIS/spreadsheet as CSV and import it here. Don't have every column? No problem — just include whatever you have (even just Name); anything left out is simply left blank.</div>
           </div>
           <div id="import-preview-students" style="display:none">
             <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px">Preview — <span id="import-count-students">0</span> students found</div>
@@ -2127,7 +2128,7 @@ textarea{resize:vertical;min-height:64px}
             <p style="font-size:12px;color:var(--mid)">Open <strong>Student Info</strong>. Four ways to add students:</p>
             <ul style="font-size:11px;color:var(--mid);margin:6px 0 0 14px;line-height:2">
               <li><strong>Manual:</strong> Fill form → Save</li>
-              <li><strong>CSV/Excel import:</strong> Export from PowerSchool or Infinite Campus → Upload</li>
+              <li><strong>CSV/Excel import:</strong> Export from PowerSchool, Infinite Campus, Focus, or your own spreadsheet → Upload</li>
               <li><strong>Drag & Drop:</strong> Drag roster file onto drop zone</li>
               <li><strong>Paste:</strong> Paste CSV text directly</li>
             </ul>
@@ -3028,16 +3029,44 @@ function handleImportFile(input, section){
   }
 }
 
+// Splits one CSV line into fields, respecting quoted fields that may contain commas.
+function splitCSVLine(line){
+  var fields=[],cur='',inQuotes=false;
+  for(var i=0;i<line.length;i++){
+    var ch=line[i];
+    if(inQuotes){
+      if(ch==='"'){
+        if(line[i+1]==='"'){cur+='"';i++;} else inQuotes=false;
+      } else cur+=ch;
+    } else {
+      if(ch==='"') inQuotes=true;
+      else if(ch===','){fields.push(cur);cur='';}
+      else cur+=ch;
+    }
+  }
+  fields.push(cur);
+  return fields.map(function(f){return f.trim();});
+}
+
+// Lowercases/trims an object's keys so headers from any export line up with normalizeRow's lookups.
+function normalizeHeaderKeys(obj){
+  var out={};
+  Object.keys(obj).forEach(function(k){out[k.trim().toLowerCase().replace(/['"]/g,'')]=(obj[k]==null?'':String(obj[k]).trim());});
+  return out;
+}
+
 function parseCSV(text, section){
   var lines=text.trim().split('\n').filter(function(l){return l.trim();});
   if(!lines.length)return;
-  var headers=lines[0].split(',').map(function(h){return h.trim().toLowerCase().replace(/['"]/g,'');});
+  var headers=splitCSVLine(lines[0]).map(function(h){return h.toLowerCase().replace(/['"]/g,'');});
   var rows=lines.slice(1).map(function(line){
-    var cols=line.match(/("(?:[^"]|"")*"|[^,]*)/g)||[];
+    var cols=splitCSVLine(line);
     var obj={};
-    headers.forEach(function(h,i){obj[h]=(cols[i]||'').replace(/^"|"$/g,'').replace(/""/g,'"').trim();});
+    headers.forEach(function(h,i){obj[h]=cols[i]||'';});
     return obj;
-  }).filter(function(r){return r.name||r['last, first']||r['first name']||r['student name'];});
+  // Use whatever columns are pertinent — a row only needs a recognizable name field to import;
+  // every other field (period, contact, phone, etc.) is optional and left blank if not present.
+  }).filter(function(r){return !!normalizeRow(r,section).name;});
   showImportPreview(rows, section);
 }
 
@@ -3047,27 +3076,37 @@ function parsePasteData(text, section){
 }
 
 function parseXLSX(buffer, section){
-  // Simple XLSX fallback — read as binary and extract text
-  var bytes=new Uint8Array(buffer);
-  var text='';
-  for(var i=0;i<Math.min(bytes.length,50000);i++){if(bytes[i]>31&&bytes[i]<127)text+=String.fromCharCode(bytes[i]);}
-  toast('Excel detected — for best results, save as CSV first and re-import');
-  // Try to extract names anyway using heuristic
-  var names=[];
-  var parts=text.split(/[\x00-\x1f]+/).filter(function(p){return p.length>2&&p.length<40&&/[A-Za-z]/.test(p)&&!/<|>|xmlns|Content/.test(p);});
-  parts.forEach(function(p){if(/^[A-Z][a-z]+,?\s+[A-Z]/.test(p)||/\d{1,2}$/.test(p))names.push({name:p.trim()});});
-  if(names.length)showImportPreview(names.slice(0,60), section);
+  if(typeof XLSX==='undefined'){
+    toast('Excel reader failed to load — save as CSV and re-import instead');
+    return;
+  }
+  var wb;
+  try{
+    wb=XLSX.read(buffer,{type:'array'});
+  }catch(err){
+    toast('Could not read that Excel file — try saving/exporting it as CSV instead');
+    return;
+  }
+  var sheet=wb.Sheets[wb.SheetNames[0]];
+  var rawRows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
+  var rows=rawRows.map(normalizeHeaderKeys).filter(function(r){return !!normalizeRow(r,section).name;});
+  if(!rows.length){
+    toast('No student rows found in that sheet — check it has a header row with a Name column');
+    return;
+  }
+  showImportPreview(rows, section);
 }
 
 function normalizeRow(row, section){
-  // normalize field names from various export formats
-  var name=row.name||row['student name']||row['last, first']||row['student']||row['full name']||(row['last name']&&row['first name']?(row['last name']+', '+row['first name']):'');
-  var period=row.period||row['class period']||row['pd']||row['per']||'';
-  var contact=row.contact||row['parent']||row['guardian']||row['emergency contact']||row['parent name']||'';
-  var phone=row.phone||row['parent phone']||row['contact phone']||row['phone number']||'';
-  var email=row.email||row['parent email']||row['contact email']||'';
-  var dismissal=row.dismissal||row['dismissal type']||row['bus']||'';
-  var notes=row.notes||row['medical']||row['accommodations']||row['special notes']||'';
+  // normalize field names from various export formats (PowerSchool, Infinite Campus, Focus, plain spreadsheets, etc.)
+  // Only Name is required — any other column that isn't present on a given roster is simply left blank.
+  var name=row.name||row['student name']||row['last, first']||row['student']||row['full name']||row['pupil']||(row['last name']&&row['first name']?(row['last name']+', '+row['first name']):'');
+  var period=row.period||row['class period']||row['pd']||row['per']||row['section']||'';
+  var contact=row.contact||row['parent']||row['guardian']||row['emergency contact']||row['parent name']||row['parent/guardian']||'';
+  var phone=row.phone||row['parent phone']||row['contact phone']||row['phone number']||row['cell']||row['mobile']||'';
+  var email=row.email||row['parent email']||row['contact email']||row['guardian email']||'';
+  var dismissal=row.dismissal||row['dismissal type']||row['bus']||row['bus route']||row['transportation']||'';
+  var notes=row.notes||row['medical']||row['accommodations']||row['special notes']||row['comments']||'';
   return {name:name,period:period,contact:contact,phone:phone,email:email,dismissal:dismissal,medical:notes};
 }
 
@@ -3128,16 +3167,16 @@ function handleDrop(e, section){
   e.preventDefault();
   dropZoneLeave(e,section);
   var file=e.dataTransfer.files[0];if(!file)return;
-  // show filename
-  var z=document.getElementById('drop-zone-'+section);
-  if(z)z.innerHTML='<div style="font-size:28px">📄</div><div style="font-size:13px;font-weight:700;color:var(--dark);margin-top:6px">'+esc(file.name)+'</div><div style="font-size:11px;color:var(--mid);margin-top:3px">Reading...</div>';
+  // show filename/status in the result area below the zone — never overwrite the drop
+  // zone's own contents, since its hidden file input lives inside it and must survive
+  // for click-to-browse and repeat drops to keep working.
+  var res=document.getElementById('drop-result-'+section);
+  if(res){res.style.display='';res.innerHTML='<div style="font-size:12px;color:var(--mid)">📄 '+esc(file.name)+' — reading...</div>';}
   // create fake input
   var dt=new DataTransfer();dt.items.add(file);
   var fakeInput={files:dt.files,name:file.name};
   handleImportFile(fakeInput, section);
-  // show result area
-  var res=document.getElementById('drop-result-'+section);
-  if(res){res.style.display='';res.innerHTML='<div style="font-size:12px;color:var(--mid)">File loaded — see preview above in Import tab</div>';}
+  if(res){res.innerHTML='<div style="font-size:12px;color:var(--mid)">📄 '+esc(file.name)+' — see preview above in Import tab</div>';}
   // switch to import tab to show preview
   setTimeout(function(){switchInputTab('import',section);},400);
 }
