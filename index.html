@@ -2624,6 +2624,26 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
 
+    <!-- CALENDAR SYNC -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">📆 Calendar Sync <span style="font-size:11px;font-weight:400;color:#a060a0">— get task alerts on your phone, even when this app is closed</span></span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--mid);margin-bottom:12px">Subscribe to this link once in Google Calendar, Apple Calendar, or Outlook. Your tasks (from Task List, Monthly Calendar, and Personal Planner) show up there automatically as events with a reminder — including Personal items, since only you see your own calendar. Calendar apps typically refresh subscriptions every 1–3 hours.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+          <input type="text" id="cal-sync-url" readonly style="flex:1;min-width:260px;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--dark);background:var(--surface)" onclick="this.select()">
+          <button class="btn btn-sm btn-primary" onclick="copyCalendarLink()">📋 Copy Link</button>
+          <button class="btn btn-sm" onclick="if(confirm('Regenerate your calendar link? The old link will stop working on any device it\'s already added to — you\'ll need to re-subscribe with the new one.')){regenerateCalendarToken();}">🔄 Regenerate</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px;color:var(--mid)">
+          <div style="background:var(--surface);border-radius:6px;padding:8px"><strong>Google Calendar</strong><br>Left sidebar → "Other calendars" + → "From URL" → paste the link.</div>
+          <div style="background:var(--surface);border-radius:6px;padding:8px"><strong>Apple Calendar</strong><br>File → New Calendar Subscription → paste the link.</div>
+          <div style="background:var(--surface);border-radius:6px;padding:8px"><strong>Outlook</strong><br>Add calendar → Subscribe from web → paste the link.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- PERIOD SCHEDULE -->
     <div class="card">
       <div class="card-hdr">
@@ -6433,7 +6453,45 @@ function renderSetup(){
   ['teacher','school','year','subject','firstday','lastday','starttime','endtime'].forEach(function(k){
     var e=document.getElementById('setup-'+k);if(e&&s[k])e.value=s[k];
   });
-  renderScheduleRows();renderSetupPreview();renderCalendarEvents();
+  renderScheduleRows();renderSetupPreview();renderCalendarEvents();renderCalendarSyncUI();
+}
+
+/* ── CALENDAR SYNC (ICS feed) ── */
+// The feed URL embeds the teacher's uid plus a random per-teacher secret
+// (teachers/{uid}/data/main.calendarSecret) rather than needing a separate lookup
+// collection — the serverless function (api/calendar.js) reads the uid straight out
+// of the URL, fetches that teacher's doc with the Firebase Admin SDK (which bypasses
+// client security rules), and checks the secret matches before returning anything.
+function getOrCreateCalendarToken(){
+  if(!DB.setup)DB.setup={};
+  if(!DB.setup.calendarSecret){
+    DB.setup.calendarSecret=Array.from(crypto.getRandomValues(new Uint8Array(18))).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    save();
+  }
+  return DB.setup.calendarSecret;
+}
+function calendarFeedUrl(){
+  if(!currentUser)return '';
+  var secret=getOrCreateCalendarToken();
+  return location.origin+'/api/calendar.ics?u='+currentUser.uid+'&s='+secret;
+}
+function renderCalendarSyncUI(){
+  var el=document.getElementById('cal-sync-url');if(!el)return;
+  el.value=calendarFeedUrl();
+}
+function copyCalendarLink(){
+  var url=calendarFeedUrl();
+  if(!url){toast('Sign in first');return;}
+  navigator.clipboard.writeText(url).then(function(){toast('✅ Calendar link copied!');}).catch(function(){
+    var el=document.getElementById('cal-sync-url');if(el){el.select();document.execCommand('copy');toast('✅ Calendar link copied!');}
+  });
+}
+function regenerateCalendarToken(){
+  if(!DB.setup)DB.setup={};
+  DB.setup.calendarSecret=Array.from(crypto.getRandomValues(new Uint8Array(18))).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  save();
+  renderCalendarSyncUI();
+  toast('🔄 New calendar link generated — update it wherever you subscribed');
 }
 function saveSetupInfo(){
   if(!DB.setup)DB.setup={};
