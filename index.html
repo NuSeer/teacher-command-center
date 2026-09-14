@@ -1656,6 +1656,17 @@ textarea{resize:vertical;min-height:64px}
     <div style="display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap">
       <div id="seat-period-tabs" style="display:flex;gap:4px"></div>
       <button class="btn btn-sm" onclick="addEmptyDesk()" style="background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.5);color:#fff">＋ Add Desk</button>
+      <select id="seat-furniture-picker" onchange="if(this.value){addFurniture(this.value);this.value='';}" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.25);color:#fff;font-size:12px;font-weight:700">
+        <option value="" style="color:#111">＋ Add Furniture…</option>
+        <option value="teacher" style="color:#111">🧑‍🏫 Teacher's Desk</option>
+        <option value="recttable" style="color:#111">▭ Rectangle Table</option>
+        <option value="roundtable" style="color:#111">⚫ Round Table</option>
+        <option value="bookcase" style="color:#111">📚 Bookcase / Shelf</option>
+        <option value="storage" style="color:#111">📦 Storage Area</option>
+        <option value="coatroom" style="color:#111">🧥 Coat Room</option>
+        <option value="whiteboard" style="color:#111">🖊️ Whiteboard</option>
+        <option value="projector" style="color:#111">📽️ Projector</option>
+      </select>
       <button class="btn btn-sm" onclick="autoArrangeDesks()" style="background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.5);color:#fff">⚡ Auto-Arrange</button>
       <button class="btn btn-sm" onclick="clearPeriodSeating()" style="background:rgba(255,80,80,.3);border-color:rgba(255,150,150,.5);color:#fff">🗑️ Clear</button>
       <button class="btn btn-sm" onclick="printReport('seating')" style="background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.5);color:#fff">🖨️ Print</button>
@@ -1688,6 +1699,7 @@ textarea{resize:vertical;min-height:64px}
           <span><span style="display:inline-block;width:12px;height:12px;background:#fce4ec;border:2px solid #e91e63;border-radius:3px;vertical-align:middle"></span> Medical alert</span>
           <span><span style="display:inline-block;width:12px;height:12px;background:#ede7f6;border:2px solid #7c3aed;border-radius:3px;vertical-align:middle"></span> IEP/504</span>
         </div>
+        <div style="margin-top:6px;font-size:9px;color:#999">Drag any desk or furniture to reposition · Double-click furniture to rename it</div>
       </div>
 
       <!-- Unassigned tray -->
@@ -2718,6 +2730,7 @@ function startApp(){
   ['mw-due','pt-date','cm-date','les-date','sub-date'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value)e.value=today;});
   var now=new Date();var ct=document.getElementById('cm-time');
   if(ct)ct.value=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  openFull('dash-master');
 }
 
 function exportAllData(){
@@ -5662,24 +5675,43 @@ function printReport(type){
 
   } else if(type==='seating'){
     var sPeriod=curSeatPeriod||'1';
-    var seatingRows=parseInt((document.getElementById('seat-rows')||{}).value||5);
-    var seatingCols=parseInt((document.getElementById('seat-cols')||{}).value||5);
     title='Seating Chart — Period '+sPeriod;
-    var key='p'+sPeriod;var seats=(DB.seating&&DB.seating[key])||{};
+    var key='p'+sPeriod;
+    var items=((DB.seating&&DB.seating[key])||[]).slice();
+    items.forEach(function(it){if(!it.type)it.type='desk';});
     html='<div class="rpt-header"><div><div class="rpt-title">Seating Chart — Period '+sPeriod+'</div><div class="rpt-sub">'+teacherLine+' · '+schoolLine+'</div></div><div class="rpt-info">'+today+'</div></div>'
-    +'<div style="text-align:center;padding:6px;background:#333;color:#fff;font-weight:bold;width:200px;margin:0 auto 16px;font-size:10pt">📖 FRONT OF ROOM</div>'
-    +'<table style="border-collapse:separate;border-spacing:6px;margin:0 auto">';
-    for(var r=0;r<seatingRows;r++){
-      html+='<tr>';
-      for(var c=0;c<seatingCols;c++){
-        var seatKey='r'+r+'c'+c;var sid2=seats[seatKey];var st=sid2?DB.students.find(function(x){return x.id===sid2;}):null;
-        html+='<td style="border:2px solid #333;border-radius:5px;width:120px;height:70px;padding:5px;vertical-align:top;background:'+(st?'#f0f4ff':'#fafafa')+'">'
-          +(st?'<b style="font-size:9.5pt">'+esc(st.name)+'</b><br><span style="font-size:8pt;color:#555">P'+st.period+(st.medical?' · ⚠️':'')+'</span>':'<span style="color:#ccc;font-size:8pt">Empty</span>')
-          +'</td>';
-      }
-      html+='</tr>';
+    +'<div style="text-align:center;padding:6px;background:#333;color:#fff;font-weight:bold;width:220px;margin:0 auto 16px;font-size:10pt;border-radius:4px">📖 FRONT OF ROOM</div>';
+    if(!items.length){
+      html+='<p style="text-align:center;padding:30px;color:#999">No desks or furniture placed yet for Period '+sPeriod+'.</p>';
+    } else {
+      var boxW=720,boxH=480,pad=20;
+      var minX=Math.min.apply(null,items.map(function(i){return i.x;}));
+      var minY=Math.min.apply(null,items.map(function(i){return i.y;}));
+      var maxX=Math.max.apply(null,items.map(function(i){var d=FURNITURE_TYPES[i.type]||FURNITURE_TYPES.desk;return i.x+(i.w||d.w);}));
+      var maxY=Math.max.apply(null,items.map(function(i){var d=FURNITURE_TYPES[i.type]||FURNITURE_TYPES.desk;return i.y+(i.h||d.h);}));
+      var contentW=Math.max(200,maxX-minX),contentH=Math.max(150,maxY-minY);
+      var scale=Math.min((boxW-pad*2)/contentW,(boxH-pad*2)/contentH,1.6);
+      var stageW=Math.round(contentW*scale+pad*2),stageH=Math.round(contentH*scale+pad*2);
+      html+='<div style="position:relative;width:'+stageW+'px;height:'+stageH+'px;margin:0 auto 16px;border:2px solid #333;border-radius:6px;background:#fdfdfb">';
+      items.forEach(function(it){
+        var def=FURNITURE_TYPES[it.type]||FURNITURE_TYPES.desk;
+        var w=Math.round((it.w||def.w)*scale),h=Math.round((it.h||def.h)*scale);
+        var x=Math.round((it.x-minX)*scale+pad),y=Math.round((it.y-minY)*scale+pad);
+        if(it.type==='desk'){
+          var student=it.studentId?DB.students.find(function(s){return s.id===it.studentId;}):null;
+          var miss=student?DB.missing.filter(function(m){return m.student===student.name&&m.status==='Missing';}).length:0;
+          var iepRec=student?(DB.iep||[]).find(function(r){return r.studentId===student.id&&r.status==='Active';}):null;
+          var bg='#fff',bd='#ccc';
+          if(student){bg='#e8f5e9';bd='#059669';if(miss>0){bg='#fff3e0';bd='#f59e0b';}if(student.medical){bg='#fce4ec';bd='#e91e63';}if(iepRec&&!student.medical){bg='#ede7f6';bd='#7c3aed';}}
+          var cell=student?('<b>'+esc(student.name)+'</b>'+(miss?'<br>⚠ '+miss+' missing':'')+(iepRec?'<br>'+esc(iepRec.type):'')+(student.medical?'<br>🏥':'')):'<span style="color:#bbb">Empty</span>';
+          html+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+h+'px;background:'+bg+';border:2px solid '+bd+';border-radius:6px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:8pt;padding:2px;overflow:hidden">'+cell+'</div>';
+        } else {
+          html+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+h+'px;background:'+def.bg+';border:2px solid '+def.border+';border-radius:'+(def.round?'50%':'5px')+';display:flex;align-items:center;justify-content:center;text-align:center;font-size:7.5pt;font-weight:bold;color:#333;overflow:hidden">'+esc(it.label||def.label)+'</div>';
+        }
+      });
+      html+='</div>'
+        +'<div style="font-size:8pt;color:#555;text-align:center">Layout mirrors the on-screen classroom arrangement (scaled to fit the page).</div>';
     }
-    html+='</table>';
   }
 
   // Open print window
@@ -6220,6 +6252,18 @@ function toggleBOYCheck(i,val){if(!DB.setup)DB.setup={};if(!DB.setup.boyChecklis
 var curSeatPeriod=(function(){var s=getSchedule().filter(function(r){return r.type==='Class';});var m=s[0]&&s[0].label.match(/\d+/);return m?m[0]:'1';})();
 var seatDragging=null;
 
+var FURNITURE_TYPES={
+  desk:      {icon:'🪑',label:'Desk',            w:104,h:70,  assignable:true},
+  teacher:   {icon:'🧑‍🏫',label:"Teacher's Desk", w:130,h:70,  bg:'#e0f2fe',border:'#0284c7',fs:22},
+  recttable: {icon:'▭', label:'Table',           w:150,h:80,  bg:'#fef3c7',border:'#d97706',fs:20},
+  roundtable:{icon:'⚫',label:'Table',            w:110,h:110, bg:'#fef3c7',border:'#d97706',fs:20,round:true},
+  bookcase:  {icon:'📚',label:'Bookcase',         w:150,h:38,  bg:'#efe6da',border:'#92400e',fs:14,thin:true},
+  storage:   {icon:'📦',label:'Storage',          w:100,h:60,  bg:'#e5e7eb',border:'#6b7280',fs:20},
+  coatroom:  {icon:'🧥',label:'Coat Room',        w:120,h:60,  bg:'#e0e7ff',border:'#4f46e5',fs:20},
+  whiteboard:{icon:'🖊️',label:'Whiteboard',       w:180,h:30,  bg:'#ffffff',border:'#1f2937',fs:14,thin:true},
+  projector: {icon:'📽️',label:'Projector',        w:50, h:50,  bg:'#fce7f3',border:'#be185d',fs:18}
+};
+
 function switchSeatPeriod(p,btn){
   curSeatPeriod=p;
   document.querySelectorAll('#seat-period-tabs .input-tab').forEach(function(b){b.classList.remove('active');});
@@ -6231,26 +6275,54 @@ function getSeatData(){
   if(!DB.seating)DB.seating={};
   var key='p'+curSeatPeriod;
   if(!DB.seating[key]||!Array.isArray(DB.seating[key]))DB.seating[key]=[];
+  DB.seating[key].forEach(function(it){if(!it.type)it.type='desk';});
   return DB.seating[key];
 }
 
-function saveSeatData(desks){
+function saveSeatData(items){
   if(!DB.seating)DB.seating={};
-  DB.seating['p'+curSeatPeriod]=desks;
+  DB.seating['p'+curSeatPeriod]=items;
   save();
 }
 
 function renderSeatingChart(){
   var canvas=document.getElementById('seat-canvas');
   if(!canvas)return;
-  var desks=getSeatData();
+  var items=getSeatData();
   canvas.innerHTML='';
   var periodStudents=DB.students.filter(function(s){return s.period===curSeatPeriod;});
-  desks.forEach(function(desk){canvas.appendChild(buildDeskEl(desk,periodStudents));});
-  renderSeatTray(desks,periodStudents);
+  items.forEach(function(item){canvas.appendChild(buildFurnitureEl(item,periodStudents));});
+  renderSeatTray(items,periodStudents);
 }
 
-function buildDeskEl(desk,periodStudents){
+function buildFurnitureEl(item,periodStudents){
+  var type=item.type||'desk';
+  var def=FURNITURE_TYPES[type]||FURNITURE_TYPES.desk;
+  var w=item.w||def.w,h=item.h||def.h;
+  if(type==='desk')return buildDeskEl(item,periodStudents,w,h);
+
+  var el=document.createElement('div');
+  el.id='desk-'+item.id;el.dataset.deskId=item.id;
+  el.style.cssText='position:absolute;left:'+item.x+'px;top:'+item.y+'px;width:'+w+'px;height:'+h+'px;background:'+def.bg+';border:2.5px solid '+def.border+';border-radius:'+(def.round?'50%':'8px')+';display:flex;flex-direction:'+(def.thin?'row':'column')+';align-items:center;justify-content:center;gap:'+(def.thin?'6px':'0')+';cursor:grab;font-size:10px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.12);user-select:none;z-index:4;transition:box-shadow .1s';
+  var label=item.label||def.label;
+  el.innerHTML='<div style="font-size:'+(def.fs||18)+'px;line-height:1">'+def.icon+'</div>'
+    +'<div style="font-size:9px;font-weight:800;color:#1a1a2e;padding:0 4px;word-break:break-word;'+(def.thin?'':'margin-top:2px')+'">'+esc(label)+'</div>'
+    +'<button onclick="removeDesk(&quot;'+item.id+'&quot;)" title="Remove" style="position:absolute;top:1px;right:2px;background:none;border:none;cursor:pointer;font-size:9px;color:rgba(0,0,0,.35);line-height:1;padding:1px 3px">✕</button>';
+
+  el.addEventListener('dblclick',function(e){
+    if(e.target.tagName==='BUTTON')return;
+    var nv=prompt('Label for this '+def.label+':',label);
+    if(nv===null)return;
+    item.label=nv.trim()||def.label;
+    saveSeatData(getSeatData());renderSeatingChart();
+  });
+
+  attachDragHandlers(el,item,w,h);
+  return el;
+}
+
+function buildDeskEl(desk,periodStudents,w,h){
+  w=w||104;h=h||70;
   var student=desk.studentId?DB.students.find(function(s){return s.id===desk.studentId;}):null;
   if(!periodStudents)periodStudents=DB.students.filter(function(s){return s.period===curSeatPeriod;});
   var miss=student?DB.missing.filter(function(m){return m.student===student.name&&m.status==='Missing';}).length:0;
@@ -6264,7 +6336,7 @@ function buildDeskEl(desk,periodStudents){
   }
   var el=document.createElement('div');
   el.id='desk-'+desk.id;el.dataset.deskId=desk.id;
-  el.style.cssText='position:absolute;left:'+desk.x+'px;top:'+desk.y+'px;width:104px;min-height:70px;background:'+bg+';border:2.5px '+borderStyle+' '+border+';border-radius:10px;padding:8px 6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;font-size:10px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.12);user-select:none;z-index:5;transition:box-shadow .1s';
+  el.style.cssText='position:absolute;left:'+desk.x+'px;top:'+desk.y+'px;width:'+w+'px;min-height:'+h+'px;background:'+bg+';border:2.5px '+borderStyle+' '+border+';border-radius:10px;padding:8px 6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;font-size:10px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.12);user-select:none;z-index:5;transition:box-shadow .1s';
   var inner='';
   if(student){
     inner='<div style="font-size:11px;font-weight:800;color:#1a1a2e;line-height:1.2;word-break:break-word">'+esc(student.name)+'</div>';
@@ -6283,14 +6355,18 @@ function buildDeskEl(desk,periodStudents){
     openDeskAssign(desk.id);
   });
 
+  attachDragHandlers(el,desk,w,h);
+  return el;
+}
+
+function attachDragHandlers(el,item,w,h){
   el.addEventListener('mousedown',function(e){
     if(e.target.tagName==='BUTTON')return;
     e.preventDefault();
     var rect=el.getBoundingClientRect();
-    seatDragging={deskId:desk.id,offsetX:e.clientX-rect.left,offsetY:e.clientY-rect.top,moved:false};
+    seatDragging={deskId:item.id,offsetX:e.clientX-rect.left,offsetY:e.clientY-rect.top,moved:false,w:w,h:h};
     el.style.cursor='grabbing';el.style.zIndex='100';el.style.boxShadow='0 8px 28px rgba(0,0,0,.28)';el.style.transform='scale(1.04)';
   });
-  return el;
 }
 
 document.addEventListener('mousemove',function(e){
@@ -6299,8 +6375,9 @@ document.addEventListener('mousemove',function(e){
   var canvas=document.getElementById('seat-canvas');if(!canvas)return;
   var el=document.getElementById('desk-'+seatDragging.deskId);if(!el)return;
   var rect=canvas.getBoundingClientRect();
-  var x=Math.max(0,Math.min(e.clientX-rect.left-seatDragging.offsetX,rect.width-108));
-  var y=Math.max(0,Math.min(e.clientY-rect.top-seatDragging.offsetY,rect.height-76));
+  var w=seatDragging.w||108,h=seatDragging.h||76;
+  var x=Math.max(0,Math.min(e.clientX-rect.left-seatDragging.offsetX,rect.width-w-4));
+  var y=Math.max(0,Math.min(e.clientY-rect.top-seatDragging.offsetY,rect.height-h-4));
   x=Math.round(x/20)*20;y=Math.round(y/20)*20;
   el.style.left=x+'px';el.style.top=y+'px';
 });
@@ -6309,9 +6386,9 @@ document.addEventListener('mouseup',function(){
   if(!seatDragging)return;
   var el=document.getElementById('desk-'+seatDragging.deskId);
   if(el&&seatDragging.moved){
-    var desks=getSeatData();
-    var desk=desks.find(function(d){return d.id===seatDragging.deskId;});
-    if(desk){desk.x=parseInt(el.style.left)||0;desk.y=parseInt(el.style.top)||0;saveSeatData(desks);}
+    var items=getSeatData();
+    var item=items.find(function(d){return d.id===seatDragging.deskId;});
+    if(item){item.x=parseInt(el.style.left)||0;item.y=parseInt(el.style.top)||0;saveSeatData(items);}
     el.style.cursor='grab';el.style.zIndex='5';el.style.boxShadow='0 2px 6px rgba(0,0,0,.12)';el.style.transform='';
   }
   seatDragging=null;
@@ -6333,11 +6410,12 @@ document.addEventListener('drop',function(e){
   if(!trayDragStudentId)return;
   var target=e.target.closest('[id^="desk-"]');if(!target)return;
   var deskId=target.dataset.deskId;
-  var desks=getSeatData();
-  desks.forEach(function(d){if(d.studentId===trayDragStudentId)d.studentId=null;});
-  var desk=desks.find(function(d){return d.id===deskId;});
-  if(desk)desk.studentId=trayDragStudentId;
-  saveSeatData(desks);trayDragStudentId=null;renderSeatingChart();
+  var items=getSeatData();
+  var desk=items.find(function(d){return d.id===deskId&&(d.type||'desk')==='desk';});
+  if(!desk){trayDragStudentId=null;return;}
+  items.forEach(function(d){if(d.studentId===trayDragStudentId)d.studentId=null;});
+  desk.studentId=trayDragStudentId;
+  saveSeatData(items);trayDragStudentId=null;renderSeatingChart();
 });
 
 function openDeskAssign(deskId){
@@ -6420,20 +6498,32 @@ function removeDesk(deskId){
 }
 
 function addEmptyDesk(){
-  var desks=getSeatData();
+  addFurniture('desk');
+}
+
+function addFurniture(type){
+  var def=FURNITURE_TYPES[type];if(!def)return;
+  var items=getSeatData();
   var canvas=document.getElementById('seat-canvas');
   var cw=canvas?canvas.offsetWidth:800,ch=canvas?canvas.offsetHeight:600;
-  var x=60+((desks.length%6)*124),y=80+Math.floor(desks.length/6)*100;
-  x=Math.min(x,cw-120);y=Math.min(y,ch-90);
-  desks.push({id:'d'+(Date.now()%999999),x:x,y:y,studentId:null});
-  saveSeatData(desks);renderSeatingChart();
+  var sameType=items.filter(function(it){return (it.type||'desk')===type;}).length;
+  var idx=items.length;
+  var step=46,wrapW=Math.max(220,cw-def.w-80),wrapH=Math.max(160,ch-def.h-80);
+  var x=50+((idx*step)%wrapW),y=70+((idx*step)%wrapH);
+  x=Math.min(x,Math.max(0,cw-def.w-10));y=Math.min(y,Math.max(0,ch-def.h-10));
+  var item={id:'d'+(Date.now()%999999)+Math.floor(Math.random()*99),type:type,x:x,y:y,w:def.w,h:def.h};
+  if(def.assignable)item.studentId=null;
+  else item.label=def.label+(sameType?' '+(sameType+1):'');
+  items.push(item);
+  saveSeatData(items);renderSeatingChart();
 }
 
 function autoArrangeDesks(){
-  var desks=getSeatData();
+  var items=getSeatData();
   var periodStudents=DB.students.filter(function(s){return s.period===curSeatPeriod;});
+  var desks=items.filter(function(it){return (it.type||'desk')==='desk';});
   if(!desks.length){
-    periodStudents.forEach(function(s,i){desks.push({id:'d'+(Date.now()%999999+i),x:0,y:0,studentId:s.id});});
+    periodStudents.forEach(function(s,i){var d={id:'d'+(Date.now()%999999+i),type:'desk',x:0,y:0,studentId:s.id};desks.push(d);items.push(d);});
   }
   if(!desks.length){toast('No students in this period');return;}
   var canvas=document.getElementById('seat-canvas');
@@ -6444,11 +6534,11 @@ function autoArrangeDesks(){
   var gapX=Math.min(134,Math.floor((cw-padX*2)/Math.max(cols,1)));
   var gapY=Math.min(110,Math.floor((ch-padY*2)/Math.max(rows,1)));
   desks.forEach(function(d,i){d.x=padX+(i%cols)*gapX;d.y=padY+Math.floor(i/cols)*gapY;});
-  saveSeatData(desks);renderSeatingChart();toast('✅ Desks arranged!');
+  saveSeatData(items);renderSeatingChart();toast('✅ Desks arranged!');
 }
 
 function clearPeriodSeating(){
-  if(!confirm('Clear all desks for Period '+curSeatPeriod+'?'))return;
+  if(!confirm('Clear all desks and furniture for Period '+curSeatPeriod+'?'))return;
   saveSeatData([]);renderSeatingChart();toast('Cleared');
 }
 
