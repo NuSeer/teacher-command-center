@@ -1389,7 +1389,7 @@ textarea{resize:vertical;min-height:64px}
            long Overdue list can never crowd Upcoming out of view. -->
       <div style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
         <!-- TO DO TODAY -->
-        <div style="flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
+        <div style="flex:1.1;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
           <div style="background:#e040a0;color:#fff;padding:7px 12px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
             TASKS — TO DO TODAY
             <button onclick="openFull('tasks')" style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer">+ Add</button>
@@ -1397,14 +1397,14 @@ textarea{resize:vertical;min-height:64px}
           <div id="planner-todo" style="padding:8px;flex:1;overflow-y:auto"></div>
         </div>
 
-        <!-- UPCOMING (green like screenshot) — sized larger (flex:1.4) than Today/Overdue -->
-        <div style="flex:1.4;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
+        <!-- UPCOMING (green like screenshot) — equal to Today's tasks, still bigger than Overdue -->
+        <div style="flex:1.1;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
           <div style="background:#059669;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">⏰ UPCOMING</div>
           <div id="planner-upcoming-col" style="padding:8px;flex:1;overflow-y:auto"></div>
         </div>
 
         <!-- OVERDUE (red like screenshot) -->
-        <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="flex:0.8;display:flex;flex-direction:column;min-height:0">
           <div style="background:#dc2626;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">🔴 OVERDUE</div>
           <div id="planner-overdue-col" style="padding:8px;flex:1;overflow-y:auto"></div>
         </div>
@@ -1486,6 +1486,7 @@ textarea{resize:vertical;min-height:64px}
         <div class="fg"><label>Title</label><input type="text" id="pp-title" placeholder="What's this about?"></div>
         <div class="fg"><label>Due date</label><input type="date" id="pp-due"></div>
         <div class="fg"><label>Priority</label><select id="pp-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+        <div class="fg"><label>Category</label><div id="pp-cat-wrap"></div></div>
       </div>
       <button class="btn btn-primary" onclick="savePersonalTask()">Add</button>
     </div></div>
@@ -1507,9 +1508,9 @@ textarea{resize:vertical;min-height:64px}
       <button class="btn btn-sm" onclick="monthCalToday()" style="background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.5);color:#fff;font-weight:800">This Month</button>
     </div>
   </div>
-  <div class="fp-body">
-    <div style="font-size:11px;color:var(--mid);margin-bottom:10px">Click any day to add something — it shows up in your Daily Planner automatically. Mark it <strong>Personal</strong> to keep it private there.</div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">
+  <div class="fp-body" style="display:flex;flex-direction:column;height:calc(100vh - 56px);overflow:hidden;padding:14px">
+    <div style="font-size:11px;color:var(--mid);margin-bottom:10px;flex-shrink:0">Click any day to add something — it shows up in your Daily Planner automatically. Mark it <strong>Personal</strong> to keep it private there.</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;flex-shrink:0">
       <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Sun</div>
       <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Mon</div>
       <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Tue</div>
@@ -1518,19 +1519,19 @@ textarea{resize:vertical;min-height:64px}
       <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Fri</div>
       <div style="text-align:center;font-size:11px;font-weight:800;color:var(--mid)">Sat</div>
     </div>
-    <div id="monthcal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+    <div id="monthcal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(6,1fr);gap:6px;flex:1;min-height:0"></div>
   </div>
 </div>
 
 <div id="monthcal-add-popup" style="display:none;position:fixed;z-index:9999;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);align-items:center;justify-content:center">
-  <div style="background:var(--card-bg);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.25);padding:18px;min-width:280px;border:2px solid var(--accent1)">
-    <div style="font-size:14px;font-weight:800;color:var(--dark);margin-bottom:12px" id="monthcal-add-date-label"></div>
-    <div class="fg" style="margin-bottom:8px"><label>Title</label><input type="text" id="mc-add-title" placeholder="What's due / happening?"></div>
-    <div class="fg" style="margin-bottom:8px"><label>Priority</label><select id="mc-add-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
-    <div class="fg" style="margin-bottom:12px"><label>Category</label><div id="mc-add-cat-wrap"></div></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="saveMonthCalTask()">Add</button>
-      <button class="btn" onclick="closeMonthCalAdd()">Cancel</button>
+  <div style="background:var(--card-bg);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.25);padding:28px;width:440px;max-width:92vw;border:2px solid var(--accent1)">
+    <div style="font-size:18px;font-weight:800;color:var(--dark);margin-bottom:18px" id="monthcal-add-date-label"></div>
+    <div class="fg" style="margin-bottom:14px"><label>Title</label><input type="text" id="mc-add-title" placeholder="What's due / happening?" style="width:100%;padding:11px 12px;font-size:15px;border:1.5px solid var(--border);border-radius:8px;color:var(--dark)"></div>
+    <div class="fg" style="margin-bottom:14px"><label>Priority</label><select id="mc-add-priority" style="width:100%;padding:11px 12px;font-size:15px;border:1.5px solid var(--border);border-radius:8px;color:var(--dark)"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    <div class="fg" style="margin-bottom:20px"><label>Category</label><div id="mc-add-cat-wrap"></div></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1;padding:12px;font-size:14px" onclick="saveMonthCalTask()">Add</button>
+      <button class="btn" style="flex:1;padding:12px;font-size:14px" onclick="closeMonthCalAdd()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2893,6 +2894,7 @@ var DEFAULT_OPTIONS={
   bhAction:['Verbal warning','Seat change','Call Home','Email Home','Detention','Parent Meeting','Office referral','Counselor referral','None — documented only'],
   asType:['Homework','Classwork','Project','Quiz','Test','Lab','Exit Ticket'],
   tkCat:['General','Grading','Communication','Planning','Admin','Copies','Data Entry','Training','Meeting','Personal'],
+  personalCat:['Dr. Appt','Dentist Appt','Mental Health Day','Trip','Family','Errand','Appointment','Other'],
   cnType:['Academic concern','Behavioral','Social-emotional','Attendance','Bullying / peer conflict','Family situation','Mental health concern','Safety concern'],
   cnReferred:['Counselor','Admin','Parent','Social worker','Special Ed coordinator','Not referred yet'],
   mwStatus:['Missing','Excused','Partial','Late - Submitted','Parent Notified']
@@ -3048,7 +3050,7 @@ function openFull(id){
     if(id==='planner'){plannerInit();renderPlanner();}
     if(id==='tasks'){renderTasks();
       var tkw=document.getElementById('tkcat-wrap');if(tkw)tkw.innerHTML=buildSelect('tk-cat','tkCat','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');}
-    if(id==='personal-planner')renderPersonalPlanner();
+    if(id==='personal-planner'){renderPersonalPlannerForm();renderPersonalPlanner();}
     if(id==='monthcal')renderMonthCal();
     if(id==='curriculum')renderCurriculum();
     if(id==='counseling'){renderConcerns();renderConcernStats();populateStudentSelect('cn-student','cn-period');
@@ -4504,9 +4506,13 @@ function refreshTaskViews(){
 }
 
 /* ── PERSONAL PLANNER ── */
+function renderPersonalPlannerForm(){
+  var catWrap=document.getElementById('pp-cat-wrap');
+  if(catWrap)catWrap.innerHTML=buildSelect('pp-subcat','personalCat','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
+}
 function savePersonalTask(){
   var t=(document.getElementById('pp-title')||{}).value.trim();if(!t){toast('Enter a title');return;}
-  DB.tasks.push({id:Date.now()+'',title:t,due:(document.getElementById('pp-due')||{}).value,priority:(document.getElementById('pp-priority')||{}).value||'Medium',cat:'Personal',done:false});
+  DB.tasks.push({id:Date.now()+'',title:t,due:(document.getElementById('pp-due')||{}).value,priority:(document.getElementById('pp-priority')||{}).value||'Medium',cat:'Personal',subcat:(document.getElementById('pp-subcat')||{}).value||'Other',done:false});
   save();document.getElementById('pp-title').value='';document.getElementById('pp-due').value='';
   toast('Personal item added');refreshTaskViews();
 }
@@ -4521,6 +4527,7 @@ function renderPersonalPlanner(){
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f9eef8">'
         +'<input type="checkbox"'+(t.done?' checked':'')+' onchange="toggleTask(\''+t.id+'\')" style="accent-color:#e040a0;width:15px;height:15px;flex-shrink:0;cursor:pointer">'
         +'<span style="flex:1;font-size:13px;color:#5a2060;'+(t.done?'text-decoration:line-through;opacity:.5;':'')+'">'+esc(t.title)+'</span>'
+        +(t.subcat?'<span class="badge b-lav" style="font-size:9px">'+esc(t.subcat)+'</span>':'')
         +'<span class="badge '+pc+'" style="font-size:9px">'+t.priority+'</span>'
         +(t.due?'<span style="font-size:11px;color:'+(overdue?'#dc2626':'#a060a0')+'">'+esc(t.due)+'</span>':'')
         +'<button class="btn btn-sm btn-danger" onclick="delTask(\''+t.id+'\')">✕</button>'
@@ -4559,15 +4566,17 @@ function renderMonthCal(){
     var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
     var dayTasks=DB.tasks.filter(function(t){return t.due===ds;});
     var isToday=ds===todayStr;
-    var items=dayTasks.slice(0,3).map(function(t){
+    var items=dayTasks.map(function(t){
       var personal=t.cat==='Personal';
       var color=personal?'#9ca3af':(pc[t.priority]||'#666');
-      return '<div style="font-size:9px;padding:1px 4px;margin-top:2px;border-radius:4px;background:'+color+'22;color:'+color+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(personal?'🔒 Personal':esc(t.title))+'</div>';
+      // Personal items open Personal Planner instead of the add-to-day popup — stopPropagation
+      // keeps the click from also bubbling up to the day cell's own onclick.
+      var onclick=personal?'onclick="event.stopPropagation();openFull(\'personal-planner\')"':'';
+      return '<div '+onclick+' style="font-size:9px;padding:1px 4px;margin-top:2px;border-radius:4px;background:'+color+'22;color:'+color+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap'+(personal?';cursor:pointer':'')+'" title="'+(personal?'Open in Personal Planner':esc(t.title))+'">'+(personal?'🔒 Personal':esc(t.title))+'</div>';
     }).join('');
-    var more=dayTasks.length>3?'<div style="font-size:8px;color:var(--mid)">+'+(dayTasks.length-3)+' more</div>':'';
-    cells.push('<div onclick="openMonthCalAdd(\''+ds+'\')" style="min-height:80px;border:1.5px solid '+(isToday?'var(--accent1)':'var(--border)')+';border-radius:8px;padding:5px;cursor:pointer;background:'+(isToday?'var(--light)':'var(--card-bg)')+'">'
+    cells.push('<div onclick="openMonthCalAdd(\''+ds+'\')" style="height:100%;overflow-y:auto;border:1.5px solid '+(isToday?'var(--accent1)':'var(--border)')+';border-radius:8px;padding:5px;cursor:pointer;background:'+(isToday?'var(--light)':'var(--card-bg)')+'">'
       +'<div style="font-size:11px;font-weight:800;color:'+(isToday?'var(--accent1)':'var(--dark)')+'">'+day+'</div>'
-      +items+more+'</div>');
+      +items+'</div>');
   }
   grid.innerHTML=cells.join('');
 }
@@ -4576,7 +4585,7 @@ function openMonthCalAdd(ds){
   var lbl=document.getElementById('monthcal-add-date-label');
   if(lbl)lbl.textContent='Add to '+new Date(ds+'T00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   var catWrap=document.getElementById('mc-add-cat-wrap');
-  if(catWrap)catWrap.innerHTML=buildSelect('mc-add-cat','tkCat','width:100%;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
+  if(catWrap)catWrap.innerHTML=buildSelect('mc-add-cat','tkCat','width:100%;padding:11px 12px;border:1.5px solid #f0cce8;border-radius:8px;font-size:15px;color:#5a2060');
   var t=document.getElementById('mc-add-title');if(t)t.value='';
   var popup=document.getElementById('monthcal-add-popup');
   if(popup)popup.style.display='flex';
