@@ -7728,6 +7728,7 @@ function loadSampleData(){
    with no pre-existing data, i.e. someone who just signed up through the
    invite-code flow. Pre-existing accounts (the developer's own, anyone
    using the app before this layer existed) are never affected.
+   Silent — no toast/notice on block, just a no-op keypress/right-click.
    Raises friction for a person poking around with a mouse/keyboard in a
    normal browser. Does NOT and cannot stop anyone fetching the page over
    HTTP directly, using a script/AI agent, or a browser without these APIs
@@ -7746,12 +7747,8 @@ document.addEventListener('keydown',function(e){
   var blocked=(k==='F12')
     ||((e.ctrlKey||e.metaKey)&&e.shiftKey&&(k==='I'||k==='i'||k==='J'||k==='j'||k==='C'||k==='c'))
     ||((e.ctrlKey||e.metaKey)&&(k==='U'||k==='u'));
-  if(blocked){e.preventDefault();toast('Developer tools are disabled during the private beta.');}
+  if(blocked)e.preventDefault();
 });
-// Deliberately no outerWidth/innerWidth-based "devtools is open" heuristic here — it's a
-// well-known unreliable technique that false-positives on normal window states (unmaximized
-// windows, browser zoom, OS display scaling, some extensions), not just actual DevTools. It
-// doesn't add real protection beyond the keydown block above, only false alarms.
 
 // App starts via Firebase auth → loadFromFirestore() → startApp()
 </script>
