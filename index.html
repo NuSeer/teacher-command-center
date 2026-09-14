@@ -7748,19 +7748,10 @@ document.addEventListener('keydown',function(e){
     ||((e.ctrlKey||e.metaKey)&&(k==='U'||k==='u'));
   if(blocked){e.preventDefault();toast('Developer tools are disabled during the private beta.');}
 });
-(function(){
-  var warned=false;
-  setInterval(function(){
-    if(!isBetaTesterAccount)return;
-    var widthGap=window.outerWidth-window.innerWidth>160;
-    var heightGap=window.outerHeight-window.innerHeight>160;
-    if((widthGap||heightGap)&&!warned){
-      warned=true;
-      toast('⚠️ Developer tools detected — please close them during the beta.');
-      setTimeout(function(){warned=false;},15000);
-    }
-  },2000);
-})();
+// Deliberately no outerWidth/innerWidth-based "devtools is open" heuristic here — it's a
+// well-known unreliable technique that false-positives on normal window states (unmaximized
+// windows, browser zoom, OS display scaling, some extensions), not just actual DevTools. It
+// doesn't add real protection beyond the keydown block above, only false alarms.
 
 // App starts via Firebase auth → loadFromFirestore() → startApp()
 </script>
