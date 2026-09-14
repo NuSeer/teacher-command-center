@@ -207,6 +207,9 @@ textarea{resize:vertical;min-height:64px}
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 </head>
 <body>
 
@@ -594,12 +597,12 @@ textarea{resize:vertical;min-height:64px}
           <button class="btn btn-primary" onclick="saveStudent()">Save student</button>
         </div>
 
-        <!-- IMPORT CSV/EXCEL -->
+        <!-- IMPORT CSV/EXCEL/PDF/WORD -->
         <div id="pane-import" style="display:none">
           <div style="background:var(--surface);border-radius:8px;padding:14px;margin-bottom:12px;border:1.5px solid var(--border)">
-            <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px">📊 Import from CSV or Excel</div>
-            <div style="font-size:11px;color:var(--mid);margin-bottom:10px">Your file should have columns: <strong>Name, Period, Contact, Phone, Email, Dismissal, Notes</strong> (in any order). First row = headers.</div>
-            <input type="file" id="import-file-students" accept=".csv,.xlsx,.xls" style="margin-bottom:10px" onchange="handleImportFile(this,'students')">
+            <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px">📊 Import from CSV, Excel, PDF, or Word</div>
+            <div style="font-size:11px;color:var(--mid);margin-bottom:10px">Your file should have columns: <strong>Name, Period, Contact, Phone, Email, Dismissal, Notes</strong> (in any order). First row = headers. For PDF/Word rosters received by email, the file needs an actual table or a clear list of names — always double-check the preview below before importing, since scanned/image-only PDFs won't extract text (use 📷 Photo/AI instead for those).</div>
+            <input type="file" id="import-file-students" accept=".csv,.xlsx,.xls,.pdf,.docx" style="margin-bottom:10px" onchange="handleImportFile(this,'students')">
             <div style="font-size:11px;color:var(--mid)">Tip: Export your current roster from PowerSchool, Infinite Campus, Focus, or your school's SIS/spreadsheet as CSV and import it here. Don't have every column? No problem — just include whatever you have (even just Name); anything left out is simply left blank.</div>
           </div>
           <div id="import-preview-students" style="display:none">
@@ -622,9 +625,9 @@ textarea{resize:vertical;min-height:64px}
             ondragover="dropZoneOver(event,'students')" ondragleave="dropZoneLeave(event,'students')" ondrop="handleDrop(event,'students')" onclick="document.getElementById('drop-input-students').click()">
             <div style="font-size:40px;margin-bottom:10px">📂</div>
             <div style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:6px">Drop your file here</div>
-            <div style="font-size:12px;color:var(--mid)">CSV, Excel (.xlsx), or plain text roster</div>
+            <div style="font-size:12px;color:var(--mid)">CSV, Excel, PDF, Word (.docx), or plain text roster</div>
             <div style="font-size:11px;color:var(--mid);margin-top:4px">or click to browse</div>
-            <input type="file" id="drop-input-students" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleImportFile(this,'students')">
+            <input type="file" id="drop-input-students" accept=".csv,.xlsx,.xls,.txt,.pdf,.docx" style="display:none" onchange="handleImportFile(this,'students')">
           </div>
           <div id="drop-result-students" style="display:none;margin-top:12px"></div>
         </div>
@@ -3026,6 +3029,18 @@ function handleImportFile(input, section){
     var r2=new FileReader();
     r2.onload=function(e){parseXLSX(e.target.result, section);};
     r2.readAsArrayBuffer(file);
+  } else if(ext==='pdf'){
+    var r3=new FileReader();
+    r3.onload=function(e){parsePDF(e.target.result, section);};
+    r3.readAsArrayBuffer(file);
+  } else if(ext==='docx'){
+    var r4=new FileReader();
+    r4.onload=function(e){parseDOCX(e.target.result, section);};
+    r4.readAsArrayBuffer(file);
+  } else if(ext==='doc'){
+    toast("Older .doc files aren't supported — in Word, use Save As → .docx or PDF, then re-upload");
+  } else {
+    toast('Unsupported file type. Use CSV, Excel, PDF, or Word (.docx).');
   }
 }
 
@@ -3095,6 +3110,122 @@ function parseXLSX(buffer, section){
     return;
   }
   showImportPreview(rows, section);
+}
+
+// Best-effort parser for freeform text extracted from a PDF or a Word doc with no real
+// table — splits each line on 2+ spaces or a tab (how extracted table text usually lines
+// up), falling back to comma-splitting. If no header row is recognizable, falls back
+// further to picking out lines that look like a name ("Last, First" or "First Last") so
+// there's still something to review in the preview instead of nothing at all.
+function parseTabularText(text, section){
+  var lines=text.split('\n').map(function(l){return l.replace(/\r/g,'');}).filter(function(l){return l.trim();});
+  if(!lines.length)return [];
+  function splitLine(line){
+    if(/\t/.test(line))return line.split('\t').map(function(f){return f.trim();}).filter(function(f){return f!=='';});
+    if(/ {2,}/.test(line))return line.split(/ {2,}/).map(function(f){return f.trim();}).filter(function(f){return f!=='';});
+    return splitCSVLine(line);
+  }
+  var headerIdx=-1,headers=null;
+  for(var i=0;i<Math.min(lines.length,10);i++){
+    var cols=splitLine(lines[i]).map(function(h){return h.toLowerCase().replace(/['"]/g,'');});
+    if(cols.some(function(c){return /^(name|student|student name|last, first|full name)$/.test(c);})){
+      headerIdx=i;headers=cols;break;
+    }
+  }
+  var rows=[];
+  if(headers){
+    lines.slice(headerIdx+1).forEach(function(line){
+      var cols=splitLine(line);
+      var obj={};
+      headers.forEach(function(h,i){obj[h]=cols[i]||'';});
+      rows.push(obj);
+    });
+  } else {
+    lines.forEach(function(line){
+      var t=line.trim();
+      if(t.length<3||t.length>60)return;
+      if(/^(page\s+\d|roster|class list|period\s+\d|teacher:|school:)/i.test(t))return;
+      if(/^[A-Z][a-zA-Z'-]+,\s*[A-Z][a-zA-Z'-]+/.test(t)||/^[A-Z][a-zA-Z'-]+\s+[A-Z][a-zA-Z'-]+$/.test(t)){
+        rows.push({name:t});
+      }
+    });
+  }
+  return rows.filter(function(r){return !!normalizeRow(r,section).name;});
+}
+
+function parsePDF(buffer, section){
+  if(typeof pdfjsLib==='undefined'){
+    toast('PDF reader failed to load — save as CSV and re-import instead');
+    return;
+  }
+  pdfjsLib.getDocument({data:buffer}).promise.then(function(pdf){
+    var pagePromises=[];
+    for(var p=1;p<=pdf.numPages;p++){
+      pagePromises.push(pdf.getPage(p).then(function(page){
+        return page.getTextContent().then(function(content){
+          // Group text fragments by y-position so words on the same table row land on
+          // the same text line instead of pdf.js flattening the whole page into one blob.
+          var lines={};
+          content.items.forEach(function(item){
+            var y=Math.round(item.transform[5]);
+            if(!lines[y])lines[y]=[];
+            lines[y].push(item);
+          });
+          var ys=Object.keys(lines).map(Number).sort(function(a,b){return b-a;});
+          return ys.map(function(y){
+            return lines[y].sort(function(a,b){return a.transform[4]-b.transform[4];}).map(function(it){return it.str;}).join('  ');
+          }).join('\n');
+        });
+      }));
+    }
+    Promise.all(pagePromises).then(function(texts){
+      var rows=parseTabularText(texts.join('\n'), section);
+      if(!rows.length){
+        toast("Couldn't find a student list in that PDF — try Photo/AI instead, or save as CSV");
+        return;
+      }
+      showImportPreview(rows, section);
+    });
+  }).catch(function(err){
+    toast('Could not read that PDF — try Photo/AI instead, or save as CSV');
+  });
+}
+
+function parseDOCX(buffer, section){
+  if(typeof mammoth==='undefined'){
+    toast('Word reader failed to load — save as CSV and re-import instead');
+    return;
+  }
+  mammoth.convertToHtml({arrayBuffer:buffer}).then(function(result){
+    var div=document.createElement('div');
+    div.innerHTML=result.value;
+    var table=div.querySelector('table');
+    var rows=[];
+    if(table){
+      var trs=Array.prototype.slice.call(table.querySelectorAll('tr'));
+      if(trs.length){
+        var headers=Array.prototype.slice.call(trs[0].querySelectorAll('th,td')).map(function(c){return c.textContent.trim().toLowerCase().replace(/['"]/g,'');});
+        trs.slice(1).forEach(function(tr){
+          var cells=Array.prototype.slice.call(tr.querySelectorAll('th,td')).map(function(c){return c.textContent.trim();});
+          var obj={};
+          headers.forEach(function(h,i){obj[h]=cells[i]||'';});
+          rows.push(obj);
+        });
+      }
+    }
+    rows=rows.filter(function(r){return !!normalizeRow(r,section).name;});
+    if(!rows.length){
+      // No usable table in the doc — fall back to the same freeform-text heuristic used for PDFs.
+      rows=parseTabularText(div.textContent||'', section);
+    }
+    if(!rows.length){
+      toast("Couldn't find a student list in that document — try Photo/AI instead, or save as CSV");
+      return;
+    }
+    showImportPreview(rows, section);
+  }).catch(function(err){
+    toast('Could not read that Word file — try Photo/AI instead, or save as CSV');
+  });
 }
 
 function normalizeRow(row, section){
