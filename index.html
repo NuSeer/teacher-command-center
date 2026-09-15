@@ -1908,6 +1908,7 @@ textarea{resize:vertical;min-height:64px}
     <div class="fp-title">⭐ Concern & Referral</div>
     <div style="display:flex;gap:8px;margin-left:auto;align-items:center">
       <select id="cref-stu-select" onchange="renderConcernReferral()" style="padding:5px 10px;border-radius:8px;border:1.5px solid rgba(255,255,255,.5);background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700"><option value="">— Select student —</option></select>
+      <button class="fp-back" onclick="saveConcernReferral()" style="background:rgba(255,255,255,.35);font-weight:800">💾 Save to Student Concerns</button>
       <button class="fp-back" onclick="printConcernReferral()" style="background:rgba(255,255,255,.3)">🖨️ Print Referral</button>
     </div>
   </div>
@@ -7401,6 +7402,40 @@ function renderConcernReferral(){
 
     // Recent contacts
     +(comms.length?'<div class="card"><div class="card-hdr"><span class="card-title">📞 Recent Parent Contacts</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reason</th><th>Notes</th></tr></thead><tbody>'+comms.slice(0,6).map(function(c){return '<tr><td>'+esc(c.date||'—')+'</td><td>'+esc(c.method)+'</td><td>'+esc(c.reason)+'</td><td>'+esc(c.notes||'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>':'');
+}
+
+// The referral form's fields (type, referred to, urgency, observations, steps taken, what
+// you're asking for) previously only ever fed printConcernReferral() — nothing persisted them,
+// so closing the page lost everything you'd typed. This logs them as a real DB.concerns entry
+// (the same record type Student Concerns tracks), so it shows up on the student's concern
+// history, the Concern Dashboard, and the At-Risk report — not just a one-time printout.
+function saveConcernReferral(){
+  var sid=(document.getElementById('cref-stu-select')||{}).value;
+  if(!sid){toast('⚠️ Select a student first');return;}
+  var s=DB.students.find(function(x){return x.id===sid;});
+  if(!s)return;
+  var obs=(document.getElementById('cref-obs')||{}).value||'';
+  var taken=(document.getElementById('cref-taken')||{}).value||'';
+  var ask=(document.getElementById('cref-ask')||{}).value||'';
+  if(!obs.trim()&&!taken.trim()&&!ask.trim()){toast('⚠️ Enter at least an observation before saving');return;}
+  DB.concerns.push({
+    id:Date.now()+'',
+    student:s.name,
+    period:s.period,
+    date:new Date().toISOString().split('T')[0],
+    type:(document.getElementById('cref-type')||{}).value||'',
+    referred:(document.getElementById('cref-referred')||{}).value||'',
+    incident:obs,
+    action:taken,
+    followup:ask,
+    status:'Open',
+    urgency:(document.getElementById('cref-urgency')||{}).value||'',
+    meetingTime:(document.getElementById('cref-time')||{}).value||''
+  });
+  save();
+  toast('✅ Saved to '+s.name+'’s Student Concerns record');
+  renderConcerns();
+  renderConcernReferral();
 }
 
 function printConcernReferral(){
