@@ -6314,7 +6314,10 @@ function editSubtitle(){
   var cur=el?el.innerText:(classPeriods.length+' Periods · {students} Students');
   var val=prompt('Edit subtitle (use {students} for auto student count):',cur);
   if(val===null)return;
-  if(!DB.setup)DB.setup={};DB.setup.subtitle=val;save();updateHdrSubtitle();
+  if(!DB.setup)DB.setup={};
+  DB.setup.subtitle=val;
+  DB.setup.subtitleCustomized=true;
+  save();updateHdrSubtitle();
 }
 function getPeriodNumbers(){
   return getSchedule()
@@ -6470,7 +6473,11 @@ function updateHdrSubtitle(){
   var classPeriods=getSchedule().filter(function(r){return r.type==='Class';});
   var numPeriods=classPeriods.length;
   var sub=(DB.setup&&DB.setup.subtitle);
-  if(!sub||sub.indexOf('{students}')>-1||sub.match(/^\d+ Periods?/)){
+  // Only regenerate the "N Periods · {students} Students" default when the teacher has never
+  // explicitly edited the subtitle (see editSubtitle) — previously this also reset on ANY
+  // subtitle containing "{students}", which silently wiped out every custom subtitle that
+  // followed the feature's own documented advice to use that placeholder.
+  if(!sub||!(DB.setup&&DB.setup.subtitleCustomized)){
     sub=numPeriods+' Period'+(numPeriods!==1?'s':'')+' · {students} Students';
     if(DB.setup)DB.setup.subtitle=sub;
   }
