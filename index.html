@@ -1400,13 +1400,13 @@ textarea{resize:vertical;min-height:64px}
         <!-- UPCOMING (green like screenshot) — equal to Today's tasks, still bigger than Overdue -->
         <div style="flex:1.1;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
           <div style="background:#059669;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">⏰ UPCOMING</div>
-          <div id="planner-upcoming-col" style="padding:8px;flex:1;overflow-y:auto"></div>
+          <div id="planner-upcoming-col" style="padding:8px;flex:1;overflow:auto"></div>
         </div>
 
         <!-- OVERDUE (red like screenshot) -->
         <div style="flex:0.8;display:flex;flex-direction:column;min-height:0">
           <div style="background:#dc2626;color:#fff;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900;letter-spacing:.5px;flex-shrink:0">🔴 OVERDUE</div>
-          <div id="planner-overdue-col" style="padding:8px;flex:1;overflow-y:auto"></div>
+          <div id="planner-overdue-col" style="padding:8px;flex:1;overflow:auto"></div>
         </div>
       </div>
 
@@ -5601,7 +5601,7 @@ function renderPlanner(){
       ?'<div style="font-size:11px;color:var(--mid);padding:4px 0">Nothing in next 7 days</div>'
       :upcoming.map(function(u){
         if(u.cat==='Personal')return personalPlaceholder();
-        return '<div style="font-size:11px;color:var(--dark);padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--mid);font-size:10px">'+u.date.slice(5)+'</span> '+esc(u.label)+'</div>';
+        return '<div style="font-size:11px;color:var(--dark);padding:4px 0;border-bottom:1px solid var(--border);white-space:nowrap"><span style="color:var(--mid);font-size:10px">'+u.date.slice(5)+'</span> '+esc(u.label)+'</div>';
       }).join('');
   }
 
@@ -5611,7 +5611,7 @@ function renderPlanner(){
       ?'<div style="font-size:11px;color:#059669;padding:4px 0">✅ Nothing overdue!</div>'
       :overdue.map(function(t){
         if(t.cat==='Personal')return personalPlaceholder();
-        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)"><input type="checkbox" onchange="toggleTask(\''+t.id+'\')" style="accent-color:#dc2626;cursor:pointer;flex-shrink:0"><div style="flex:1;min-width:0"><div style="font-size:11px;color:#dc2626;font-weight:700;word-break:break-word">'+esc(t.title)+'</div><div style="font-size:10px;color:var(--mid)">Due '+t.due+'</div></div></div>';
+        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);white-space:nowrap"><input type="checkbox" onchange="toggleTask(\''+t.id+'\')" style="accent-color:#dc2626;cursor:pointer;flex-shrink:0"><div style="flex-shrink:0"><div style="font-size:11px;color:#dc2626;font-weight:700">'+esc(t.title)+'</div><div style="font-size:10px;color:var(--mid)">Due '+t.due+'</div></div></div>';
       }).join('');
   }
 
