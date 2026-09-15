@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
 :root{
   --accent1:#e040a0;
@@ -54,6 +55,41 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--bg);min-height:100vh;
 
 /* ── SIDEBAR ── */
 .sidebar{width:180px;flex-shrink:0;background:var(--sidebar-bg);border-right:2px solid var(--border);overflow-y:auto}
+.mobile-menu-btn{display:none}
+.sidebar-backdrop{display:none}
+
+/* ── MOBILE / TABLET (≤1024px covers iPad portrait+landscape and phones) ── */
+@media (max-width:1024px){
+  .mobile-menu-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.25);border:none;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0}
+  .app{min-height:calc(100vh - 90px)}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:5000;transform:translateX(-100%);transition:transform .2s ease;box-shadow:4px 0 20px rgba(0,0,0,.25);width:240px}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-backdrop.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:4999}
+  .hdr{padding:12px 14px;flex-wrap:wrap;gap:8px}
+  .hdr h1{font-size:18px}
+  .hdr-right{flex-direction:row;align-items:center;flex-wrap:wrap;gap:6px}
+  .stats-bar{padding:8px 12px}
+  .fp-hdr{padding:10px 12px;flex-wrap:wrap;gap:8px}
+  .fp-body{padding:12px}
+  /* Safety net for any <table> not already wrapped in .tbl-wrap — keeps a wide table
+     scrollable within its own box instead of forcing the whole page to scroll sideways.
+     Only affects the live app (this is the main stylesheet); printReport() output renders
+     in a separate window with its own <style> block, so print layouts are untouched. */
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+}
+@media (max-width:600px){
+  .hdr-date,.hdr-time{display:none}
+  .stat-pill{font-size:11px;padding:5px 10px}
+}
+
+/* Daily Planner's 4-column layout (Lessons/Tasks/Birthdays/Notes) is fixed-pixel columns
+   designed for a wide desktop screen — stack them into one scrollable column on tablets/
+   phones instead, each section keeping a fixed height with its own internal scroll so the
+   page doesn't turn into one giant unbounded scroll. */
+@media (max-width:900px){
+  .planner-grid{grid-template-columns:1fr!important;overflow-y:auto!important;height:auto!important}
+  .planner-col{height:360px!important;flex-shrink:0;border-right:none!important;border-bottom:3px solid var(--border)}
+}
 .sb-hdr{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;padding:9px 14px;text-transform:uppercase;letter-spacing:1px}
 .sb-sep{padding:8px 14px 3px;font-size:9px;font-weight:800;color:var(--mid);text-transform:uppercase;letter-spacing:.8px;background:var(--table-head-bg)}
 .sb-link{display:block;padding:8px 14px 8px 16px;font-size:12px;font-weight:600;color:var(--dark);border-bottom:1px solid #f5ddf0;cursor:pointer;transition:.12s;border-left:3px solid transparent;font-family:'Nunito Sans',sans-serif}
@@ -237,6 +273,7 @@ textarea{resize:vertical;min-height:64px}
 <!-- HEADER -->
 <div class="hdr">
   <div style="display:flex;align-items:center;gap:10px">
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" title="Menu">☰</button>
     <div>
       <h1 id="hdr-title" onclick="editHeader()" title="Click to edit" style="cursor:pointer;display:flex;align-items:center;gap:8px">
         <span id="hdr-emoji">⭐</span> <span id="hdr-name">Teacher Command Center</span>
@@ -277,8 +314,10 @@ textarea{resize:vertical;min-height:64px}
 <!-- APP SHELL -->
 <div class="app">
 
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="app-sidebar">
     <div class="sb-hdr">⚡ Quick Links</div>
     <div class="sb-section-label">STUDENT</div>
     <div class="sb-link sl-pink"   onclick="openFull('students')">Student Info</div>
@@ -1377,10 +1416,10 @@ textarea{resize:vertical;min-height:64px}
     <div style="background:var(--card-bg);border-bottom:1.5px solid var(--border);padding:6px 16px;display:flex;gap:5px;overflow-x:auto;flex-shrink:0" id="planner-week-strip"></div>
 
     <!-- MAIN PLANNER GRID — matches screenshot exactly -->
-    <div style="display:grid;grid-template-columns:420px 1fr 160px 280px;flex:1;overflow:hidden">
+    <div class="planner-grid" style="display:grid;grid-template-columns:420px 1fr 160px 280px;flex:1;overflow:hidden">
 
       <!-- COL 1: TODAY'S LESSONS (teal header like screenshot) -->
-      <div style="border-right:2px solid var(--border);overflow-y:auto;display:flex;flex-direction:column">
+      <div class="planner-col" style="border-right:2px solid var(--border);overflow-y:auto;display:flex;flex-direction:column">
         <div style="background:#0d9488;color:#fff;padding:8px 12px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
           TODAY'S LESSONS
           <button onclick="openFull('lessons')" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer">+ Add</button>
@@ -1391,7 +1430,7 @@ textarea{resize:vertical;min-height:64px}
       <!-- COL 2: TASKS (pink/green/red sections like screenshot) — each sub-section gets its
            own bounded, independently-scrolling area instead of one long shared scroll, so a
            long Overdue list can never crowd Upcoming out of view. -->
-      <div style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
+      <div class="planner-col" style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
         <!-- TO DO TODAY -->
         <div style="flex:1.1;display:flex;flex-direction:column;min-height:0;border-bottom:2px solid var(--border)">
           <div style="background:#e040a0;color:#fff;padding:7px 12px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
@@ -1415,7 +1454,7 @@ textarea{resize:vertical;min-height:64px}
       </div>
 
       <!-- COL 3: BIRTHDAYS (yellow like screenshot) — Today/Recent/Soon each scroll independently -->
-      <div style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
+      <div class="planner-col" style="border-right:2px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
         <div style="background:#d97706;color:#fff;padding:7px 10px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;flex-shrink:0">🎂 BIRTHDAYS</div>
         <!-- Today -->
         <div style="flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:1px solid var(--border)">
@@ -1438,7 +1477,7 @@ textarea{resize:vertical;min-height:64px}
       </div>
 
       <!-- COL 4: NOTES & EVENTS (purple like screenshot) -->
-      <div style="overflow-y:auto;display:flex;flex-direction:column">
+      <div class="planner-col" style="overflow-y:auto;display:flex;flex-direction:column">
         <div style="background:#7c3aed;color:#fff;padding:7px 10px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:900;letter-spacing:.5px;flex-shrink:0">📓 NOTES</div>
         <div style="padding:8px;flex:1;display:flex;flex-direction:column;gap:8px">
           <textarea id="planner-note" placeholder="General notes for today..." style="width:100%;flex:1;min-height:120px;border:1.5px solid var(--border);border-radius:7px;padding:8px;font-size:12px;color:var(--dark);background:var(--input-bg);font-family:'Nunito Sans',sans-serif;resize:none" oninput="savePlannerNote()"></textarea>
@@ -2698,6 +2737,8 @@ textarea{resize:vertical;min-height:64px}
         </div>
       </div>
       <div class="card-body">
+        <div style="overflow-x:auto">
+        <div style="min-width:560px">
         <div style="display:grid;grid-template-columns:32px 160px 120px 120px 80px auto;gap:8px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0cce8">
           <span></span>
           <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase">Period / Label</span>
@@ -2707,6 +2748,8 @@ textarea{resize:vertical;min-height:64px}
           <span></span>
         </div>
         <div id="schedule-rows"></div>
+        </div>
+        </div>
         <div style="margin-top:12px;padding:10px;background:#fff5fc;border-radius:8px;border:1.5px solid #f0cce8">
           <div style="font-size:11px;font-weight:700;color:#a060a0;margin-bottom:6px">Period type key:</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#5a2060">
@@ -3028,6 +3071,26 @@ function save(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}}
 function load(){try{var r=localStorage.getItem(DB_KEY);if(r){var p=JSON.parse(r);DB=Object.assign(DB,p);}}catch(e){}}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
+
+/* ── MOBILE SIDEBAR DRAWER (≤1024px) ── */
+function toggleSidebar(){
+  var sb=document.getElementById('app-sidebar'),bd=document.getElementById('sidebar-backdrop');
+  if(!sb)return;
+  var open=sb.classList.toggle('open');
+  if(bd)bd.classList.toggle('open',open);
+}
+function closeSidebar(){
+  var sb=document.getElementById('app-sidebar'),bd=document.getElementById('sidebar-backdrop');
+  if(sb)sb.classList.remove('open');
+  if(bd)bd.classList.remove('open');
+}
+// Tapping any nav link in the drawer should close it, same as any mobile off-canvas menu —
+// delegated so it covers every sb-link without touching each one's own onclick.
+document.addEventListener('click',function(e){
+  if(window.innerWidth>1024)return;
+  var link=e.target.closest('#app-sidebar .sb-link');
+  if(link)closeSidebar();
+});
 
 /* CLOCK */
 function tick(){
@@ -7441,6 +7504,14 @@ function saveConcernReferral(){
 function printConcernReferral(){
   var sid=(document.getElementById('cref-stu-select')||{}).value;
   if(!sid){toast('⚠️ Select a student first');return;}
+  // The Admin Referral Packet portion is generated by the shared comm-student-* print logic,
+  // which reads its student from rpt-comm-stu-select — a different dropdown belonging to the
+  // separate Student Comm Report section, only populated once that section has been opened.
+  // Sync it here so the packet uses the student already selected on THIS form, instead of
+  // failing with "select a student first" even though one clearly is selected.
+  populateCommStudentSelect();
+  var commSel=document.getElementById('rpt-comm-stu-select');
+  if(commSel)commSel.value=sid;
   printReport('comm-student-admin');
   // Also capture the referral form fields into a combined print
   var type=(document.getElementById('cref-type')||{}).value||'';
