@@ -5364,7 +5364,7 @@ function renderMasterPanel(){
     +pStat(avg?avg+'%':'—','Class avg','#d97706')
     +pStat(below70,'Below 70%','#7c3aed')
     +pStat(concerns,'Open concerns','#0d9488')
-    +pStat(boyComplete+'/'+totalS,'BOY forms','#f59e0b')
+    +(getFeatureEnabled('boy')?pStat(boyComplete+'/'+totalS,'BOY forms','#f59e0b'):'')
     +pStat(openTasks+(overdueTasks?' ('+overdueTasks+' late)':''),'Open tasks','#6366f1')
     +'</div>'
     +pSec('Students by period','var(--mid)')
@@ -5515,7 +5515,7 @@ function renderFullDashboard(type,isManualRefresh){
       +'<div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+(avg?avg+'%':'—')+'</div><div class="sc-lbl">Class Average</div></div>'
       +'<div class="sc" style="border-left-color:#7c3aed"><div class="sc-val">'+below70+'</div><div class="sc-lbl">Below 70%</div></div>'
       +'<div class="sc" style="border-left-color:#0d9488"><div class="sc-val">'+concerns+'</div><div class="sc-lbl">Open Concerns</div></div>'
-      +'<div class="sc" style="border-left-color:#f59e0b"><div class="sc-val">'+boyComplete+'/'+totalS+'</div><div class="sc-lbl">BOY Forms Done</div></div>'
+      +(getFeatureEnabled('boy')?'<div class="sc" style="border-left-color:#f59e0b"><div class="sc-val">'+boyComplete+'/'+totalS+'</div><div class="sc-lbl">BOY Forms Done</div></div>':'')
       +'<div class="sc" style="border-left-color:#6366f1"><div class="sc-val">'+openTasks+(overdueTasks?' <span style="font-size:12px;color:#dc2626">('+overdueTasks+' late)</span>':'')+'</div><div class="sc-lbl">Open Tasks</div></div>'
       +'<div class="sc" style="border-left-color:#ec4899"><div class="sc-val">'+iepActive+'</div><div class="sc-lbl">Active IEP/504s</div></div>'
       +'<div class="sc" style="border-left-color:#14b8a6"><div class="sc-val">'+sgActive+'</div><div class="sc-lbl">Active Groups</div></div>'
