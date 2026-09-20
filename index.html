@@ -634,6 +634,10 @@ textarea{resize:vertical;min-height:64px}
 
         <!-- MANUAL ENTRY -->
         <div id="pane-manual">
+          <div id="stu-edit-banner" style="display:none;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#1e40af;align-items:center;gap:10px;flex-wrap:wrap">
+            <span>✏️ Editing <strong id="stu-edit-name"></strong> — change anything below and click <strong>Update student</strong>.</span>
+            <button type="button" class="btn btn-sm" onclick="stuExitEdit();renderStudentTable()">Cancel / add a new student instead</button>
+          </div>
           <div class="form-row">
             <div class="fg"><label>Last, First name</label><input type="text" id="stu-name" placeholder="Smith, Jordan"></div>
             <div class="fg" style="max-width:90px"><label>Period</label><select id="stu-period"></select></div>
@@ -653,7 +657,7 @@ textarea{resize:vertical;min-height:64px}
             <div class="fg"><label>Student ID</label><input type="text" id="stu-sid" placeholder="Optional"></div>
           </div>
           <div class="fg" style="margin-bottom:12px"><label>Medical / Accommodation notes</label><textarea id="stu-medical" placeholder="Allergies, IEP, 504..."></textarea></div>
-          <button class="btn btn-primary" onclick="saveStudent()">Save student</button>
+          <button id="stu-save-btn" class="btn btn-primary" onclick="saveStudent()">Save student</button>
         </div>
 
         <!-- IMPORT CSV/EXCEL/PDF/WORD -->
@@ -734,7 +738,7 @@ textarea{resize:vertical;min-height:64px}
         <span class="card-title">All students</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           <select id="stu-period-filter" onchange="stuPeriodChanged()" title="Show one period" style="padding:4px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;color:var(--dark);background:var(--card-bg)"><option value="all">All periods</option></select>
-          <select id="stu-pick" onchange="renderStudentTable()" title="Pick a student" style="min-width:170px;padding:4px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;color:var(--dark);background:var(--card-bg)"><option value="">All students</option></select>
+          <select id="stu-pick" onchange="stuPickChanged()" title="Pick a student" style="min-width:170px;padding:4px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;color:var(--dark);background:var(--card-bg)"><option value="">All students</option></select>
           <input type="text" id="stu-search" placeholder="Search..." style="max-width:150px;padding:4px 10px;font-size:12px" oninput="renderStudentTable()">
           <span id="stu-count" style="font-size:11px;color:var(--mid)"></span>
         </div>
@@ -948,6 +952,7 @@ textarea{resize:vertical;min-height:64px}
           <div class="fg"><label>Reason</label><div style="display:flex;align-items:center" id="commreason-wrap"></div></div>
         </div>
         <div class="fg" style="margin-bottom:12px"><label>Notes (private)</label><textarea id="cm-notes" placeholder="What was discussed? Outcome?"></textarea></div>
+        <div class="fg" style="max-width:240px;margin-bottom:12px"><label>Follow up on <span style="font-weight:400;color:var(--mid);font-size:10px">(optional — becomes a task)</span></label><input type="date" id="cm-followdate"></div>
         <div id="cm-flag-row" style="display:none;margin-bottom:12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:12px">
           <label style="text-transform:none;display:flex;gap:6px;align-items:center;font-weight:700;color:#b91c1c"><input type="checkbox" id="cm-flag"> ⚠️ Also add this to the Concern Dashboard</label>
           <div style="font-size:11px;color:var(--mid);margin-top:3px">Creates an Open concern for this student (type: <strong id="cm-flag-type"></strong>) that you can assign, follow up on, and resolve.</div>
@@ -1401,6 +1406,10 @@ textarea{resize:vertical;min-height:64px}
       </div>
       <div class="fg" style="margin-bottom:10px"><label>Topics discussed</label><textarea id="cf-topics" placeholder="What was covered..."></textarea></div>
       <div class="fg" style="margin-bottom:12px"><label>Action items / follow-up</label><textarea id="cf-followup" placeholder="Next steps..."></textarea></div>
+      <div class="form-row">
+        <div class="fg" style="max-width:240px"><label>Follow-up date <span style="font-weight:400;color:var(--mid);font-size:10px">(optional — becomes a task)</span></label><input type="date" id="cf-followdate"></div>
+        <div class="fg"><label style="text-transform:none;display:flex;gap:6px;align-items:center;font-weight:700;color:#b91c1c;margin-top:18px"><input type="checkbox" id="cf-flag"> ⚠️ Also add this to the Concern Dashboard</label></div>
+      </div>
       <button class="btn btn-primary" onclick="saveConference()">💾 Save Conference</button>
     </div></div>
     <div class="card" style="margin-top:14px"><div class="card-hdr"><span class="card-title">📋 All Conferences</span></div>
@@ -3140,7 +3149,7 @@ function acceptBetaAgreement(){
 
 function startApp(){
   checkBetaAgreement();
-  restoreCustomizations();restoreRowOrder();
+  restoreCustomizations();restoreRowOrder();iepInit();
   if(DB.setup&&DB.setup.panelWidth)panelW=DB.setup.panelWidth;
   initPanelResize();updatePills();refreshAllPeriodTabs();applyFeatureToggles();tick();setInterval(tick,10000);
   var today=new Date().toISOString().split('T')[0];
@@ -3438,7 +3447,7 @@ function closeFull(id){
 function updatePills(){
   var sc=document.getElementById('hdr-student-count');if(sc)sc.textContent=DB.students.length;
   var ps=document.getElementById('pill-students');if(ps)ps.textContent=DB.students.length+' students';
-  var pm=document.getElementById('pill-missing');if(pm)pm.textContent=DB.missing.filter(function(m){return m.status==='Missing';}).length+' missing';
+  var pm=document.getElementById('pill-missing');if(pm)pm.textContent=DB.missing.filter(function(m){return isStillMissing(m);}).length+' missing';
   var pc=document.getElementById('pill-comms');if(pc)pc.textContent=DB.comms.length+' contacts';
   var allG=[];DB.students.forEach(function(s){var g=DB.grades[s.id]||{};var hw=parseFloat(g.hw)||0,te=parseFloat(g.te)||0,qu=parseFloat(g.qu)||0,pr=parseFloat(g.pr)||0,pa=parseFloat(g.pa)||0;if(hw||te||qu)allG.push(hw*.20+te*.35+qu*.20+pr*.15+pa*.10);});
   var pa2=document.getElementById('pill-avg');if(pa2)pa2.textContent=allG.length?'Avg: '+(allG.reduce(function(a,b){return a+b;},0)/allG.length).toFixed(1)+'%':'Avg: —%';
@@ -4059,9 +4068,55 @@ document.addEventListener('paste',function(e){
 });
 
 /* ── STUDENTS ── */
+var STU_EDIT_ID='';
+var STU_FIELDS={name:'stu-name',period:'stu-period',contact:'stu-contact',phone:'stu-phone',email:'stu-email',dismissal:'stu-dismissal',bus:'stu-bus',dob:'stu-dob',grade:'stu-grade',sid:'stu-sid',medical:'stu-medical'};
+// Choosing a student in the dropdown loads their record into the form above; the button becomes "Update student".
+function stuPickChanged(){
+  var id=(document.getElementById('stu-pick')||{}).value;
+  if(id)stuLoadIntoForm(id);else if(STU_EDIT_ID)stuExitEdit();
+  renderStudentTable();
+}
+function stuLoadIntoForm(id){
+  var st=DB.students.find(function(x){return x.id===id;});if(!st)return;
+  if(typeof switchInputTab==='function')switchInputTab('manual','students');
+  Object.keys(STU_FIELDS).forEach(function(k){
+    var e=document.getElementById(STU_FIELDS[k]);if(!e)return;
+    var v=st[k]==null?'':String(st[k]);
+    if(e.tagName==='SELECT'&&v&&!Array.prototype.some.call(e.options,function(o){return o.value===v||o.text===v;})){var op=document.createElement('option');op.text=v;e.add(op);}
+    e.value=v;
+  });
+  STU_EDIT_ID=id;
+  document.getElementById('stu-edit-name').textContent=st.name;
+  document.getElementById('stu-edit-banner').style.display='flex';
+  document.getElementById('stu-save-btn').textContent='Update student';
+  var f=document.getElementById('stu-name');if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function stuExitEdit(){
+  STU_EDIT_ID='';
+  ['stu-name','stu-contact','stu-phone','stu-email','stu-medical','stu-dob','stu-sid','stu-bus'].forEach(function(f){var e=document.getElementById(f);if(e)e.value='';});
+  var b=document.getElementById('stu-edit-banner');if(b)b.style.display='none';
+  var sb=document.getElementById('stu-save-btn');if(sb)sb.textContent='Save student';
+  var pk=document.getElementById('stu-pick');if(pk)pk.value='';
+}
+// Every log matches a student by typed name, so a rename has to carry their history along.
+function renameStudentRefs(oldName,newName){
+  ['comms','missing','participation','behavior','concerns','conferences','iep'].forEach(function(k){
+    (DB[k]||[]).forEach(function(r){if(r.student===oldName)r.student=newName;});
+  });
+}
+function stuSaveEdit(id,name){
+  var st=DB.students.find(function(x){return x.id===id;});if(!st){stuExitEdit();return;}
+  var oldName=st.name;
+  Object.keys(STU_FIELDS).forEach(function(k){var e=document.getElementById(STU_FIELDS[k]);if(e)st[k]=(k==='name')?name:e.value;});
+  if(oldName!==name)renameStudentRefs(oldName,name);
+  save();stuExitEdit();
+  toast('\u2705 '+name+' updated'+(oldName!==name?' \u2014 their history was renamed too':''));
+  renderStudentStats();renderStudentTable();updatePills();
+}
 function saveStudent(){
   var name=document.getElementById('stu-name').value.trim();
   if(!name){toast('Enter student name');return;}
+  if(STU_EDIT_ID){stuSaveEdit(STU_EDIT_ID,name);return;}
   var id=Date.now()+'';
   var forms={};BOY_FORMS.forEach(function(f){forms[f]='—';});
   DB.students.push({id:id,name:name,period:document.getElementById('stu-period').value,
@@ -4106,7 +4161,7 @@ function populateStuControls(){
     +pool.map(function(s){return '<option value="'+esc(s.id)+'">'+esc(s.name)+(perEl.value==='all'?' (P'+esc(s.period)+')':'')+'</option>';}).join('');
   pickEl.value=pool.some(function(s){return s.id===curS;})?curS:'';
 }
-function stuPeriodChanged(){var pk=document.getElementById('stu-pick');if(pk)pk.value='';renderStudentTable();}
+function stuPeriodChanged(){var pk=document.getElementById('stu-pick');if(pk)pk.value='';if(STU_EDIT_ID)stuExitEdit();renderStudentTable();}
 function stuPickPeriod(p){
   var perEl=document.getElementById('stu-period-filter');if(!perEl)return;
   populateStuControls();
@@ -4185,12 +4240,13 @@ function saveMissing(){
   var due=document.getElementById('mw-due').value;var days=0;
   if(due){var diff=new Date()-new Date(due);days=Math.max(0,Math.floor(diff/86400000));}
   DB.missing.push({id:Date.now()+'',student:student,period:document.getElementById('mw-period').value,assignment:assign,due:due,days:days,status:document.getElementById('mw-status').value});
+  if(DB.missing[DB.missing.length-1].status==='Parent Notified')logMissingComm(DB.missing[DB.missing.length-1]);
   save();document.getElementById('mw-student').value='';document.getElementById('mw-assign').value='';
   toast('✅ Logged');renderMissingStats();renderMissingTable();renderMissingCharts();updatePills();
 }
 function renderMissingStats(){
   var el=document.getElementById('miss-stats');if(!el)return;
-  var open=DB.missing.filter(function(m){return m.status==='Missing';}).length;
+  var open=DB.missing.filter(function(m){return isStillMissing(m);}).length;
   el.innerHTML='<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+open+'</div><div class="sc-lbl">Still Missing</div></div>'
     +'<div class="sc" style="border-left-color:#7de8cc"><div class="sc-val">'+(DB.missing.length-open)+'</div><div class="sc-lbl">Resolved</div></div>'
     +'<div class="sc" style="border-left-color:#e040a0"><div class="sc-val">'+DB.missing.length+'</div><div class="sc-lbl">Total Logged</div></div>';
@@ -4225,7 +4281,7 @@ function renderMissingTable(){
         +'<td><button class="btn btn-sm btn-danger" onclick="delMissing(\''+m.id+'\')">✕</button></td></tr>';
     }).join('');
 }
-function updMissing(id,val){DB.missing.forEach(function(m){if(m.id===id)m.status=val;});save();renderMissingStats();updatePills();}
+function updMissing(id,val){DB.missing.forEach(function(m){if(m.id===id){var was=m.status;m.status=val;if(val==='Parent Notified'&&was!=='Parent Notified')logMissingComm(m);}});save();renderMissingStats();updatePills();}
 function delMissing(id){DB.missing=DB.missing.filter(function(m){return m.id!==id;});save();renderMissingStats();renderMissingTable();updatePills();}
 
 /* ── PARTICIPATION ── */
@@ -4282,6 +4338,9 @@ function saveComm(){
   if(time){var pts=time.split(':');var h=parseInt(pts[0]);var ap=h>=12?'PM':'AM';h=h%12||12;ts=h+':'+pts[1]+' '+ap;}
   var entry={id:Date.now()+'',student:student,period:document.getElementById('cm-period').value,date:document.getElementById('cm-date').value,time:ts,method:document.getElementById('cm-method').value,reason:document.getElementById('cm-reason').value,notes:document.getElementById('cm-notes').value};
   DB.comms.push(entry);
+  var cfd=document.getElementById('cm-followdate');
+  if(cfd&&cfd.value){entry.followdate=cfd.value;syncFollowTask('comm',entry.id,cfd.value,'Follow up with parent: '+entry.student+' ('+String(entry.reason).replace(/^[\u2212+\-\s]+/,'')+')',false);cfd.value='';}
+  if(/missing/i.test(entry.reason))notifyMissingFromComm(entry);
   var flagCb=document.getElementById('cm-flag');
   var flagged=!!(flagCb&&flagCb.checked&&commKind(entry.reason)==='concern');
   if(flagged)concernFromComm(entry);
@@ -4306,7 +4365,7 @@ function renderCommTable(){
     }).join('');
 }
 function viewCommNote(id){var c=DB.comms.find(function(x){return x.id===id;});if(!c)return;alert(c.notes||'No notes recorded.');}
-function delComm(id){DB.comms=DB.comms.filter(function(c){return c.id!==id;});save();renderCommStats();renderCommTable();updatePills();}
+function delComm(id){DB.comms=DB.comms.filter(function(c){return c.id!==id;});dropFollowTask('comm',id);save();renderCommStats();renderCommTable();updatePills();}
 
 /* ── BOY FORMS ── */
 var boySortCol='name';var boySortDir=1;
@@ -4454,6 +4513,7 @@ function clearLessonForm(){
 }
 
 function saveLesson(){
+  var _prevIds={};DB.lessons.forEach(function(l){_prevIds[l.id]=1;});
   var title=document.getElementById('lf-title').value.trim();
   if(!title){toast('Enter lesson title');return;}
   var editId=document.getElementById('lf-edit-id').value;
@@ -4480,7 +4540,7 @@ function saveLesson(){
     notes:document.getElementById('lf-notes').value
   };
   if(editId){
-    DB.lessons=DB.lessons.map(function(l){return l.id===editId?Object.assign({id:editId},lessonData):l;});
+    DB.lessons=DB.lessons.map(function(l){return l.id===editId?Object.assign({},l,lessonData,{id:editId}):l;});
     toast('Lesson updated');
   } else {
     lessonData.id=Date.now()+'';
@@ -4494,6 +4554,9 @@ function saveLesson(){
     });
     toast('Lesson saved');
   }
+  var _tn=DB.tests.length;
+  DB.lessons.forEach(function(l){if(!_prevIds[l.id]||l.id===editId)lessonTestLink(l);});
+  if(DB.tests.length>_tn)toast('Lesson saved \u2014 and added to Tests');
   save();closeLessonForm();renderLessons();
   var lnp=document.getElementById('fp-learning');if(lnp&&lnp.classList.contains('open'))lnRender();
 }
@@ -4506,7 +4569,13 @@ function renderLessons(){
   var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var weekEnd=new Date(lessonWeekStart);weekEnd.setDate(weekEnd.getDate()+4);
   var lbl=document.getElementById('lesson-week-label');
-  if(lbl)lbl.textContent='Week of '+fmtDate(lessonWeekStart)+' – '+fmtDate(weekEnd);
+  if(lbl){
+    var wn=schoolWeekNumber(lessonWeekStart),thisWeek=lessonWeekStart.getTime()===getMondayOf(new Date()).getTime();
+    var pill=wn>0?'<span style="display:inline-block;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-radius:14px;padding:2px 12px;margin-right:8px;font-size:13px;font-weight:900">Week '+wn+'</span>'
+      :(wn<0?'<span style="display:inline-block;background:var(--surface);color:var(--mid);border-radius:14px;padding:2px 10px;margin-right:8px;font-size:11px;font-weight:700">Before school starts</span>'
+      :'<span style="display:inline-block;background:var(--surface);color:var(--mid);border-radius:14px;padding:2px 10px;margin-right:8px;font-size:11px;font-weight:700;cursor:pointer" onclick="openFull(&quot;setup&quot;)" title="Set your first day of school in Schedule Setup">Set first day for week #</span>');
+    lbl.innerHTML=pill+'Week of '+fmtDate(lessonWeekStart)+' – '+fmtDate(weekEnd)+(thisWeek?' <span style="font-size:11px;font-weight:700;color:var(--accent1)">(this week)</span>':'');
+  }
 
   var sched=getSchedule().filter(function(r){return r.type==='Class'||r.type==='Homeroom';});
   var classRows=sched.filter(function(r){return r.type==='Class';});
@@ -4648,7 +4717,7 @@ function renderStudentCommReport(){
   var lc={A:'b-green',B:'b-mint',C:'b-yellow',D:'b-peach',F:'b-red'}[g.ltr]||'b-gray';
   var html='<div class="card"><div class="card-hdr"><span class="card-title">'+esc(s.name)+' · Period '+s.period+'</span></div><div class="card-body"><div class="stat-grid">'
     +'<div class="sc" style="border-left-color:var(--accent1)"><div class="sc-val">'+(g.has?g.ov.toFixed(1)+'%':'—')+'</div><div class="sc-lbl">'+(g.has?g.ltr+' Grade':'No grades')+'</div></div>'
-    +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+missing.filter(function(m){return m.status==='Missing';}).length+'</div><div class="sc-lbl">Missing</div></div>'
+    +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+missing.filter(function(m){return isStillMissing(m);}).length+'</div><div class="sc-lbl">Missing</div></div>'
     +'<div class="sc" style="border-left-color:#059669"><div class="sc-val">'+comms.length+'</div><div class="sc-lbl">Contacts</div></div>'
     +'<div class="sc" style="border-left-color:#7c3aed"><div class="sc-val">'+behavior.length+'</div><div class="sc-lbl">Behavior</div></div>'
     +'<div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+concerns.length+'</div><div class="sc-lbl">Concerns</div></div>'
@@ -4673,7 +4742,7 @@ function renderStudentCommReport(){
     var neg2=participation.length-pos2;
     html+='<div class="card"><div class="card-hdr"><span class="card-title">📊 Academic Snapshot</span></div><div class="card-body"><div class="stat-grid">'
       +'<div class="sc" style="border-left-color:var(--accent1)"><div class="sc-val">'+(g.has?g.ov.toFixed(1)+'%':'—')+'</div><div class="sc-lbl">Overall</div></div>'
-      +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+missing.filter(function(m){return m.status==='Missing';}).length+'</div><div class="sc-lbl">Missing</div></div>'
+      +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+missing.filter(function(m){return isStillMissing(m);}).length+'</div><div class="sc-lbl">Missing</div></div>'
       +'<div class="sc" style="border-left-color:#059669"><div class="sc-val">'+pos2+'</div><div class="sc-lbl">+ Participation</div></div>'
       +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+neg2+'</div><div class="sc-lbl">- Participation</div></div></div>'
       +(missing.length?'<div style="margin-top:10px"><table><thead><tr><th>Missing assignment</th><th>Due</th><th>Days late</th><th>Status</th></tr></thead><tbody>'+missing.map(function(m){return '<tr><td>'+esc(m.assignment)+'</td><td>'+esc(m.due||'—')+'</td><td style="color:#dc2626">'+m.days+'</td><td>'+esc(m.status)+'</td></tr>';}).join('')+'</tbody></table></div>':'')
@@ -4683,7 +4752,7 @@ function renderStudentCommReport(){
     html+='<div class="card" style="border:2px solid var(--accent1)"><div class="card-hdr" style="background:linear-gradient(135deg,var(--accent1),var(--accent2))"><span class="card-title" style="color:#fff">🏫 Admin Referral Summary</span></div><div class="card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
       +'<div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Academic</div><div style="font-size:13px">'+(g.has?g.ov.toFixed(1)+'% ('+g.ltr+')':'No grades')+'</div></div>'
-      +'<div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Missing</div><div style="font-size:13px">'+missing.filter(function(m){return m.status==='Missing';}).length+' assignments</div></div>'
+      +'<div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Missing</div><div style="font-size:13px">'+missing.filter(function(m){return isStillMissing(m);}).length+' assignments</div></div>'
       +'<div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Parent contacts</div><div style="font-size:13px">'+comms.length+' logged</div></div>'
       +'<div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Open concerns</div><div style="font-size:13px;color:'+(concerns.filter(function(c){return c.status!=='Resolved';}).length?'#dc2626':'#059669')+'">'+concerns.filter(function(c){return c.status!=='Resolved';}).length+'</div></div>'
       +'</div></div></div>'
@@ -4694,11 +4763,11 @@ function renderStudentCommReport(){
 }
 
 function renderDisciplineReport(){var sid=(document.getElementById('disc-stu-select')||{}).value;var el=document.getElementById('discipline-report-content');if(!el)return;if(!sid){el.innerHTML='';return;}var s=DB.students.find(function(x){return x.id===sid;});if(!s)return;var beh=DB.behavior.filter(function(b){return b.student===s.name;});var comms=DB.comms.filter(function(c){return c.student===s.name;});var concerns=DB.concerns.filter(function(c){return c.student===s.name;});el.innerHTML='<div class="card"><div class="card-hdr"><span class="card-title">⚠️ Behavior Incidents</span></div><div class="card-body">'+(beh.length===0?'<div class="empty">No incidents logged</div>':'<table><thead><tr><th>Date</th><th>Incident</th><th>Action Taken</th><th>Notes</th></tr></thead><tbody>'+beh.map(function(b){return '<tr><td>'+esc(b.date||'—')+'</td><td><span class="badge '+(b.type.startsWith('Positive')?'b-green':'b-red')+'">'+esc(b.type)+'</span></td><td>'+esc(b.action)+'</td><td style="font-size:11px">'+esc(b.notes||'—')+'</td></tr>';}).join('')+'</tbody></table>')+'</div></div>';}
-function renderAtRiskReport(){var el=document.getElementById('atrisk-report-content');if(!el)return;var useGrade=document.getElementById('risk-grade')&&document.getElementById('risk-grade').checked;var useMissing=document.getElementById('risk-missing')&&document.getElementById('risk-missing').checked;var useBehavior=document.getElementById('risk-behavior')&&document.getElementById('risk-behavior').checked;var useConcern=document.getElementById('risk-concern')&&document.getElementById('risk-concern').checked;var students=DB.students.map(function(s){var flags=[];var g=calcGrade(s.id);if(useGrade&&g.has&&g.ov<70)flags.push({label:'Grade: '+g.ov.toFixed(1)+'%',color:'#dc2626'});var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;if(useMissing&&miss>=2)flags.push({label:miss+' missing',color:'#d97706'});var beh=DB.behavior.filter(function(b){return b.student===s.name&&!b.type.startsWith('Positive');}).length;if(useBehavior&&beh>0)flags.push({label:beh+' behavior',color:'#7c3aed'});var cnc=DB.concerns.filter(function(c){return c.student===s.name&&c.status!=='Resolved';}).length;if(useConcern&&cnc>0)flags.push({label:cnc+' concern'+(cnc>1?'s':''),color:'#0d9488'});return {s:s,flags:flags,g:g,miss:miss};}).filter(function(x){return x.flags.length>=1;}).sort(function(a,b){return b.flags.length-a.flags.length;});el.innerHTML=students.length===0?'<div style="color:#059669;font-size:13px;text-align:center;padding:20px">🎉 No students meet at-risk criteria with current filters</div>':'<table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Missing</th><th>Risk flags</th><th>Parent contacts</th></tr></thead><tbody>'+students.map(function(x){var comms=DB.comms.filter(function(c){return c.student===x.s.name;}).length;return '<tr><td><strong>'+esc(x.s.name)+'</strong>'+(x.s.medical?' ⚠️':'')+'</td><td><span class="badge b-pink">P'+x.s.period+'</span></td><td style="color:'+(x.g.has&&x.g.ov<70?'#dc2626':'inherit')+';font-weight:700">'+(x.g.has?x.g.ov.toFixed(1)+'% '+x.g.ltr:'—')+'</td><td style="color:'+(x.miss>0?'#dc2626':'inherit')+';font-weight:'+(x.miss?'700':'400')+'">'+x.miss+'</td><td>'+x.flags.map(function(f){return '<span class="badge" style="background:'+f.color+'22;color:'+f.color+';margin-right:3px;font-size:9px">'+f.label+'</span>';}).join('')+'</td><td>'+comms+'</td></tr>';}).join('')+'</tbody></table>';}
+function renderAtRiskReport(){var el=document.getElementById('atrisk-report-content');if(!el)return;var useGrade=document.getElementById('risk-grade')&&document.getElementById('risk-grade').checked;var useMissing=document.getElementById('risk-missing')&&document.getElementById('risk-missing').checked;var useBehavior=document.getElementById('risk-behavior')&&document.getElementById('risk-behavior').checked;var useConcern=document.getElementById('risk-concern')&&document.getElementById('risk-concern').checked;var students=DB.students.map(function(s){var flags=[];var g=calcGrade(s.id);if(useGrade&&g.has&&g.ov<70)flags.push({label:'Grade: '+g.ov.toFixed(1)+'%',color:'#dc2626'});var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;if(useMissing&&miss>=2)flags.push({label:miss+' missing',color:'#d97706'});var beh=DB.behavior.filter(function(b){return b.student===s.name&&!b.type.startsWith('Positive');}).length;if(useBehavior&&beh>0)flags.push({label:beh+' behavior',color:'#7c3aed'});var cnc=DB.concerns.filter(function(c){return c.student===s.name&&c.status!=='Resolved';}).length;if(useConcern&&cnc>0)flags.push({label:cnc+' concern'+(cnc>1?'s':''),color:'#0d9488'});return {s:s,flags:flags,g:g,miss:miss};}).filter(function(x){return x.flags.length>=1;}).sort(function(a,b){return b.flags.length-a.flags.length;});el.innerHTML=students.length===0?'<div style="color:#059669;font-size:13px;text-align:center;padding:20px">🎉 No students meet at-risk criteria with current filters</div>':'<table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Missing</th><th>Risk flags</th><th>Parent contacts</th></tr></thead><tbody>'+students.map(function(x){var comms=DB.comms.filter(function(c){return c.student===x.s.name;}).length;return '<tr><td><strong>'+esc(x.s.name)+'</strong>'+(x.s.medical?' ⚠️':'')+'</td><td><span class="badge b-pink">P'+x.s.period+'</span></td><td style="color:'+(x.g.has&&x.g.ov<70?'#dc2626':'inherit')+';font-weight:700">'+(x.g.has?x.g.ov.toFixed(1)+'% '+x.g.ltr:'—')+'</td><td style="color:'+(x.miss>0?'#dc2626':'inherit')+';font-weight:'+(x.miss?'700':'400')+'">'+x.miss+'</td><td>'+x.flags.map(function(f){return '<span class="badge" style="background:'+f.color+'22;color:'+f.color+';margin-right:3px;font-size:9px">'+f.label+'</span>';}).join('')+'</td><td>'+comms+'</td></tr>';}).join('')+'</tbody></table>';}
 function renderConcernReferralReport(){var sid=(document.getElementById('concern-stu-select')||{}).value;var el=document.getElementById('concern-referral-content');if(!el)return;if(!sid){el.innerHTML='';return;}var s=DB.students.find(function(x){return x.id===sid;});if(!s)return;var concerns=DB.concerns.filter(function(c){return c.student===s.name;});var g=calcGrade(sid);el.innerHTML='<div class="card"><div class="card-hdr"><span class="card-title">Complete concern record — '+esc(s.name)+'</span></div><div class="card-body"><div class="stat-grid"><div class="sc" style="border-left-color:var(--accent1)"><div class="sc-val">'+(g.has?g.ov.toFixed(1)+'%':'—')+'</div><div class="sc-lbl">Grade</div></div><div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+concerns.filter(function(c){return c.status==='Open';}).length+'</div><div class="sc-lbl">Open</div></div><div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+concerns.filter(function(c){return c.status==='In progress';}).length+'</div><div class="sc-lbl">In Progress</div></div><div class="sc" style="border-left-color:#059669"><div class="sc-val">'+concerns.filter(function(c){return c.status==='Resolved';}).length+'</div><div class="sc-lbl">Resolved</div></div></div></div></div>'+(concerns.length===0?'<div class="card"><div class="card-body empty">No concerns logged for this student</div></div>':concerns.map(function(c,i){return '<div class="card"><div class="card-hdr" style="background:'+(c.status==='Open'?'#fef2f2':c.status==='In progress'?'#fffbeb':'#f0fdf4')+'"><span class="card-title" style="color:'+(c.status==='Open'?'#dc2626':c.status==='In progress'?'#d97706':'#059669')+'">Concern '+(i+1)+' — '+esc(c.type)+'</span><span class="badge '+(c.status==='Resolved'?'b-green':c.status==='In progress'?'b-yellow':'b-red')+'">'+esc(c.status)+'</span></div><div class="card-body"><div style="display:flex;gap:20px;margin-bottom:8px"><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase">Date</div><div>'+esc(c.date||'—')+'</div></div><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase">Referred to</div><div>'+esc(c.referred)+'</div></div><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase">Follow-up</div><div>'+esc(c.followup||'—')+'</div></div></div>'+(c.incident?'<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Incident</div><div style="font-size:12px;padding:8px;background:var(--surface);border-radius:6px">'+esc(c.incident)+'</div></div>':'')+(c.action?'<div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Action taken</div><div style="font-size:12px;padding:8px;background:var(--surface);border-radius:6px">'+esc(c.action)+'</div></div>':'')+'</div></div>';}).join(''));}
-function renderParentMeetingReport(){var sid=(document.getElementById('pm-stu-select')||{}).value;var el=document.getElementById('parent-meeting-content');if(!el)return;if(!sid){el.innerHTML='';return;}var s=DB.students.find(function(x){return x.id===sid;});if(!s)return;var g=calcGrade(sid);var lc={A:'b-green',B:'b-mint',C:'b-yellow',D:'b-peach',F:'b-red'}[g.ltr]||'b-gray';var comms=DB.comms.filter(function(c){return c.student===s.name;});var missing=DB.missing.filter(function(m){return m.student===s.name;});var behavior=DB.behavior.filter(function(b){return b.student===s.name;});var concerns=DB.concerns.filter(function(c){return c.student===s.name;});var pmDate=(document.getElementById('pm-date')||{}).value;var purpose=(document.getElementById('pm-purpose')||{}).value;el.innerHTML='<div class="card" style="border:2px solid var(--accent1)"><div class="card-hdr" style="background:linear-gradient(135deg,var(--accent1),var(--accent2))"><span class="card-title" style="color:#fff">👨‍👩‍👧 Parent Meeting — '+esc(s.name)+(pmDate?' · '+pmDate:'')+'</span></div><div class="card-body">'+(purpose?'<div style="padding:8px;background:var(--surface);border-radius:6px;margin-bottom:10px"><strong>Purpose:</strong> '+esc(purpose)+'</div>':'')+'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Emergency contact</div><div>'+esc(s.contact||'—')+'<br><span style="font-size:11px">'+esc(s.phone||'—')+'</span></div></div><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Current grade</div>'+(g.has?'<span class="badge '+lc+'" style="font-size:14px">'+g.ltr+' '+g.ov.toFixed(1)+'%</span>':'<span style="color:var(--mid)">No grades</span>')+'</div><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Missing work</div><div style="font-size:20px;font-weight:900;color:'+(missing.filter(function(m){return m.status==='Missing';}).length?'#dc2626':'#059669')+'">'+missing.filter(function(m){return m.status==='Missing';}).length+'</div></div></div></div></div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="card"><div class="card-hdr"><span class="card-title">📌 Talking Points</span></div><div class="card-body"><div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:3px">STRENGTHS</div><div style="font-size:12px;color:var(--mid)">'+(comms.filter(function(c){return c.reason.startsWith('+');}).length?'Previous positive: '+comms.filter(function(c){return c.reason.startsWith('+');}).map(function(c){return esc(c.reason);}).join(', '):'Add student strengths before meeting')+'</div></div><div><div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:3px">AREAS OF CONCERN</div><div style="font-size:12px;color:var(--mid)">'+(g.has&&g.ov<70?'• Grade: '+g.ov.toFixed(1)+'%<br>':'')+(missing.filter(function(m){return m.status==='Missing';}).length?'• '+missing.filter(function(m){return m.status==='Missing';}).length+' missing assignments<br>':'')+(behavior.length?'• '+behavior.length+' behavior incidents<br>':'')+(concerns.filter(function(c){return c.status!=='Resolved';}).length?'• '+concerns.filter(function(c){return c.status!=='Resolved';}).length+' open concerns':'')+'</div></div></div></div><div class="card"><div class="card-hdr"><span class="card-title">✅ Action Items</span></div><div class="card-body"><textarea id="pm-actions-'+sid+'" style="width:100%;min-height:120px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--dark);background:var(--input-bg)" placeholder="Teacher will:&#10;&#10;Parent will:&#10;&#10;Student will:&#10;&#10;Follow-up date:" oninput="DB.plannerNotes[\'pm_'+sid+'\']=this.value;save()">'+esc(DB.plannerNotes['pm_'+sid]||'')+'</textarea></div></div></div>'+(comms.length?'<div class="card"><div class="card-hdr"><span class="card-title">📞 Previous Contact History</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reason</th><th>Notes</th></tr></thead><tbody>'+comms.map(function(c){return '<tr><td>'+esc(c.date||'—')+'</td><td>'+esc(c.method)+'</td><td>'+esc(c.reason)+'</td><td style="font-size:11px">'+esc(c.notes||'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>':'');}
-function renderCoachingReport(){var period=(document.getElementById('coaching-period')||{}).value||'all';var el=document.getElementById('coaching-report-content');if(!el)return;var students=(period==='all'?DB.students:DB.students.filter(function(s){return s.period===period;})).map(function(s){var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;var pos=DB.participation.filter(function(p){return p.student===s.name&&p.type.startsWith('+');}).length;var neg=DB.participation.filter(function(p){return p.student===s.name&&p.type.startsWith('−');}).length;return {s:s,g:g,miss:miss,pos:pos,neg:neg};}).sort(function(a,b){return (a.g.has?a.g.ov:999)-(b.g.has?b.g.ov:999);});var below=students.filter(function(x){return x.g.has&&x.g.ov<70;});el.innerHTML='<div class="stat-grid" style="margin-bottom:14px"><div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+below.length+'</div><div class="sc-lbl">Below 70%</div></div><div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+students.filter(function(x){return x.miss>=2;}).length+'</div><div class="sc-lbl">2+ missing</div></div><div class="sc" style="border-left-color:#059669"><div class="sc-val">'+students.filter(function(x){return x.g.has&&x.g.ov>=90;}).length+'</div><div class="sc-lbl">Exceeding (A)</div></div></div><div class="card"><div class="card-hdr"><span class="card-title">Students needing intervention</span></div><div class="card-body">'+(below.length===0?'<div style="color:#059669;font-size:13px;text-align:center;padding:12px">🎉 No students below 70%!</div>':'<table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Missing</th><th>+ Participation</th><th>− Participation</th><th>Last parent contact</th></tr></thead><tbody>'+below.map(function(x){var lastComm=DB.comms.filter(function(c){return c.student===x.s.name;}).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});return '<tr><td><strong>'+esc(x.s.name)+'</strong>'+(x.s.medical?' ⚠️':'')+'</td><td><span class="badge b-pink">P'+x.s.period+'</span></td><td style="color:#dc2626;font-weight:700">'+x.g.ov.toFixed(1)+'% '+x.g.ltr+'</td><td style="color:'+(x.miss>0?'#dc2626':'inherit')+';font-weight:'+(x.miss?'700':'400')+'">'+x.miss+'</td><td style="color:#059669">'+x.pos+'</td><td style="color:#dc2626">'+x.neg+'</td><td style="font-size:11px">'+esc(lastComm.length?lastComm[0].date:'Never contacted')+'</td></tr>';}).join('')+'</tbody></table>')+'</div></div>';}
-function renderPeriodPatternReport(){var el=document.getElementById('period-pattern-content');if(!el)return;var rows=getPeriodNumbers().map(function(p){var students=DB.students.filter(function(s){return s.period==p;});if(!students.length)return null;var grades=students.map(function(s){var g=calcGrade(s.id);return g.has?g.ov:null;}).filter(function(v){return v!==null;});var avg=grades.length?(grades.reduce(function(a,b){return a+b;},0)/grades.length).toFixed(1):null;var below=grades.filter(function(g){return g<70;}).length;var missing=DB.missing.filter(function(m){return students.some(function(s){return s.name===m.student;})&&m.status==='Missing';}).length;var behavior=DB.behavior.filter(function(b){return students.some(function(s){return s.name===b.student;})&&!b.type.startsWith('Positive');}).length;var comms=DB.comms.filter(function(c){return students.some(function(s){return s.name===c.student;});}).length;var concerns=DB.concerns.filter(function(c){return students.some(function(s){return s.name===c.student;})&&c.status!=='Resolved';}).length;return {p:p,count:students.length,avg:avg,below:below,missing:missing,behavior:behavior,comms:comms,concerns:concerns};}).filter(Boolean);el.innerHTML='<table><thead><tr><th>Period</th><th>Students</th><th>Avg Grade</th><th>Below 70%</th><th>Missing</th><th>Behavior</th><th>Contacts</th><th>Open Concerns</th><th>Risk Level</th></tr></thead><tbody>'+rows.map(function(r){var risk=0;if(r.avg&&r.avg<70)risk+=2;if(r.below>r.count*.3)risk++;if(r.missing>r.count*.5)risk++;if(r.behavior>r.count*.2)risk++;var riskLabel=risk>=4?'🔴 High':risk>=2?'🟡 Medium':'🟢 Low';return '<tr><td><strong>P'+r.p+'</strong></td><td>'+r.count+'</td><td style="font-weight:700;color:'+(r.avg&&r.avg<70?'#dc2626':r.avg&&r.avg>=90?'#059669':'inherit')+'">'+(r.avg?r.avg+'%':'—')+'</td><td style="color:'+(r.below>0?'#dc2626':'inherit')+'">'+r.below+'</td><td style="color:'+(r.missing>0?'#d97706':'inherit')+'">'+r.missing+'</td><td style="color:'+(r.behavior>0?'#7c3aed':'inherit')+'">'+r.behavior+'</td><td>'+r.comms+'</td><td style="color:'+(r.concerns>0?'#dc2626':'inherit')+'">'+r.concerns+'</td><td>'+riskLabel+'</td></tr>';}).join('')+'</tbody></table>';}
+function renderParentMeetingReport(){var sid=(document.getElementById('pm-stu-select')||{}).value;var el=document.getElementById('parent-meeting-content');if(!el)return;if(!sid){el.innerHTML='';return;}var s=DB.students.find(function(x){return x.id===sid;});if(!s)return;var g=calcGrade(sid);var lc={A:'b-green',B:'b-mint',C:'b-yellow',D:'b-peach',F:'b-red'}[g.ltr]||'b-gray';var comms=DB.comms.filter(function(c){return c.student===s.name;});var missing=DB.missing.filter(function(m){return m.student===s.name;});var behavior=DB.behavior.filter(function(b){return b.student===s.name;});var concerns=DB.concerns.filter(function(c){return c.student===s.name;});var pmDate=(document.getElementById('pm-date')||{}).value;var purpose=(document.getElementById('pm-purpose')||{}).value;el.innerHTML='<div class="card" style="border:2px solid var(--accent1)"><div class="card-hdr" style="background:linear-gradient(135deg,var(--accent1),var(--accent2))"><span class="card-title" style="color:#fff">👨‍👩‍👧 Parent Meeting — '+esc(s.name)+(pmDate?' · '+pmDate:'')+'</span></div><div class="card-body">'+(purpose?'<div style="padding:8px;background:var(--surface);border-radius:6px;margin-bottom:10px"><strong>Purpose:</strong> '+esc(purpose)+'</div>':'')+'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Emergency contact</div><div>'+esc(s.contact||'—')+'<br><span style="font-size:11px">'+esc(s.phone||'—')+'</span></div></div><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Current grade</div>'+(g.has?'<span class="badge '+lc+'" style="font-size:14px">'+g.ltr+' '+g.ov.toFixed(1)+'%</span>':'<span style="color:var(--mid)">No grades</span>')+'</div><div><div style="font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px">Missing work</div><div style="font-size:20px;font-weight:900;color:'+(missing.filter(function(m){return isStillMissing(m);}).length?'#dc2626':'#059669')+'">'+missing.filter(function(m){return isStillMissing(m);}).length+'</div></div></div></div></div>'+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="card"><div class="card-hdr"><span class="card-title">📌 Talking Points</span></div><div class="card-body"><div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:3px">STRENGTHS</div><div style="font-size:12px;color:var(--mid)">'+(comms.filter(function(c){return c.reason.startsWith('+');}).length?'Previous positive: '+comms.filter(function(c){return c.reason.startsWith('+');}).map(function(c){return esc(c.reason);}).join(', '):'Add student strengths before meeting')+'</div></div><div><div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:3px">AREAS OF CONCERN</div><div style="font-size:12px;color:var(--mid)">'+(g.has&&g.ov<70?'• Grade: '+g.ov.toFixed(1)+'%<br>':'')+(missing.filter(function(m){return isStillMissing(m);}).length?'• '+missing.filter(function(m){return isStillMissing(m);}).length+' missing assignments<br>':'')+(behavior.length?'• '+behavior.length+' behavior incidents<br>':'')+(concerns.filter(function(c){return c.status!=='Resolved';}).length?'• '+concerns.filter(function(c){return c.status!=='Resolved';}).length+' open concerns':'')+'</div></div></div></div><div class="card"><div class="card-hdr"><span class="card-title">✅ Action Items</span></div><div class="card-body"><textarea id="pm-actions-'+sid+'" style="width:100%;min-height:120px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--dark);background:var(--input-bg)" placeholder="Teacher will:&#10;&#10;Parent will:&#10;&#10;Student will:&#10;&#10;Follow-up date:" oninput="DB.plannerNotes[\'pm_'+sid+'\']=this.value;save()">'+esc(DB.plannerNotes['pm_'+sid]||'')+'</textarea></div></div></div>'+(comms.length?'<div class="card"><div class="card-hdr"><span class="card-title">📞 Previous Contact History</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reason</th><th>Notes</th></tr></thead><tbody>'+comms.map(function(c){return '<tr><td>'+esc(c.date||'—')+'</td><td>'+esc(c.method)+'</td><td>'+esc(c.reason)+'</td><td style="font-size:11px">'+esc(c.notes||'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>':'');}
+function renderCoachingReport(){var period=(document.getElementById('coaching-period')||{}).value||'all';var el=document.getElementById('coaching-report-content');if(!el)return;var students=(period==='all'?DB.students:DB.students.filter(function(s){return s.period===period;})).map(function(s){var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;var pos=DB.participation.filter(function(p){return p.student===s.name&&p.type.startsWith('+');}).length;var neg=DB.participation.filter(function(p){return p.student===s.name&&p.type.startsWith('−');}).length;return {s:s,g:g,miss:miss,pos:pos,neg:neg};}).sort(function(a,b){return (a.g.has?a.g.ov:999)-(b.g.has?b.g.ov:999);});var below=students.filter(function(x){return x.g.has&&x.g.ov<70;});el.innerHTML='<div class="stat-grid" style="margin-bottom:14px"><div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+below.length+'</div><div class="sc-lbl">Below 70%</div></div><div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+students.filter(function(x){return x.miss>=2;}).length+'</div><div class="sc-lbl">2+ missing</div></div><div class="sc" style="border-left-color:#059669"><div class="sc-val">'+students.filter(function(x){return x.g.has&&x.g.ov>=90;}).length+'</div><div class="sc-lbl">Exceeding (A)</div></div></div><div class="card"><div class="card-hdr"><span class="card-title">Students needing intervention</span></div><div class="card-body">'+(below.length===0?'<div style="color:#059669;font-size:13px;text-align:center;padding:12px">🎉 No students below 70%!</div>':'<table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Missing</th><th>+ Participation</th><th>− Participation</th><th>Last parent contact</th></tr></thead><tbody>'+below.map(function(x){var lastComm=DB.comms.filter(function(c){return c.student===x.s.name;}).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});return '<tr><td><strong>'+esc(x.s.name)+'</strong>'+(x.s.medical?' ⚠️':'')+'</td><td><span class="badge b-pink">P'+x.s.period+'</span></td><td style="color:#dc2626;font-weight:700">'+x.g.ov.toFixed(1)+'% '+x.g.ltr+'</td><td style="color:'+(x.miss>0?'#dc2626':'inherit')+';font-weight:'+(x.miss?'700':'400')+'">'+x.miss+'</td><td style="color:#059669">'+x.pos+'</td><td style="color:#dc2626">'+x.neg+'</td><td style="font-size:11px">'+esc(lastComm.length?lastComm[0].date:'Never contacted')+'</td></tr>';}).join('')+'</tbody></table>')+'</div></div>';}
+function renderPeriodPatternReport(){var el=document.getElementById('period-pattern-content');if(!el)return;var rows=getPeriodNumbers().map(function(p){var students=DB.students.filter(function(s){return s.period==p;});if(!students.length)return null;var grades=students.map(function(s){var g=calcGrade(s.id);return g.has?g.ov:null;}).filter(function(v){return v!==null;});var avg=grades.length?(grades.reduce(function(a,b){return a+b;},0)/grades.length).toFixed(1):null;var below=grades.filter(function(g){return g<70;}).length;var missing=DB.missing.filter(function(m){return students.some(function(s){return s.name===m.student;})&&isStillMissing(m);}).length;var behavior=DB.behavior.filter(function(b){return students.some(function(s){return s.name===b.student;})&&!b.type.startsWith('Positive');}).length;var comms=DB.comms.filter(function(c){return students.some(function(s){return s.name===c.student;});}).length;var concerns=DB.concerns.filter(function(c){return students.some(function(s){return s.name===c.student;})&&c.status!=='Resolved';}).length;return {p:p,count:students.length,avg:avg,below:below,missing:missing,behavior:behavior,comms:comms,concerns:concerns};}).filter(Boolean);el.innerHTML='<table><thead><tr><th>Period</th><th>Students</th><th>Avg Grade</th><th>Below 70%</th><th>Missing</th><th>Behavior</th><th>Contacts</th><th>Open Concerns</th><th>Risk Level</th></tr></thead><tbody>'+rows.map(function(r){var risk=0;if(r.avg&&r.avg<70)risk+=2;if(r.below>r.count*.3)risk++;if(r.missing>r.count*.5)risk++;if(r.behavior>r.count*.2)risk++;var riskLabel=risk>=4?'🔴 High':risk>=2?'🟡 Medium':'🟢 Low';return '<tr><td><strong>P'+r.p+'</strong></td><td>'+r.count+'</td><td style="font-weight:700;color:'+(r.avg&&r.avg<70?'#dc2626':r.avg&&r.avg>=90?'#059669':'inherit')+'">'+(r.avg?r.avg+'%':'—')+'</td><td style="color:'+(r.below>0?'#dc2626':'inherit')+'">'+r.below+'</td><td style="color:'+(r.missing>0?'#d97706':'inherit')+'">'+r.missing+'</td><td style="color:'+(r.behavior>0?'#7c3aed':'inherit')+'">'+r.behavior+'</td><td>'+r.comms+'</td><td style="color:'+(r.concerns>0?'#dc2626':'inherit')+'">'+r.concerns+'</td><td>'+riskLabel+'</td></tr>';}).join('')+'</tbody></table>';}
 
 /* ── BEHAVIOR ── */
 /* ── UNIVERSAL STUDENT SELECT POPULATOR ── */
@@ -4727,7 +4796,7 @@ function populateAllTrackerSelects(){
 function renderMissingCharts(){
   var chartEl=document.getElementById('miss-period-chart');
   if(chartEl){
-    var perData={};getPeriodNumbers().forEach(function(p){perData[p]=DB.missing.filter(function(m){return m.status==='Missing'&&m.period==p;}).length;});
+    var perData={};getPeriodNumbers().forEach(function(p){perData[p]=DB.missing.filter(function(m){return isStillMissing(m)&&m.period==p;}).length;});
     var maxV=Math.max.apply(null,Object.values(perData))||1;
     var colors=['#f28b82','#fbbc04','#81c995','#a8c7fa','#d7aefb','#ff8bcb','#f9ab00'];
     chartEl.innerHTML=getPeriodNumbers().map(function(p,i){
@@ -4737,7 +4806,7 @@ function renderMissingCharts(){
   }
   var topEl=document.getElementById('miss-top-students');
   if(topEl){
-    var byStudent={};DB.missing.filter(function(m){return m.status==='Missing';}).forEach(function(m){byStudent[m.student]=(byStudent[m.student]||0)+1;});
+    var byStudent={};DB.missing.filter(function(m){return isStillMissing(m);}).forEach(function(m){byStudent[m.student]=(byStudent[m.student]||0)+1;});
     var sorted=Object.keys(byStudent).sort(function(a,b){return byStudent[b]-byStudent[a];}).slice(0,6);
     var maxCount=sorted.length?byStudent[sorted[0]]:1;
     topEl.innerHTML=sorted.length?sorted.map(function(name){var pct=Math.round(byStudent[name]/maxCount*100);return '<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span>'+esc(name)+'</span><span style="font-weight:800;color:#dc2626">'+byStudent[name]+'</span></div><div class="prog"><div class="prog-fill" style="width:'+pct+'%;background:#dc2626"></div></div></div>';}).join(''):'<div style="color:var(--mid)">No missing work 🎉</div>';
@@ -4757,7 +4826,7 @@ function renderCommCharts(){
   var methodEl=document.getElementById('comm-method-chart');
   if(methodEl){var methods={};DB.comms.forEach(function(c){methods[c.method]=(methods[c.method]||0)+1;});var mKeys=Object.keys(methods).sort(function(a,b){return methods[b]-methods[a];});var maxM=mKeys.length?methods[mKeys[0]]:1;methodEl.innerHTML=mKeys.length?mKeys.map(function(m){var pct=Math.round(methods[m]/maxM*100);return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span>'+esc(m)+'</span><span style="font-weight:800">'+methods[m]+'</span></div><div class="prog"><div class="prog-fill" style="width:'+pct+'%"></div></div></div>';}).join(''):'<div style="color:var(--mid);font-size:11px">No contacts yet</div>';}
   var notEl=document.getElementById('comm-not-contacted');
-  if(notEl){var contacted=[...new Set(DB.comms.map(function(c){return c.student;}))];var notContacted=DB.students.filter(function(s){return !contacted.includes(s.name);});notEl.innerHTML=notContacted.length===0?'<div style="color:#059669;font-size:13px;text-align:center;padding:8px">🎉 All students contacted!</div>':'<div style="max-height:160px;overflow-y:auto">'+notContacted.map(function(s){return '<div style="padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px"><span>'+esc(s.name)+'</span><span class="badge b-pink">P'+s.period+'</span></div>';}).join('')+'</div><div style="font-size:10px;color:var(--mid);margin-top:6px;text-align:right">'+notContacted.length+' remaining</div>';}
+  if(notEl){var contacted=[...new Set(DB.comms.concat(parentConfs()).map(function(c){return c.student;}))];var notContacted=DB.students.filter(function(s){return !contacted.includes(s.name);});notEl.innerHTML=notContacted.length===0?'<div style="color:#059669;font-size:13px;text-align:center;padding:8px">🎉 All students contacted!</div>':'<div style="max-height:160px;overflow-y:auto">'+notContacted.map(function(s){return '<div style="padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px"><span>'+esc(s.name)+'</span><span class="badge b-pink">P'+s.period+'</span></div>';}).join('')+'</div><div style="font-size:10px;color:var(--mid);margin-top:6px;text-align:right">'+notContacted.length+' remaining</div>';}
 }
 /* ── CONFERENCE STATS ── */
 function renderConferenceStats(){
@@ -5025,6 +5094,10 @@ function delAssignment(id){DB.assignments=DB.assignments.filter(function(a){retu
 function saveConference(){
   var s=document.getElementById('cf-student').value.trim();if(!s){toast('Enter student name');return;}
   DB.conferences.push({id:Date.now()+'',student:s,date:document.getElementById('cf-date').value,time:document.getElementById('cf-time').value,attendees:document.getElementById('cf-attendees').value,type:document.getElementById('cf-type').value,topics:document.getElementById('cf-topics').value,followup:document.getElementById('cf-followup').value});
+  var cfE=DB.conferences[DB.conferences.length-1],cfd2=(document.getElementById('cf-followdate')||{}).value,cfFlag=document.getElementById('cf-flag');
+  if(cfd2){cfE.followdate=cfd2;syncFollowTask('conference',cfE.id,cfd2,'Conference follow-up: '+cfE.student+(cfE.followup?' — '+String(cfE.followup).slice(0,50):''),false);}
+  if(cfFlag&&cfFlag.checked){var cfc=newConcernFrom({student:cfE.student,date:cfE.date,type:commConcernType((cfE.topics||'')+' '+(cfE.type||'')),incident:cfE.topics||cfE.type,action:cfE.followup||'',source:'conference',sourceId:cfE.id});cfE.concernId=cfc.id;if(cfd2){cfc.followup=cfd2;}}
+  ['cf-followdate'].forEach(function(f){var e=document.getElementById(f);if(e)e.value='';});if(cfFlag)cfFlag.checked=false;
   save();['cf-student','cf-attendees','cf-topics','cf-followup'].forEach(function(f){var e=document.getElementById(f);if(e)e.value='';});toast('✅ Saved');renderConferences();renderConferenceStats();
 }
 function renderConferences(){
@@ -5032,7 +5105,7 @@ function renderConferences(){
   el.innerHTML=DB.conferences.length===0?'<tr><td colspan="6" class="empty">No conferences logged</td></tr>'
     :DB.conferences.slice().reverse().map(function(c){return '<tr><td>'+esc(c.date||'—')+'</td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-lav">'+esc(c.type)+'</span></td><td style="font-size:11px">'+esc(c.attendees||'—')+'</td><td style="font-size:11px">'+esc(c.followup||'—')+'</td><td><button class="btn btn-sm btn-danger" onclick="delConference(\''+c.id+'\')">✕</button></td></tr>';}).join('');
 }
-function delConference(id){DB.conferences=DB.conferences.filter(function(c){return c.id!==id;});save();renderConferences();}
+function delConference(id){dropFollowTask('conference',id);DB.conferences=DB.conferences.filter(function(c){return c.id!==id;});save();renderConferences();}
 
 /* ── TASKS ── */
 var taskFilterMode='all';
@@ -5203,6 +5276,7 @@ function delCurriculum(id){DB.curriculum=DB.curriculum.filter(function(r){return
 function saveConcern(){
   var s=document.getElementById('cn-student').value.trim();if(!s){toast('Enter student name');return;}
   DB.concerns.push({id:Date.now()+'',student:s,period:document.getElementById('cn-period').value,date:document.getElementById('cn-date').value,type:document.getElementById('cn-type').value,referred:document.getElementById('cn-referred').value,incident:document.getElementById('cn-incident').value,action:document.getElementById('cn-action').value,followup:document.getElementById('cn-followup').value,status:document.getElementById('cn-status').value});
+  syncConcernTask(DB.concerns[DB.concerns.length-1]);
   save();['cn-student','cn-incident','cn-action'].forEach(function(f){var e=document.getElementById(f);if(e)e.value='';});toast('Concern logged');renderConcerns();
 }
 function renderConcerns(){
@@ -5210,10 +5284,10 @@ function renderConcerns(){
   el.innerHTML=DB.concerns.length===0?'<tr><td colspan="8" class="empty">No concerns logged</td></tr>'
     :DB.concerns.slice().reverse().map(function(c){
       var sc={Open:'b-red','In progress':'b-yellow',Resolved:'b-green'}[c.status]||'b-gray';
-      return '<tr><td>'+esc(c.date||'—')+'</td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-pink">P'+c.period+'</span></td><td style="font-size:11px">'+esc(c.type)+concernSrcBadge(c)+'</td><td style="font-size:11px">'+esc(c.referred)+'</td><td><span class="badge '+sc+'">'+esc(c.status)+'</span></td><td>'+esc(c.followup||'—')+'</td><td><button class="btn btn-sm btn-danger" onclick="delConcern(\''+c.id+'\')">✕</button></td></tr>';
+      return '<tr><td>'+esc(c.date||'—')+'</td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-pink">P'+c.period+'</span></td><td style="font-size:11px">'+esc(c.type)+concernSrcBadge(c)+'</td><td style="font-size:11px">'+esc(c.referred)+'</td><td><select onchange="updConcern(\''+c.id+'\',\'status\',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--dark);background:var(--input-bg)">'+['Open','In progress','Resolved'].map(function(o){return '<option'+(c.status===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></td><td><input type="date" value="'+esc(c.followup||'')+'" onchange="updConcern(\''+c.id+'\',\'followup\',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:11px"></td><td><button class="btn btn-sm btn-danger" onclick="delConcern(\''+c.id+'\')">✕</button></td></tr>';
     }).join('');
 }
-function delConcern(id){DB.concerns=DB.concerns.filter(function(c){return c.id!==id;});save();renderConcerns();}
+function delConcern(id){DB.concerns=DB.concerns.filter(function(c){return c.id!==id;});dropFollowTask('concern',id);save();renderConcerns();}
 /* ── COMM BY STUDENT ── */
 function populateStudentCommSelect(){
   var el=document.getElementById('sc-student');if(!el)return;
@@ -5232,7 +5306,7 @@ function renderStudentComm(){
   var ov=hw*.20+te*.35+qu*.20+pr*.15+pa*.10;
   el.innerHTML='<div class="stat-grid" style="margin-bottom:14px">'
     +'<div class="sc" style="border-left-color:#e040a0"><div class="sc-val">'+(hw||te||qu?ov.toFixed(1)+'%':'—')+'</div><div class="sc-lbl">Overall grade</div></div>'
-    +'<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+missing.filter(function(m){return m.status==='Missing';}).length+'</div><div class="sc-lbl">Missing work</div></div>'
+    +'<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+missing.filter(function(m){return isStillMissing(m);}).length+'</div><div class="sc-lbl">Missing work</div></div>'
     +'<div class="sc" style="border-left-color:#7de8cc"><div class="sc-val">'+comms.length+'</div><div class="sc-lbl">Parent contacts</div></div>'
     +'<div class="sc" style="border-left-color:#c4adf5"><div class="sc-val">'+concerns.length+'</div><div class="sc-lbl">Concerns logged</div></div>'
     +'</div>'
@@ -5270,7 +5344,7 @@ function calcGrade(sid){var g=DB.grades[sid]||{};var hw=parseFloat(g.hw)||0,te=p
 
 function renderMasterPanel(){
   var totalS=DB.students.length;
-  var openM=DB.missing.filter(function(m){return m.status==='Missing';}).length;
+  var openM=DB.missing.filter(function(m){return isStillMissing(m);}).length;
   var grades=DB.students.map(function(s){var g=calcGrade(s.id);return g.has?g.ov:null;}).filter(function(g){return g!==null;});
   var avg=grades.length?(grades.reduce(function(a,b){return a+b;},0)/grades.length).toFixed(1):null;
   var below70=grades.filter(function(g){return g<70;}).length;
@@ -5295,7 +5369,7 @@ function renderMasterPanel(){
     +'</div>'
     +pSec('Students by period','var(--mid)')
     +getPeriodNumbers().map(function(p){var cnt=periods[String(p)]||0;var pct=totalS?Math.round(cnt/totalS*100):0;
-      var miss=DB.missing.filter(function(m){return m.status==='Missing'&&DB.students.some(function(s){return s.period==p&&s.name===m.student;});}).length;
+      var miss=DB.missing.filter(function(m){return isStillMissing(m)&&DB.students.some(function(s){return s.period==p&&s.name===m.student;});}).length;
       return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--dark);min-width:20px">P'+p+'</span><div class="prog" style="flex:1"><div class="prog-fill" style="width:'+pct+'%"></div></div><span style="font-size:11px;color:var(--mid)">'+cnt+'</span>'+(miss?'<span style="font-size:10px;color:#dc2626;font-weight:700">'+miss+' miss</span>':'')+'</div>';}).join('')
     +pSec('This week at a glance','var(--mid)')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">'
@@ -5333,7 +5407,7 @@ function renderCommPanel(){
   var pos=DB.comms.filter(function(c){return c.reason.startsWith('+');}).length;
   var neg=DB.comms.length-pos;
   var methods={};DB.comms.forEach(function(c){methods[c.method]=(methods[c.method]||0)+1;});
-  var contacted=[...new Set(DB.comms.map(function(c){return c.student;}))];
+  var contacted=[...new Set(DB.comms.concat(parentConfs()).map(function(c){return c.student;}))];
   var notContacted=DB.students.filter(function(s){return !contacted.includes(s.name);});
 
   return '<div class="panel-stats">'
@@ -5354,7 +5428,7 @@ function renderRosterPanel(period){
   var students=DB.students.filter(function(s){return s.period==period;}).sort(function(a,b){return a.name.localeCompare(b.name);});
   var graded=students.filter(function(s){return calcGrade(s.id).has;});
   var avg=graded.length?(graded.reduce(function(a,b){return a+calcGrade(b.id).ov;},0)/graded.length).toFixed(1):null;
-  var openMiss=DB.missing.filter(function(m){return m.status==='Missing'&&students.some(function(s){return s.name===m.student;});}).length;
+  var openMiss=DB.missing.filter(function(m){return isStillMissing(m)&&students.some(function(s){return s.name===m.student;});}).length;
 
   return '<div class="panel-stats">'
     +pStat(students.length,'Students','var(--accent1)')
@@ -5364,7 +5438,7 @@ function renderRosterPanel(period){
     +(students.length===0?'<div style="font-size:13px;color:var(--mid);text-align:center;padding:20px">No students in Period '+period+'</div>'
     :students.map(function(s){
       var g=calcGrade(s.id);
-      var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;
+      var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;
       var lc={A:'#059669',B:'#0d9488',C:'#d97706',D:'#ea580c',F:'#dc2626'}[g.ltr]||'var(--mid)';
       return '<div style="padding:7px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
         +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:var(--dark)">'+esc(s.name)+'</div>'
@@ -5417,7 +5491,7 @@ function renderFullDashboard(type,isManualRefresh){
 
   if(type==='master'){
     var totalS=DB.students.length;
-    var openM=DB.missing.filter(function(m){return m.status==='Missing';}).length;
+    var openM=DB.missing.filter(function(m){return isStillMissing(m);}).length;
     var grades=DB.students.map(function(s){var g=calcGrade(s.id);return g.has?g.ov:null;}).filter(function(g){return g!==null;});
     var avg=grades.length?(grades.reduce(function(a,b){return a+b;},0)/grades.length).toFixed(1):null;
     var below70=grades.filter(function(g){return g<70;}).length;
@@ -5451,7 +5525,7 @@ function renderFullDashboard(type,isManualRefresh){
       +'<div class="card"><div class="card-hdr"><span class="card-title">👩‍🎓 Students by Period</span></div><div class="card-body">'
       +getPeriodNumbers().map(function(p){
         var cnt=periods[String(p)]||0;var pct=totalS?Math.round(cnt/totalS*100):0;
-        var miss=DB.missing.filter(function(m){return m.status==='Missing'&&DB.students.some(function(s){return s.period==p&&s.name===m.student;});}).length;
+        var miss=DB.missing.filter(function(m){return isStillMissing(m)&&DB.students.some(function(s){return s.period==p&&s.name===m.student;});}).length;
         var avg2=null;var grds=DB.students.filter(function(s){return s.period==p;}).map(function(s){var g=calcGrade(s.id);return g.has?g.ov:null;}).filter(function(x){return x!==null;});
         if(grds.length)avg2=(grds.reduce(function(a,b){return a+b;},0)/grds.length).toFixed(0);
         var barW=avg2?parseFloat(avg2):0;var barColor=barW>=90?'#059669':barW>=70?'#d97706':'#dc2626';var schedR=getSchedule().find(function(r){var m=r.label.match(/\d+/);return m&&m[0]===String(p);});var subLbl=schedR&&schedR.subject?' <span style="font-size:9px;color:var(--mid)">'+esc(schedR.subject)+'</span>':'';
@@ -5509,7 +5583,7 @@ function renderFullDashboard(type,isManualRefresh){
       }).join('')+'</div>'
       +'<div style="font-size:11px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Needs Attention — Below 70%</div>'
       +(below70.length?'<div class="tbl-wrap"><table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Missing Work</th></tr></thead><tbody>'
-        +below70.slice(0,10).map(function(s){var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;return '<tr><td><strong>'+esc(s.name)+'</strong></td><td><span class="badge b-pink">P'+s.period+'</span></td><td style="color:#dc2626;font-weight:800">'+s.ov.toFixed(1)+'% '+s.ltr+'</td><td style="color:'+(miss?'#dc2626':'inherit')+';font-weight:'+(miss?'700':'400')+'">'+miss+'</td></tr>';}).join('')
+        +below70.slice(0,10).map(function(s){var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;return '<tr><td><strong>'+esc(s.name)+'</strong></td><td><span class="badge b-pink">P'+s.period+'</span></td><td style="color:#dc2626;font-weight:800">'+s.ov.toFixed(1)+'% '+s.ltr+'</td><td style="color:'+(miss?'#dc2626':'inherit')+';font-weight:'+(miss?'700':'400')+'">'+miss+'</td></tr>';}).join('')
         +'</tbody></table></div>'
         +(below70.length>10?'<div style="font-size:11px;color:var(--mid);margin-top:4px">...and '+(below70.length-10)+' more below 70%</div>':'')
         :'<div style="color:#059669;font-size:13px;padding:12px;text-align:center">🎉 All students above 70%!</div>')
@@ -5517,7 +5591,7 @@ function renderFullDashboard(type,isManualRefresh){
       // Full sorted grade list
       +'<div class="card"><div class="card-hdr"><span class="card-title">📋 All Students — Lowest to Highest</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Letter</th><th>Missing</th></tr></thead><tbody>'
       +(sorted.length?sorted.map(function(s){
-        var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;
+        var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;
         var c=gradColors[s.ltr]||'var(--mid)';
         return '<tr><td><strong>'+esc(s.name)+'</strong></td><td><span class="badge b-pink">P'+s.period+'</span></td><td style="color:'+c+';font-weight:800">'+s.ov.toFixed(1)+'%</td><td><span style="font-size:14px;font-weight:900;color:'+c+'">'+s.ltr+'</span></td><td style="color:'+(miss?'#dc2626':'#059669')+';font-weight:'+(miss?'700':'400')+'">'+miss+'</td></tr>';
       }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--mid);padding:20px">No grade data yet</td></tr>')
@@ -5530,6 +5604,7 @@ function renderFullDashboard(type,isManualRefresh){
     var neg=DB.comms.filter(function(c){return commKind(c.reason)==='concern';}).length;
     var methods={};DB.comms.forEach(function(c){methods[c.method]=(methods[c.method]||0)+1;});
     var byStudent={};DB.comms.forEach(function(c){byStudent[c.student]=(byStudent[c.student]||0)+1;});
+    parentConfs().forEach(function(cf){byStudent[cf.student]=(byStudent[cf.student]||0)+1;});
     var contacted=Object.keys(byStudent);
     var notContacted=DB.students.filter(function(s){return !contacted.includes(s.name);});
     var recentAll=DB.comms.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
@@ -5570,15 +5645,15 @@ function renderFullDashboard(type,isManualRefresh){
     var types2={};DB.concerns.forEach(function(c){types2[c.type]=(types2[c.type]||0)+1;});
     var byRef={};DB.concerns.forEach(function(c){byRef[c.referred]=(byRef[c.referred]||0)+1;});
 
-    el.innerHTML=commConcernNotice()+'<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">'
+    el.innerHTML=commConcernNotice()+patternNotice()+'<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">'
       +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+open2.length+'</div><div class="sc-lbl">Open</div></div>'
       +'<div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+inprog2.length+'</div><div class="sc-lbl">In Progress</div></div>'
       +'<div class="sc" style="border-left-color:#059669"><div class="sc-val">'+resolved2.length+'</div><div class="sc-lbl">Resolved</div></div>'
       +'<div class="sc"><div class="sc-val">'+DB.concerns.length+'</div><div class="sc-lbl">Total</div></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">'
-      +'<div class="card"><div class="card-hdr"><span class="card-title" style="color:#dc2626">🔴 Open Concerns</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Student</th><th>Type</th><th>Date</th><th>Referred To</th><th>Follow-up</th></tr></thead><tbody>'
-      +(open2.length?open2.map(function(c){return '<tr><td><strong>'+esc(c.student)+'</strong></td><td>'+esc(c.type)+concernSrcBadge(c)+'</td><td>'+esc(c.date||'—')+'</td><td>'+esc(c.referred)+'</td><td>'+concernFollowCell(c)+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:#059669;padding:20px">No open concerns 🎉</td></tr>')
+      +'<div class="card"><div class="card-hdr"><span class="card-title" style="color:#dc2626">🔴 Open Concerns</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Student</th><th>Type</th><th>Date</th><th>Referred To</th><th>Follow-up</th><th></th></tr></thead><tbody>'
+      +(open2.length?open2.map(function(c){return '<tr><td><strong>'+esc(c.student)+'</strong></td><td>'+esc(c.type)+concernSrcBadge(c)+'</td><td>'+esc(c.date||'—')+'</td><td>'+esc(c.referred)+'</td><td>'+concernFollowCell(c)+'</td><td><button class="btn btn-sm" onclick="updConcern(\''+c.id+'\',\'status\',\'Resolved\')">\u2713 Resolve</button></td></tr>';}).join(''):'<tr><td colspan="6" style="text-align:center;color:#059669;padding:20px">No open concerns 🎉</td></tr>')
       +'</tbody></table></div></div>'
       +'<div class="card"><div class="card-hdr"><span class="card-title" style="color:#d97706">🟡 In Progress</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Student</th><th>Type</th><th>Referred To</th></tr></thead><tbody>'
       +(inprog2.length?inprog2.map(function(c){return '<tr><td><strong>'+esc(c.student)+'</strong></td><td>'+esc(c.type)+'</td><td>'+esc(c.referred)+'</td></tr>';}).join(''):'<tr><td colspan="3" style="text-align:center;color:var(--mid)">None in progress</td></tr>')
@@ -5593,7 +5668,7 @@ function renderFullDashboard(type,isManualRefresh){
   }
 
   else if(type==='progress'){
-    var allGraded=DB.students.map(function(s){var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;return Object.assign({name:s.name,period:s.period,id:s.id,miss:miss},g);}).filter(function(s){return s.has;}).sort(function(a,b){return a.ov-b.ov;});
+    var allGraded=DB.students.map(function(s){var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;return Object.assign({name:s.name,period:s.period,id:s.id,miss:miss},g);}).filter(function(s){return s.has;}).sort(function(a,b){return a.ov-b.ov;});
     var below3=allGraded.filter(function(s){return s.ov<70;});
     var passing3=allGraded.filter(function(s){return s.ov>=70;});
     var gradColors3={A:'#059669',B:'#0d9488',C:'#d97706',D:'#ea580c',F:'#dc2626'};
@@ -5617,7 +5692,7 @@ function renderFullRoster(period){
   var students=DB.students.filter(function(s){return s.period==period;}).sort(function(a,b){return a.name.localeCompare(b.name);});
   var graded=students.filter(function(s){return calcGrade(s.id).has;});
   var avg=graded.length?(graded.reduce(function(a,b){return a+calcGrade(b.id).ov;},0)/graded.length).toFixed(1):null;
-  var openMiss=DB.missing.filter(function(m){return m.status==='Missing'&&students.some(function(s){return s.name===m.student;});}).length;
+  var openMiss=DB.missing.filter(function(m){return isStillMissing(m)&&students.some(function(s){return s.name===m.student;});}).length;
   var gradColors={A:'#059669',B:'#0d9488',C:'#d97706',D:'#ea580c',F:'#dc2626'};
 
   el.innerHTML='<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">'
@@ -5630,7 +5705,7 @@ function renderFullRoster(period){
     :'<div class="card"><div class="card-hdr"><span class="card-title">👩‍🎓 Period '+period+' — All Students</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>#</th><th>Student</th><th>Grade</th><th>Letter</th><th>Missing Work</th><th>Dismissal</th><th>Medical</th><th>IEP/504</th></tr></thead><tbody>'
     +students.map(function(s,i){
       var g=calcGrade(s.id);
-      var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;
+      var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;
       var lc=g.ltr?(gradColors[g.ltr]||'var(--mid)'):'var(--mid)';
       var iepRec=(DB.iep||[]).find(function(r){return r.studentId===s.id&&r.status==='Active';});
       return '<tr>'
@@ -6189,11 +6264,12 @@ function renderStudentReport(){
   var comms=DB.comms.filter(function(c){return c.student===s.name;});
   var missing=DB.missing.filter(function(m){return m.student===s.name;});
   var concerns=DB.concerns.filter(function(c){return c.student===s.name;});
+  var sgs=(DB.smallGroups||[]).filter(function(g){return (g.students||[]).indexOf(s.id)>=0||(g.students||[]).indexOf(s.name)>=0;});
   var behavior=DB.behavior.filter(function(b){return b.student===s.name;});
   el.innerHTML='<div class="card"><div class="card-hdr"><span class="card-title">'+esc(s.name)+' — Period '+s.period+'</span></div><div class="card-body">'
     +'<div class="stat-grid">'
     +'<div class="sc" style="border-left-color:#e040a0"><div class="sc-val">'+(hw||te||qu?ov.toFixed(1)+'%':'—')+'</div><div class="sc-lbl">'+(hw||te||qu?ltr+' overall':'No grades')+'</div></div>'
-    +'<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+missing.filter(function(m){return m.status==='Missing';}).length+'</div><div class="sc-lbl">Missing</div></div>'
+    +'<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+missing.filter(function(m){return isStillMissing(m);}).length+'</div><div class="sc-lbl">Missing</div></div>'
     +'<div class="sc" style="border-left-color:#7de8cc"><div class="sc-val">'+comms.length+'</div><div class="sc-lbl">Parent contacts</div></div>'
     +'<div class="sc" style="border-left-color:#c4adf5"><div class="sc-val">'+concerns.length+'</div><div class="sc-lbl">Concerns</div></div>'
     +'</div>'
@@ -6203,6 +6279,7 @@ function renderStudentReport(){
     +'</div></div>'
     +(missing.length?'<div class="card"><div class="card-hdr"><span class="card-title">Missing work ('+missing.length+')</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Assignment</th><th>Due</th><th>Status</th></tr></thead><tbody>'+missing.map(function(m){return '<tr><td>'+esc(m.assignment)+'</td><td>'+esc(m.due||'—')+'</td><td>'+esc(m.status)+'</td></tr>';}).join('')+'</tbody></table></div></div>':'')
     +(comms.length?'<div class="card"><div class="card-hdr"><span class="card-title">Parent contacts ('+comms.length+')</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reason</th></tr></thead><tbody>'+comms.map(function(c){return '<tr><td>'+esc(c.date||'—')+'</td><td>'+esc(c.method)+'</td><td>'+esc(c.reason)+'</td></tr>';}).join('')+'</tbody></table></div></div>':'')
+    +(sgs.length?'<div class="card"><div class="card-hdr"><span class="card-title">Small groups ('+sgs.length+')</span></div><div class="card-body" style="font-size:12px">'+sgs.map(function(g){return '<div style="padding:4px 0;border-bottom:1px solid var(--border)"><strong>'+esc(g.name)+'</strong> <span class="badge b-lav" style="font-size:9px">'+esc(g.type||'')+'</span> '+esc(g.focus||'')+' <span style="color:var(--mid)">'+esc([g.days,g.time].filter(Boolean).join(' '))+'</span></div>';}).join('')+'</div></div>':'')
     +(concerns.length?'<div class="card"><div class="card-hdr"><span class="card-title">Concerns ('+concerns.length+')</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Status</th></tr></thead><tbody>'+concerns.map(function(c){return '<tr><td>'+esc(c.date||'—')+'</td><td>'+esc(c.type)+'</td><td>'+esc(c.status)+'</td></tr>';}).join('')+'</tbody></table></div></div>':'');
 }
 function renderClassReport(period,btn){
@@ -6211,7 +6288,7 @@ function renderClassReport(period,btn){
   var students=(period==='all'?DB.students:DB.students.filter(function(s){return s.period===period;})).slice().sort(function(a,b){return a.name.localeCompare(b.name);});
   el.innerHTML=students.length===0?'<div class="empty">No students</div>'
     :'<div class="card"><div class="card-hdr"><span class="card-title">'+(period==='all'?'All periods':'Period '+period)+' — '+students.length+' students</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Name</th><th>Period</th><th>Grade</th><th>Missing</th><th>Contacts</th><th>Concerns</th></tr></thead><tbody>'
-    +students.map(function(s){var g=DB.grades[s.id]||{};var hw=parseFloat(g.hw)||0,te=parseFloat(g.te)||0,qu=parseFloat(g.qu)||0,pr=parseFloat(g.pr)||0,pa=parseFloat(g.pa)||0;var ov=hw*.20+te*.35+qu*.20+pr*.15+pa*.10;var hasG=hw||te||qu;var ltr=ov>=90?'A':ov>=80?'B':ov>=70?'C':ov>=60?'D':'F';var lc={A:'b-green',B:'b-mint',C:'b-yellow',D:'b-peach',F:'b-red'}[ltr];var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;var comms=DB.comms.filter(function(c){return c.student===s.name;}).length;var cnc=DB.concerns.filter(function(c){return c.student===s.name;}).length;return '<tr><td><strong>'+esc(s.name)+'</strong></td><td><span class="badge b-pink">P'+s.period+'</span></td><td>'+(hasG?'<span class="badge '+lc+'">'+ltr+' '+ov.toFixed(1)+'%</span>':'—')+'</td><td style="color:'+(miss>0?'#dc2626':'inherit')+';font-weight:'+(miss>0?'700':'400')+'">'+miss+'</td><td>'+comms+'</td><td style="color:'+(cnc>0?'#7c3aed':'inherit')+'">'+cnc+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+    +students.map(function(s){var g=DB.grades[s.id]||{};var hw=parseFloat(g.hw)||0,te=parseFloat(g.te)||0,qu=parseFloat(g.qu)||0,pr=parseFloat(g.pr)||0,pa=parseFloat(g.pa)||0;var ov=hw*.20+te*.35+qu*.20+pr*.15+pa*.10;var hasG=hw||te||qu;var ltr=ov>=90?'A':ov>=80?'B':ov>=70?'C':ov>=60?'D':'F';var lc={A:'b-green',B:'b-mint',C:'b-yellow',D:'b-peach',F:'b-red'}[ltr];var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;var comms=DB.comms.filter(function(c){return c.student===s.name;}).length;var cnc=DB.concerns.filter(function(c){return c.student===s.name;}).length;return '<tr><td><strong>'+esc(s.name)+'</strong></td><td><span class="badge b-pink">P'+s.period+'</span></td><td>'+(hasG?'<span class="badge '+lc+'">'+ltr+' '+ov.toFixed(1)+'%</span>':'—')+'</td><td style="color:'+(miss>0?'#dc2626':'inherit')+';font-weight:'+(miss>0?'700':'400')+'">'+miss+'</td><td>'+comms+'</td><td style="color:'+(cnc>0?'#7c3aed':'inherit')+'">'+cnc+'</td></tr>';}).join('')+'</tbody></table></div></div>';
 }
 var missRptSort={col:'days',dir:-1};
 function renderMissingReport(){
@@ -6225,7 +6302,7 @@ function renderMissingReport(){
     if(srch&&m.student.toLowerCase().indexOf(srch)<0&&(m.assignment||'').toLowerCase().indexOf(srch)<0)return false;
     return true;
   });
-  var open=filtered.filter(function(m){return m.status==='Missing';});
+  var open=filtered.filter(function(m){return isStillMissing(m);});
   var sorted=filtered.slice().sort(function(a,b){
     var col=missRptSort.col;var d=missRptSort.dir;
     if(col==='days')return ((parseFloat(b.days)||0)-(parseFloat(a.days)||0))*d;
@@ -6247,10 +6324,10 @@ function renderMissingReport(){
     +'</div>'
     +(filtered.length===0?'<div class="empty">No records match filters</div>'
     :'<div class="tbl-wrap"><table><thead><tr>'+th('student','Student')+th('period','Period')+th('assignment','Assignment')+th('due','Due Date')+th('days','Days Late')+th('status','Status')+'</tr></thead><tbody>'
-    +sorted.map(function(m){var late=m.status==='Missing'&&(m.days||0)>5;
+    +sorted.map(function(m){var late=isStillMissing(m)&&(m.days||0)>5;
       return '<tr><td><strong>'+esc(m.student)+'</strong></td><td><span class="badge b-pink">P'+m.period+'</span></td><td>'+esc(m.assignment||'—')+'</td><td>'+esc(m.due||'—')+'</td>'
         +'<td style="color:'+(late?'#dc2626':'#d97706')+';font-weight:700">'+(m.days||0)+'d</td>'
-        +'<td><span class="badge '+(m.status==='Missing'?'b-red':m.status==='Excused'?'b-lav':m.status==='Partial'?'b-yellow':'b-green')+'">'+esc(m.status)+'</span></td></tr>';
+        +'<td><span class="badge '+(isStillMissing(m)?'b-red':m.status==='Excused'?'b-lav':m.status==='Partial'?'b-yellow':'b-green')+'">'+esc(m.status)+'</span></td></tr>';
     }).join('')
     +'</tbody></table></div>');
 }
@@ -6359,7 +6436,7 @@ function printReport(type){
     html='<div class="rpt-header"><div><div class="rpt-title">Student Academic Report</div><div class="rpt-sub">'+esc(s.name)+' · Period '+s.period+(s.grade?' · '+esc(s.grade):'')+'</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>Generated: '+today+'</div></div>'
     +'<div class="stat-row">'
     +'<div class="stat-box"><div class="stat-val '+(g.has?lc:'')+'">'+(g.has?g.ov.toFixed(1)+'%':'—')+'</div><div class="stat-lbl">'+(g.has?g.ltr+' Overall':'No grades')+'</div></div>'
-    +'<div class="stat-box"><div class="stat-val">'+(missing.filter(function(m){return m.status==='Missing';}).length)+'</div><div class="stat-lbl">Missing work</div></div>'
+    +'<div class="stat-box"><div class="stat-val">'+(missing.filter(function(m){return isStillMissing(m);}).length)+'</div><div class="stat-lbl">Missing work</div></div>'
     +'<div class="stat-box"><div class="stat-val">'+comms.length+'</div><div class="stat-lbl">Parent contacts</div></div>'
     +'<div class="stat-box"><div class="stat-val">'+concerns.length+'</div><div class="stat-lbl">Concerns logged</div></div>'
     +'</div>'
@@ -6382,10 +6459,10 @@ function printReport(type){
     title='Class Report — '+pLabel;
     html='<div class="rpt-header"><div><div class="rpt-title">Class Report — '+esc(pLabel)+'</div><div class="rpt-sub">'+students.length+' students</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>'+today+'</div></div>'
       +'<table><thead><tr><th>Student</th><th>Period</th><th>Overall</th><th>Grade</th><th>Missing</th><th>Contacts</th><th>Concerns</th><th>Medical</th></tr></thead><tbody>'
-      +students.map(function(s){var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;var comms=DB.comms.filter(function(c){return c.student===s.name;}).length;var cnc=DB.concerns.filter(function(c){return c.student===s.name&&c.status!=='Resolved';}).length;return '<tr><td><b>'+esc(s.name)+'</b></td><td>P'+s.period+'</td><td class="'+(g.has&&g.ov<70?'neg':g.has&&g.ov>=90?'good':'')+'">'+(g.has?g.ov.toFixed(1)+'%':'—')+'</td><td class="'+(g.ltr==='F'||g.ltr==='D'?'neg':'good')+'">'+(g.ltr||'—')+'</td><td class="'+(miss>=2?'neg':miss?'warn':'')+'">'+(miss||0)+'</td><td>'+comms+'</td><td class="'+(cnc?'neg':'')+'">'+(cnc||0)+'</td><td>'+(s.medical?'⚠️ '+esc(s.medical.substring(0,30)):'')+'</td></tr>';}).join('')+'</tbody></table>'
+      +students.map(function(s){var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;var comms=DB.comms.filter(function(c){return c.student===s.name;}).length;var cnc=DB.concerns.filter(function(c){return c.student===s.name&&c.status!=='Resolved';}).length;return '<tr><td><b>'+esc(s.name)+'</b></td><td>P'+s.period+'</td><td class="'+(g.has&&g.ov<70?'neg':g.has&&g.ov>=90?'good':'')+'">'+(g.has?g.ov.toFixed(1)+'%':'—')+'</td><td class="'+(g.ltr==='F'||g.ltr==='D'?'neg':'good')+'">'+(g.ltr||'—')+'</td><td class="'+(miss>=2?'neg':miss?'warn':'')+'">'+(miss||0)+'</td><td>'+comms+'</td><td class="'+(cnc?'neg':'')+'">'+(cnc||0)+'</td><td>'+(s.medical?'⚠️ '+esc(s.medical.substring(0,30)):'')+'</td></tr>';}).join('')+'</tbody></table>'
   } else if(type==='missing'){
     var missData=DB.missing.sort(function(a,b){return (b.days||0)-(a.days||0);});
-    var open=missData.filter(function(m){return m.status==='Missing';});
+    var open=missData.filter(function(m){return isStillMissing(m);});
     title='Missing Work Report';
     html='<div class="rpt-header"><div><div class="rpt-title">Missing Work Report</div><div class="rpt-sub">'+open.length+' still missing · '+missData.length+' total logged</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>'+today+'</div></div>'
     +'<div class="stat-row"><div class="stat-box"><div class="stat-val" style="color:#990000">'+open.length+'</div><div class="stat-lbl">Still missing</div></div><div class="stat-box"><div class="stat-val">'+missData.length+'</div><div class="stat-lbl">Total logged</div></div><div class="stat-box"><div class="stat-val">'+(missData.length-open.length)+'</div><div class="stat-lbl">Resolved</div></div></div>'
@@ -6452,7 +6529,7 @@ function printReport(type){
     if(!pmStu){alert('Please select a student first');return;}
     var g=calcGrade(sid);var lc={A:'good',B:'good',C:'warn',D:'neg',F:'neg'}[g.ltr]||'';
     var comms2=DB.comms.filter(function(c){return c.student===pmStu.name;});
-    var missing2=DB.missing.filter(function(m){return m.student===pmStu.name&&m.status==='Missing';});
+    var missing2=DB.missing.filter(function(m){return m.student===pmStu.name&&isStillMissing(m);});
     var beh2=DB.behavior.filter(function(b){return b.student===pmStu.name;});
     var pmDate2=(document.getElementById('pm-date')||{}).value;
     var purpose2=(document.getElementById('pm-purpose')||{}).value;
@@ -6504,7 +6581,7 @@ function printReport(type){
     var typeLabels={'parent':'Parent Contact Log','discipline':'Discipline Documentation','coaching':'Coaching / Academic Support','admin':'Admin Referral Packet'};
     title=(typeLabels[rptT]||'Student Report')+' — '+s.name;
     var statRow='<div class="stat-row"><div class="stat-box"><div class="stat-val '+(g.has&&g.ov<70?'neg':'good')+'">'+(g.has?g.ltr:'—')+'</div><div class="stat-lbl">Grade</div></div>'
-      +'<div class="stat-box"><div class="stat-val '+(miss2.filter(function(m){return m.status==='Missing';}).length?'neg':'good')+'">'+miss2.filter(function(m){return m.status==='Missing';}).length+'</div><div class="stat-lbl">Missing</div></div>'
+      +'<div class="stat-box"><div class="stat-val '+(miss2.filter(function(m){return isStillMissing(m);}).length?'neg':'good')+'">'+miss2.filter(function(m){return isStillMissing(m);}).length+'</div><div class="stat-lbl">Missing</div></div>'
       +'<div class="stat-box"><div class="stat-val">'+comms2.length+'</div><div class="stat-lbl">Contacts</div></div>'
       +'<div class="stat-box"><div class="stat-val '+(beh2.length?'warn':'good')+'">'+beh2.length+'</div><div class="stat-lbl">Behavior</div></div>'
       +'<div class="stat-box"><div class="stat-val '+(cnc2.length?'neg':'good')+'">'+cnc2.length+'</div><div class="stat-lbl">Concerns</div></div></div>';
@@ -6524,7 +6601,7 @@ function printReport(type){
     if(rptT==='coaching'||rptT==='admin'){
       var coachNotes=DB.plannerNotes['coaching_'+sid]||'';
       html+='<div class="section"><div class="section-title">Missing Assignments ('+miss2.length+')</div>';
-      if(!miss2.filter(function(m){return m.status==='Missing';}).length)html+='<p style="color:green">✅ No outstanding missing work.</p>';
+      if(!miss2.filter(function(m){return isStillMissing(m);}).length)html+='<p style="color:green">✅ No outstanding missing work.</p>';
       else html+='<table><thead><tr><th>Assignment</th><th>Due</th><th>Days Late</th><th>Status</th></tr></thead><tbody>'+miss2.map(function(m){return '<tr><td>'+esc(m.assignment||'—')+'</td><td>'+esc(m.due||'—')+'</td><td>'+(m.days||0)+'d</td><td>'+esc(m.status)+'</td></tr>';}).join('')+'</tbody></table></div>';
     }
     if(rptT==='coaching'){
@@ -6552,7 +6629,7 @@ function printReport(type){
     var g2=calcGrade(sid2);
     var beh3=DB.behavior.filter(function(b){return b.student===s2.name;});
     var comms3=DB.comms.filter(function(c){return c.student===s2.name;});
-    var miss3=DB.missing.filter(function(m){return m.student===s2.name&&m.status==='Missing';});
+    var miss3=DB.missing.filter(function(m){return m.student===s2.name&&isStillMissing(m);});
     title='Concern Referral — '+s2.name;
     html='<div class="rpt-header"><div><div class="rpt-title">Student Concern Referral</div>'
       +'<div class="rpt-sub">'+esc(s2.name)+' · Period '+esc(s2.period)+'</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>'+today+'</div></div>'
@@ -6586,7 +6663,7 @@ function printReport(type){
     var atStudents=DB.students.map(function(s){
       var flags=[];var g=calcGrade(s.id);
       if(useGrade&&g.has&&g.ov<70)flags.push('Grade: '+g.ov.toFixed(1)+'%');
-      var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;
+      var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;
       if(useMissing&&miss>=2)flags.push(miss+' missing');
       var beh=DB.behavior.filter(function(b){return b.student===s.name&&!b.type.startsWith('Positive');}).length;
       if(useBehavior&&beh>0)flags.push(beh+' behavior');
@@ -6609,7 +6686,7 @@ function printReport(type){
       if(!students.length)return null;
       var grades=students.map(function(s){var g=calcGrade(s.id);return g.has?g.ov:null;}).filter(function(v){return v!==null;});
       var avg=grades.length?(grades.reduce(function(a,b){return a+b;},0)/grades.length).toFixed(1):null;
-      var miss=DB.missing.filter(function(m){return students.some(function(s){return s.name===m.student;})&&m.status==='Missing';}).length;
+      var miss=DB.missing.filter(function(m){return students.some(function(s){return s.name===m.student;})&&isStillMissing(m);}).length;
       var beh=DB.behavior.filter(function(b){return students.some(function(s){return s.name===b.student;})&&!b.type.startsWith('Positive');}).length;
       var risk=0;if(avg&&avg<70)risk+=2;if(miss>students.length*.5)risk++;if(beh>students.length*.2)risk++;
       return {p:p,count:students.length,avg:avg,miss:miss,beh:beh,risk:risk};
@@ -6642,7 +6719,7 @@ function printReport(type){
     html='<div class="rpt-header"><div><div class="rpt-title">Coaching / RTI Notes</div><div class="rpt-sub">'+(coachPer==='all'?'All Periods':'Period '+coachPer)+'</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>'+today+'</div></div>';
     html+='<table><thead><tr><th>Student</th><th>Period</th><th>Grade</th><th>Missing</th><th>Behavior</th><th>IEP/504</th><th>Concern</th><th>Notes</th></tr></thead><tbody>'
       +coachStu.sort(function(a,b){return a.period.localeCompare(b.period)||a.name.localeCompare(b.name);}).map(function(s){
-        var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;
+        var g=calcGrade(s.id);var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;
         var beh=DB.behavior.filter(function(b){return b.student===s.name&&!b.type.startsWith('Positive');}).length;
         var iep=(DB.iep||[]).find(function(r){return r.studentId===s.id&&r.status==='Active';});
         var cnc=DB.concerns.filter(function(c){return c.student===s.name&&c.status!=='Resolved';}).length;
@@ -6675,7 +6752,7 @@ function printReport(type){
         var x=Math.round((it.x-minX)*scale+pad),y=Math.round((it.y-minY)*scale+pad);
         if(it.type==='desk'){
           var student=it.studentId?DB.students.find(function(s){return s.id===it.studentId;}):null;
-          var miss=student?DB.missing.filter(function(m){return m.student===student.name&&m.status==='Missing';}).length:0;
+          var miss=student?DB.missing.filter(function(m){return m.student===student.name&&isStillMissing(m);}).length:0;
           var iepRec=student?(DB.iep||[]).find(function(r){return r.studentId===student.id&&r.status==='Active';}):null;
           var bg='#fff',bd='#ccc';
           if(student){bg='#e8f5e9';bd='#059669';if(miss>0){bg='#fff3e0';bd='#f59e0b';}if(student.medical){bg='#fce4ec';bd='#e91e63';}if(iepRec&&!student.medical){bg='#ede7f6';bd='#7c3aed';}}
@@ -7370,7 +7447,7 @@ function buildDeskEl(desk,periodStudents,w,h){
   w=w||104;h=h||70;
   var student=desk.studentId?DB.students.find(function(s){return s.id===desk.studentId;}):null;
   if(!periodStudents)periodStudents=DB.students.filter(function(s){return s.period===curSeatPeriod;});
-  var miss=student?DB.missing.filter(function(m){return m.student===student.name&&m.status==='Missing';}).length:0;
+  var miss=student?DB.missing.filter(function(m){return m.student===student.name&&isStillMissing(m);}).length:0;
   var iepRec=student?(DB.iep||[]).find(function(r){return r.studentId===student.id&&r.status==='Active';}):null;
   var bg='#ffffff',border='#cccccc',borderStyle='dashed';
   if(student){
@@ -7730,7 +7807,7 @@ function renderDismissalPage(){
       +'</div>'
       +'<div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">'
       +studs.map(function(s){
-        var miss=DB.missing.filter(function(m){return m.student===s.name&&m.status==='Missing';}).length;
+        var miss=DB.missing.filter(function(m){return m.student===s.name&&isStillMissing(m);}).length;
         var iepRec=(DB.iep||[]).find(function(r){return r.studentId===s.id&&r.status==='Active';});
         return '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px">'
           +'<div style="width:36px;height:36px;border-radius:50%;background:'+color+'22;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+icon+'</div>'
@@ -7957,7 +8034,7 @@ function renderConcernReferral(){
   var miss=DB.missing.filter(function(m){return m.student===s.name;});
   var cnc=DB.concerns.filter(function(c){return c.student===s.name;});
   var iepRec=(DB.iep||[]).filter(function(r){return r.studentId===s.id&&r.status==='Active';});
-  var missOpen=miss.filter(function(m){return m.status==='Missing';}).length;
+  var missOpen=miss.filter(function(m){return isStillMissing(m);}).length;
 
   el.innerHTML=
     // Student profile card
@@ -9118,7 +9195,7 @@ function lnRangeLabel(dates){
   if(m==='day')return a.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   if(m==='month')return a.toLocaleDateString('en-US',{month:'long',year:'numeric'});
   var y=b.getFullYear();
-  if(m==='week'){return 'Week of '+lnLong(a)+(a.getMonth()===b.getMonth()?'–'+b.getDate():' – '+lnLong(b))+', '+y;}
+  if(m==='week'){var wnum=schoolWeekNumber(a);return (wnum>0?'Week '+wnum+' · ':'Week of ')+lnLong(a)+(a.getMonth()===b.getMonth()?'–'+b.getDate():' – '+lnLong(b))+', '+y;}
   return lnLong(a)+' – '+lnLong(b)+', '+y;
 }
 function lnNoSchool(ds){
@@ -9433,7 +9510,9 @@ function bhFlagChanged(){
 function bhFlagWire(){var a=document.getElementById('bh-action');if(a&&!a._wired){a.addEventListener('change',bhFlagChanged);a._wired=true;}bhFlagChanged();}
 function concernSrcBadge(c){
   return c.source==='comm'?' <span class="badge b-lav" style="font-size:8px" title="Created from the Parent Comm Log">from Comm Log</span>'
-    :c.source==='behavior'?' <span class="badge b-peach" style="font-size:8px" title="Created from the Behavior Log">from Behavior</span>':'';
+    :c.source==='behavior'?' <span class="badge b-peach" style="font-size:8px" title="Created from the Behavior Log">from Behavior</span>'
+    :c.source==='conference'?' <span class="badge b-blue" style="font-size:8px" title="Created from a Conference">from Conference</span>'
+    :c.source==='alert'?' <span class="badge b-yellow" style="font-size:8px" title="Suggested by a pattern, added by you">suggested</span>':'';
 }
 function concernFollowCell(c){
   var today=new Date().toISOString().slice(0,10);
@@ -9456,6 +9535,139 @@ function flagLegacyComms(){
   list.forEach(function(c){concernFromComm(c);});
   save();toast('✅ Added '+list.length+' to the Concern Dashboard');
   renderFullDashboard('counseldash');if(typeof renderConcerns==='function')renderConcerns();
+}
+
+/* ══════════════════════════════════════════════
+   CONNECTIONS BETWEEN SECTIONS
+   follow-ups -> Task List / Daily Planner / Calendar, Missing Work <-> Comm Log, Conferences as parent
+   contact, pattern alerts, IEP/504 badges, Lesson Plans -> Tests
+══════════════════════════════════════════════ */
+// Which week of the school year a date falls in, counted from the week containing the first day of school
+// (Setup). Returns 0 when no first day is set; a value <= 0 means the week is before school starts.
+function schoolWeekNumber(d){
+  var st=getSchoolStart();if(!st)return 0;
+  var w=Math.round((getMondayOf(d)-getMondayOf(st))/604800000)+1;
+  return w===0?-1:w;
+}
+function isStillMissing(m){return !!m&&(m.status==='Missing'||m.status==='Parent Notified');}
+function todayISO(){return new Date().toISOString().slice(0,10);}
+function isoDaysAgo(n){var d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);}
+
+// One task per follow-up date, kept in step with its source (created / moved / completed / removed).
+function syncFollowTask(src,srcId,due,title,done){
+  var t=DB.tasks.filter(function(x){return x.src===src&&x.srcId===srcId;})[0];
+  if(!due){if(t)DB.tasks=DB.tasks.filter(function(x){return x!==t;});return;}
+  if(t){t.due=due;t.title=title;t.done=!!done;}
+  else DB.tasks.push({id:Date.now()+'_f'+Math.random().toString(36).slice(2,6),title:title,due:due,priority:'Medium',cat:'Communication',done:!!done,src:src,srcId:srcId});
+}
+function dropFollowTask(src,srcId){DB.tasks=DB.tasks.filter(function(x){return !(x.src===src&&x.srcId===srcId);});}
+function syncConcernTask(c){syncFollowTask('concern',c.id,c.followup,'Follow up: '+c.student+' ('+c.type+')',c.status==='Resolved');}
+function updConcern(id,field,val){
+  var c=DB.concerns.find(function(x){return x.id===id;});if(!c)return;
+  c[field]=val;syncConcernTask(c);save();
+  if(typeof renderConcerns==='function')renderConcerns();
+  var fp=document.getElementById('fp-dash-counseldash');if(fp&&fp.classList.contains('open'))renderFullDashboard('counseldash');
+  if(typeof renderTasks==='function'&&document.getElementById('tasks-list'))renderTasks();
+  toast(field==='status'?'Concern marked '+val:'Follow-up date saved');
+}
+
+// Missing Work <-> Parent Comm Log
+function missingReasonText(){var r=getOpts('commReason').filter(function(x){return /missing/i.test(x);})[0];return r||'− Missing work';}
+function logMissingComm(m){
+  if(m.commId&&DB.comms.some(function(c){return c.id===m.commId;}))return;
+  var id=Date.now()+'_m'+Math.random().toString(36).slice(2,5);
+  DB.comms.push({id:id,student:m.student,period:m.period,date:todayISO(),time:'',method:'Not specified',reason:missingReasonText(),
+    notes:'Parent notified about missing work: '+m.assignment+' (logged from Missing Work)',fromMissing:m.id});
+  m.commId=id;toast('Also logged in the Parent Comm Log');
+}
+function notifyMissingFromComm(entry){
+  var items=DB.missing.filter(function(m){return m.student===entry.student&&m.status==='Missing';});
+  if(!items.length)return;
+  if(!confirm('Mark '+items.length+' missing assignment'+(items.length===1?'':'s')+' for '+entry.student+' as "Parent Notified"?'))return;
+  items.forEach(function(m){m.status='Parent Notified';m.commId=entry.id;});
+  if(typeof renderMissingStats==='function'){renderMissingStats();renderMissingTable();}
+}
+
+// Conferences count as parent contact
+function parentConfs(){return (DB.conferences||[]).filter(function(c){return /parent/i.test((c.type||'')+' '+(c.attendees||''))||/guardian|mother|father|mom|dad/i.test(c.attendees||'');});}
+
+// Suggested concerns (never added automatically)
+var PATTERN_LIST=[];
+function patternAlerts(){
+  var out=[],d14=isoDaysAgo(14),d30=isoDaysAgo(30),dis=(DB.setup&&DB.setup.alertDismissed)||{};
+  function covered(st,type){return DB.concerns.some(function(c){return c.student===st.name&&c.type===type&&(c.status!=='Resolved'||(c.date||'')>=d30);});}
+  DB.students.forEach(function(st){
+    var b=DB.behavior.filter(function(x){return x.student===st.name&&(x.date||'')>=d14&&!/^positive/i.test(x.type||'');});
+    if(b.length>=3)out.push({st:st,type:'Behavioral',key:st.id+'|beh|'+b.length,text:b.length+' behavior entries in the last 2 weeks'});
+    var m=DB.missing.filter(function(x){return x.student===st.name&&isStillMissing(x);});
+    if(m.length>=3)out.push({st:st,type:'Academic concern',key:st.id+'|mw|'+m.length,text:m.length+' assignments still missing'});
+    var ab=0;Object.keys(DB.attendance||{}).forEach(function(ds){if(ds>=d14&&DB.attendance[ds][st.id]==='A')ab++;});
+    if(ab>=3)out.push({st:st,type:'Attendance',key:st.id+'|att|'+ab,text:ab+' absences in the last 2 weeks'});
+  });
+  return out.filter(function(a){return !dis[a.key]&&!covered(a.st,a.type);});
+}
+function patternNotice(){
+  PATTERN_LIST=patternAlerts();if(!PATTERN_LIST.length)return '';
+  return '<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:12px 16px;margin-bottom:14px">'
+    +'<div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:2px">🔎 Suggested concerns ('+PATTERN_LIST.length+')</div>'
+    +'<div style="font-size:11px;color:#92400e;margin-bottom:8px">The app noticed these patterns. Nothing is added until you click.</div>'
+    +PATTERN_LIST.map(function(a,i){
+      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:5px 0;border-top:1px solid #fde68a;font-size:12px"><span style="flex:1;min-width:200px"><strong>'+esc(a.st.name)+'</strong> — '+esc(a.text)+' <span class="badge b-yellow" style="font-size:9px">'+esc(a.type)+'</span></span>'
+        +'<button class="btn btn-sm btn-primary" onclick="acceptAlert('+i+')">Add as concern</button><button class="btn btn-sm" onclick="dismissAlert('+i+')">Dismiss</button></div>';
+    }).join('')+'</div>';
+}
+function acceptAlert(i){
+  var a=PATTERN_LIST[i];if(!a)return;
+  newConcernFrom({student:a.st.name,period:a.st.period,type:a.type,incident:a.text+' (noticed automatically; added by you).',source:'alert'});
+  save();toast('✅ Added to the Concern Dashboard');renderFullDashboard('counseldash');
+}
+function dismissAlert(i){
+  var a=PATTERN_LIST[i];if(!a)return;
+  if(!DB.setup)DB.setup={};if(!DB.setup.alertDismissed)DB.setup.alertDismissed={};
+  DB.setup.alertDismissed[a.key]=true;save();renderFullDashboard('counseldash');
+}
+
+// IEP / 504 badge next to a student's name in the logs and tables
+function iepPlanMap(){
+  var map={};
+  (DB.iep||[]).forEach(function(r){
+    if(r.status!=='Active')return;
+    var st=DB.students.find(function(x){return x.id===r.studentId;});var name=st?st.name:r.student;
+    if(name&&!map[name])map[name]={type:r.type||'Plan',accomm:r.accomm||''};
+  });
+  return map;
+}
+function decorateIEP(root){
+  var map=iepPlanMap();if(!Object.keys(map).length||!root)return;
+  Array.prototype.forEach.call(root.querySelectorAll('td'),function(td){
+    if(td.querySelector('[data-iep]'))return;
+    var el=td.querySelector('strong')||td;
+    if(el!==td&&el.children.length)return;
+    if(el===td&&td.children.length)return;
+    var p=map[(el.textContent||'').trim()];if(!p)return;
+    var b=document.createElement('span');b.setAttribute('data-iep','1');b.className='badge b-lav';b.style.cssText='font-size:8px;margin-left:5px';
+    b.textContent=/504/.test(p.type)?'504':(/IEP/.test(p.type)?'IEP':p.type);b.title=p.type+(p.accomm?': '+p.accomm:'');
+    el.appendChild(b);
+  });
+}
+var IEP_OBS=null;
+function iepInit(){
+  if(IEP_OBS||typeof MutationObserver==='undefined')return;
+  var ids=['bh-tbody','miss-tbody','comm-tbody','cn-tbody','grade-tbody','cf-tbody','stu-tbody','fdash-counseldash-body','fdash-commdash-body'],pending=false;
+  IEP_OBS=new MutationObserver(function(muts){
+    if(pending)return;pending=true;
+    setTimeout(function(){pending=false;ids.forEach(function(id){decorateIEP(document.getElementById(id));});},30);
+  });
+  ids.forEach(function(id){var e=document.getElementById(id);if(e)IEP_OBS.observe(e,{childList:true,subtree:true});});
+  ids.forEach(function(id){decorateIEP(document.getElementById(id));});
+}
+
+// Lesson Plans -> Tests: a lesson whose assessment is a Quiz/Test gets a matching entry in Tests
+function lessonTestLink(l){
+  if(!l||l.testId||!/^(quiz|test)$/i.test(l.assess||'')||!l.date)return;
+  if(DB.tests.some(function(t){return t.fromLesson===l.id;}))return;
+  var t={id:Date.now()+'_t'+Math.random().toString(36).slice(2,5),name:(l.assess+': '+(l.title||'Lesson')).slice(0,80),date:l.date,period:String(l.period||''),max:100,fromLesson:l.id};
+  DB.tests.push(t);l.testId=t.id;
 }
 
 </script>
