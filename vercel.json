@@ -36,5 +36,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/roster-ai.js": {
+      "maxDuration": 30
+    }
+  }
 }

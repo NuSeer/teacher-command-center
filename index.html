@@ -249,6 +249,7 @@ textarea{resize:vertical;min-height:64px}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 </head>
 <body>
@@ -346,6 +347,7 @@ textarea{resize:vertical;min-height:64px}
     <div class="sb-section-label">PLANNING</div>
     <div class="sb-link sl-yellow opt-show" data-opt="planner" onclick="openFull('planner')">Daily Planner</div>
     <div class="sb-link sl-lav opt-show" data-opt="lessons"    onclick="openFull('lessons')">Lesson Plans</div>
+    <div class="sb-link sl-mint opt-show" data-opt="learning"  onclick="openFull('learning')">What We're Learning</div>
     <div class="sb-link sl-coral opt-show" data-opt="subplans"  onclick="openFull('subplans')">Sub Plans</div>
     <div class="sb-link sl-peach opt-show" data-opt="tasklist"  onclick="openFull('tasks')">Task List</div>
     <div class="sb-link sl-blue opt-show" data-opt="curriculum" onclick="openFull('curriculum')">Curriculum Map</div>
@@ -401,6 +403,10 @@ textarea{resize:vertical;min-height:64px}
         <div class="folder-card opt-show" data-opt="lessons" onclick="openFull('lessons')">
           <div class="fw"><div class="ft ft-lav"></div><div class="fb f-lav"><svg viewBox="0 0 48 48" fill="none" stroke="#4a1890" stroke-width="2.8" stroke-linecap="round"><path d="M8 40V10l16-4 16 4v30"/><line x1="24" y1="6" x2="24" y2="40"/><rect x="12" y="16" width="8" height="8" rx="1"/><rect x="28" y="16" width="8" height="8" rx="1"/></svg></div></div>
           <div class="fl">Lesson Plans</div>
+        </div>
+        <div class="folder-card opt-show" data-opt="learning" onclick="openFull('learning')">
+          <div class="fw"><div class="ft ft-mint"></div><div class="fb f-mint"><svg viewBox="0 0 48 48" fill="none" stroke="#0a6048" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20v8h8l12 8V12l-12 8z"/><path d="M34 18c3 3 3 9 0 12"/><path d="M39 13c6 6 6 16 0 22"/></svg></div></div>
+          <div class="fl">What We're Learning</div>
         </div>
         <div class="folder-card opt-show" data-opt="subplans" onclick="openFull('subplans')">
           <div class="fw"><div class="ft ft-coral"></div><div class="fb f-coral"><svg viewBox="0 0 48 48" fill="none" stroke="#882020" stroke-width="2.8" stroke-linecap="round"><path d="M8 14l8-6h24v32H8z"/><path d="M8 14h32"/><line x1="16" y1="22" x2="32" y2="22"/><line x1="16" y1="29" x2="32" y2="29"/></svg></div></div>
@@ -1152,6 +1158,7 @@ textarea{resize:vertical;min-height:64px}
         <div class="fg">
           <label>Homework assigned</label>
           <textarea id="lf-hw" placeholder="Assignment for tonight..." style="min-height:64px;resize:vertical"></textarea>
+          <label style="text-transform:none;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;margin-top:4px"><input type="checkbox" id="lf-nocarry"> Unfinished classwork is NOT homework this day</label>
         </div>
       </div>
 
@@ -1579,6 +1586,68 @@ textarea{resize:vertical;min-height:64px}
   </div>
 </div>
 
+<!-- ── WHAT WE'RE LEARNING (class update + syllabus) ── -->
+<div class="fullpage" id="fp-learning">
+  <div class="fp-hdr"><button class="fp-back" onclick="closeFull('learning')">← Hub</button><div class="fp-title">📢 What We're Learning</div></div>
+  <div class="fp-body">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button id="ln-tab-range" class="btn btn-sm btn-primary" onclick="lnTab('range')">📢 Class Update</button>
+      <button id="ln-tab-syl" class="btn btn-sm" onclick="lnTab('syl')">📄 Syllabus</button>
+    </div>
+    <div id="ln-pane-range">
+      <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#166534;line-height:1.5">
+        <strong>Answer "what are we learning this week?" in one click.</strong> This is built straight from your Lesson Plans (title, learning target, Do Now, exit ticket, homework) for the class and dates you pick. Copy it into a Focus message or email, or print it for students and parents. Change a lesson plan and this updates.
+      </div>
+      <div class="card"><div class="card-hdr"><span class="card-title">What do you want to share?</span></div><div class="card-body">
+        <div class="form-row">
+          <div class="fg"><label>Class</label><select id="ln-class" onchange="lnRender()"></select></div>
+          <div class="fg" style="max-width:170px"><label>Show</label><select id="ln-mode" onchange="lnModeChanged()"><option value="week">A week</option><option value="day">One day</option><option value="month">A month</option><option value="custom">Choose dates</option></select></div>
+          <div class="fg" id="ln-wrap-date" style="max-width:180px"><label>Date (any day that week)</label><input type="date" id="ln-date" onchange="lnRender()"></div>
+          <div class="fg" id="ln-wrap-month" style="max-width:180px;display:none"><label>Month</label><input type="month" id="ln-month" onchange="lnRender()"></div>
+          <div id="ln-wrap-range" style="display:none;gap:10px"><div class="fg"><label>From</label><input type="date" id="ln-from" onchange="lnRender()"></div><div class="fg"><label>To</label><input type="date" id="ln-to" onchange="lnRender()"></div></div>
+          <div id="ln-step" style="display:flex;gap:4px;align-items:flex-end;padding-bottom:2px"><button class="btn btn-sm" onclick="lnStep(-1)" title="Previous">◀</button><button class="btn btn-sm" onclick="lnStep(1)" title="Next">▶</button></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;margin:6px 0 10px">
+          <label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-obj" onchange="lnPrefChanged()"> Learning target</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-donow" onchange="lnPrefChanged()"> Do Now</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-exit" onchange="lnPrefChanged()"> Exit ticket</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-hw" onchange="lnPrefChanged()"> Homework</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-std" onchange="lnPrefChanged()"> Standards</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-disc" onchange="lnPrefChanged()"> Note at the bottom</label>
+        </div>
+        <div class="fg" style="margin:0"><label>Note at the bottom <span style="font-weight:400;color:var(--mid)">(edit it any time)</span></label><input type="text" id="ln-disclaimer" oninput="lnPrefChanged()" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;width:100%;box-sizing:border-box"></div>
+      </div></div>
+      <div class="card"><div class="card-hdr"><span class="card-title">Preview</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="lnCopyText()">📋 Copy for Focus / email</button><button class="btn btn-sm" onclick="lnCopyRich()">📄 Copy with formatting</button><button class="btn btn-sm" onclick="lnPrint()">🖨️ Print</button></div></div>
+        <div class="card-body"><div id="ln-status" style="font-size:11px;color:var(--mid);margin-bottom:8px"></div><div id="ln-preview"></div></div></div>
+    </div>
+    <div id="ln-pane-syl" style="display:none">
+      <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0369a1;line-height:1.5">
+        <strong>A ready-to-use syllabus for each class.</strong> Fill in the details, click <em>Write draft syllabus</em>, then edit the text however you like. It is saved here, and you can copy it into Focus or print it. The topic list comes from the units in your Lesson Plans when there are any.
+      </div>
+      <div class="card"><div class="card-hdr"><span class="card-title">Syllabus details</span></div><div class="card-body">
+        <div class="form-row">
+          <div class="fg"><label>Class</label><select id="syl-course" onchange="lnSylLoad()"></select></div>
+          <div class="fg"><label>Title on the syllabus</label><input type="text" id="syl-title" oninput="lnSylChanged()"></div>
+          <div class="fg"><label>School year</label><input type="text" id="syl-year" oninput="lnSylChanged()"></div>
+        </div>
+        <div class="form-row">
+          <div class="fg"><label>Teacher</label><input type="text" id="syl-teacher" oninput="lnSylChanged()"></div>
+          <div class="fg"><label>School</label><input type="text" id="syl-school" oninput="lnSylChanged()"></div>
+          <div class="fg" style="max-width:120px"><label>Room</label><input type="text" id="syl-room" oninput="lnSylChanged()"></div>
+          <div class="fg"><label>Contact email</label><input type="email" id="syl-email" oninput="lnSylChanged()"></div>
+        </div>
+        <div class="form-row">
+          <div class="fg"><label>Standards followed <span style="font-weight:400;color:var(--mid)">(e.g. Florida B.E.S.T.)</span></label><input type="text" id="syl-std" placeholder="state" oninput="lnSylChanged()"></div>
+          <div class="fg" style="max-width:150px"><label>Late work accepted (days)</label><input type="number" id="syl-late" min="0" max="30" oninput="lnSylChanged()"></div>
+          <div class="fg" style="max-width:150px"><label>Lost per late day (%)</label><input type="number" id="syl-latepct" min="0" max="100" oninput="lnSylChanged()"></div>
+        </div>
+        <div class="fg"><label>Supplies</label><textarea id="syl-materials" oninput="lnSylChanged()" style="min-height:56px;resize:vertical;padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;width:100%;box-sizing:border-box"></textarea></div>
+        <div class="fg" style="max-width:340px"><label>Grade breakdown</label><div id="syl-grading"></div><div id="syl-sum" style="font-size:12px;font-weight:700"></div></div>
+        <button class="btn btn-primary" onclick="lnSylGenerate()">✍️ Write draft syllabus</button>
+      </div></div>
+      <div class="card"><div class="card-hdr"><span class="card-title">Syllabus</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="lnSylCopy()">📋 Copy for Focus / email</button><button class="btn btn-sm" onclick="lnSylPrint()">🖨️ Print</button></div></div>
+        <div class="card-body"><textarea id="syl-text" oninput="lnSylChanged()" placeholder="Click “Write draft syllabus” above, or type your own here." style="width:100%;min-height:440px;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;line-height:1.55;font-family:inherit;resize:vertical"></textarea></div></div>
+    </div>
+  </div>
+</div>
+
 <!-- ── CURRICULUM FOLDER ── -->
 <div class="fullpage" id="fp-curriculum">
   <div class="fp-hdr"><button class="fp-back" onclick="closeFull('curriculum')">← Hub</button><div class="fp-title">📁 Curriculum Resources</div></div>
@@ -1586,12 +1655,21 @@ textarea{resize:vertical;min-height:64px}
     <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0369a1">
       <strong>🔗 Auto-linked to Lesson Plans:</strong> When you enter a matching Unit name in a lesson plan, resources from that unit appear automatically in the lesson form — click to open them instantly. Keep unit names consistent (e.g. always use "Unit 3 — Fractions") for the best matching.
     </div>
+    <div class="card" id="cur-upload-card"><div class="card-hdr"><span class="card-title">📤 Upload documents — PowerPoint, Excel, Word, PDF</span></div><div class="card-body">
+      <div id="cur-drop" ondragover="event.preventDefault();this.style.borderColor='#0369a1'" ondragleave="this.style.borderColor='#bae6fd'" ondrop="ciDrop(event)" style="border:2px dashed #bae6fd;border-radius:10px;padding:16px;text-align:center;background:#f8fcff;margin-bottom:12px">
+        <div style="font-size:13px;color:#0369a1;font-weight:700;margin-bottom:8px">Drop files here, or</div>
+        <label class="btn btn-primary" style="cursor:pointer">Choose files<input type="file" id="cur-files" multiple accept=".pptx,.xlsx,.xls,.xlsm,.csv,.docx,.pdf,.txt" style="display:none" onchange="curFilesChosen(this.files)"></label>
+        <div style="font-size:11px;color:var(--mid);margin-top:8px;line-height:1.5">Upload as many as you like: a pacing guide (Excel), unit slides (PowerPoint), lesson documents (Word / PDF). Each file is read in your browser, compared with the others, and combined into lesson plans you can review before they are added. Only what is read from the files is saved, not the files themselves. Old .ppt / .doc files: Save As .pptx / .docx first.</div>
+      </div>
+      <div id="ci-result" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#166534"></div>
+      <div id="cur-import-panel"></div>
+    </div></div>
     <div class="card"><div class="card-hdr"><span class="card-title">➕ Add Curriculum Resource</span></div><div class="card-body">
       <div class="form-row">
         <div class="fg"><label>Resource name</label><input type="text" id="cur-name" placeholder="e.g. Unit 3 Fraction Slides" oninput="curMatchUnit()"></div>
         <div class="fg"><label>Unit / Topic <span style="font-weight:400;color:var(--mid);font-size:10px">— matches lesson plans</span></label><input type="text" id="cur-unit" placeholder="e.g. Fractions — must match lesson unit exactly" list="cur-unit-suggestions"><datalist id="cur-unit-suggestions"></datalist></div>
         <div class="fg" style="max-width:100px"><label>Period</label><select id="cur-period" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;color:var(--dark)"><option value="all">All</option></select></div>
-        <div class="fg"><label>Type</label><select id="cur-type"><option>Google Slides</option><option>Google Doc</option><option>Google Sheet</option><option>PDF</option><option>Video</option><option>Website</option><option>Worksheet</option><option>Assessment</option><option>Anchor Chart</option><option>Other</option></select></div>
+        <div class="fg"><label>Type</label><select id="cur-type"><option>Google Slides</option><option>Google Doc</option><option>Google Sheet</option><option>PDF</option><option>Video</option><option>Website</option><option>Worksheet</option><option>Assessment</option><option>Anchor Chart</option><option>PowerPoint</option><option>Excel Spreadsheet</option><option>Word Doc</option><option>Other</option></select></div>
       </div>
       <div class="form-row">
         <div class="fg" style="flex:2"><label>URL / Link</label><input type="url" id="cur-url" placeholder="https://..."></div>
@@ -1679,7 +1757,13 @@ textarea{resize:vertical;min-height:64px}
   <div class="fp-body">
     <div id="rpt-teacher-banner-stu" style="background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;padding:10px 18px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0"><div><div style="font-size:14px;font-weight:900;font-family:Nunito,sans-serif" id="rtb-name-stu"></div><div style="font-size:11px;opacity:.85" id="rtb-school-stu"></div></div><div style="text-align:right;font-size:11px;opacity:.85" id="rtb-date-stu"></div></div>
     <div class="card"><div class="card-hdr"><span class="card-title">Select student</span><button class="btn btn-sm btn-primary" onclick="printReport('student')">🖨️ Print / Save PDF</button></div><div class="card-body">
-      <select id="rpt-stu-select" onchange="renderStudentReport()" style="max-width:280px;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060"><option value="">Select student...</option></select>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <input type="text" id="rpt-stu-search" placeholder="🔍 Type a name to find..." oninput="populateRptStudentSelect()" style="width:200px;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060">
+        <select id="rpt-stu-period" onchange="populateRptStudentSelect()" title="Show one period only" style="padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060"><option value="all">All periods</option></select>
+        <select id="rpt-stu-sort" onchange="populateRptStudentSelect()" title="How to order the list" style="padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060"><option value="name">Sort: Name (A–Z)</option><option value="period">Sort: By period</option></select>
+        <select id="rpt-stu-select" onchange="renderStudentReport()" style="min-width:240px;max-width:320px;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060"><option value="">Select student...</option></select>
+        <span id="rpt-stu-count" style="font-size:11px;color:var(--mid)"></span>
+      </div>
     </div></div>
     <div id="student-report-content"></div>
   </div>
@@ -2367,6 +2451,12 @@ textarea{resize:vertical;min-height:64px}
             </div>
           </div>
 
+          <!-- CURRICULUM UPLOAD → LESSONS → CLASS UPDATE -->
+          <div style="background:#fdf4ff;border:1.5px solid #f0abfc;border-radius:10px;padding:14px">
+            <div style="font-weight:800;font-size:14px;color:#86198f;margin-bottom:8px">📤 Upload Documents → 📚 Lesson Plans → 📢 What We're Learning</div>
+            <p style="font-size:13px;color:var(--mid);line-height:1.6"><strong>Curriculum Map</strong> now takes PowerPoint, Excel, Word, PDF and text files. Drop in several (say a pacing guide plus unit slides): each is read, they are compared against each other by lesson number, title and date, and a review list shows the combined lessons (Do Now, exit ticket, homework, standards). Fix anything, pick the classes, and click <em>Add to Lesson Plans</em>; lessons you already wrote are never overwritten. <strong>What We're Learning</strong> (Planning) then turns your lesson plans into a day, week, month or custom-date update to copy into Focus or print, and writes a syllabus for each class. Tick "Unfinished classwork is NOT homework this day" on a lesson when that applies.</p>
+          </div>
+
           <!-- STUDENTS → EVERYWHERE -->
           <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px">
             <div style="font-weight:800;font-size:14px;color:#166534;margin-bottom:8px">👩‍🎓 Student Info → Every Tracker & Report</div>
@@ -2754,7 +2844,6 @@ textarea{resize:vertical;min-height:64px}
           <div style="font-size:11px;font-weight:700;color:#a060a0;margin-bottom:6px">Period type key:</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#5a2060">
             <span><strong>Class</strong> — regular teaching period (appears in lesson plan)</span>
-            <span><strong>Homeroom</strong> — advisory / homeroom</span>
             <span><strong>Lunch</strong> — lunch break</span>
             <span><strong>Prep</strong> — planning period</span>
             <span><strong>Duty</strong> — hall/lunch duty</span>
@@ -2994,13 +3083,20 @@ function saveToFirestore(){
 // popup, copy deterrents) leaves them alone entirely.
 var isBetaTesterAccount=false;
 
+// Homeroom is no longer a schedule row — drop it from schedules saved before it was removed.
+function dropHomeroomRow(){
+  var sc=DB.setup&&DB.setup.schedule;if(!sc||!sc.length)return;
+  var kept=sc.filter(function(r){return r.type!=='Homeroom';});
+  if(kept.length!==sc.length){DB.setup.schedule=kept;save();}
+}
+
 function loadFromFirestore(){
   if(!currentUser){startApp();return;}
   var ref=fbDb.collection('teachers').doc(currentUser.uid);
   Promise.all([ref.collection('data').doc('main').get(),ref.collection('data').doc('students').get()]).then(function(docs){
     var hasData=docs.some(function(d){return d.exists;});
     isBetaTesterAccount=!hasData;
-    if(hasData){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});}
+    if(hasData){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});dropHomeroomRow();}
     else{loadSampleData();}
     startApp();
     Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){});
@@ -3064,7 +3160,6 @@ function yearEndReset(){
 
 var DB_KEY='tcc_p1';
 var DEFAULT_SCHEDULE=[
-  {label:'Homeroom',start:'8:00',end:'8:10',type:'Homeroom'},
   {label:'Period 1',start:'8:15',end:'9:05',type:'Class'},
   {label:'Period 2',start:'9:10',end:'10:00',type:'Class'},
   {label:'Period 3',start:'10:35',end:'11:25',type:'Class'},
@@ -3120,7 +3215,9 @@ function getSchedule(){return (DB.setup&&DB.setup.schedule&&DB.setup.schedule.le
 var BOY_FORMS=['Emergency Form','Media Release','Tech Agreement','Supply List','Parent Contact','Handbook Sig','Lunch App','IEP/504 Form','Health Form'];
 var curGradePeriod=(function(){var s=getSchedule().filter(function(r){return r.type==='Class';});var m=s[0]&&s[0].label.match(/\d+/);return m?m[0]:'1';})();
 
-function save(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}}
+// Keeps the local backup AND queues the Firestore write. This later definition used to replace the
+// Firestore save() above it, so nothing was ever reaching the cloud.
+function save(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(saveToFirestore,400);}
 function load(){try{var r=localStorage.getItem(DB_KEY);if(r){var p=JSON.parse(r);DB=Object.assign(DB,p);}}catch(e){}}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
@@ -3221,6 +3318,7 @@ function openFull(id){
     if(id==='boy')renderBOY();
     if(id==='subplans'){loadSubInfo();renderSubPlans();buildSubPeriodInputs();}
     if(id==='lessons'){lessonWeekStart=getMondayOf(new Date());lessonView('week');buildLessonCopyPeriods();}
+    if(id==='learning')renderLearning();
     if(id==='curriculum'){renderCurriculum();populateStudentSelect&&curMatchUnit();refreshAllPeriodTabs();}
     if(id==='behavior'){renderBehavior();populateBhStudentSelect();
       var bhtw=document.getElementById('bhtype-wrap');if(bhtw)bhtw.innerHTML=buildSelect('bh-type','bhType','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
@@ -3391,6 +3489,143 @@ function normalizeHeaderKeys(obj){
   return out;
 }
 
+/* ── FLEXIBLE ROSTER FINDER ──
+   Attendance sheets, class lists and gradebook exports don't share a layout, so instead of
+   expecting one format this looks for what a student list has in common: a header cell like
+   "Student Name" / "Student Information" / "Last Name" + "First Name", or names written
+   "Last, First" — in a PDF (by position on the page), Excel, CSV or a Word table. */
+var RS_STOP={student:1,students:1,name:1,names:1,teacher:1,page:1,total:1,totals:1,present:1,absent:1,tardy:1,excused:1,unexcused:1,date:1,report:1,attendance:1,school:1,period:1,class:1,grade:1,homeroom:1,week:1,month:1,semester:1,quarter:1,roster:1,list:1,summary:1,average:1,count:1,male:1,female:1,monday:1,tuesday:1,wednesday:1,thursday:1,friday:1,information:1,info:1,id:1,number:1,room:1,course:1,section:1,days:1,daily:1,code:1,key:1,legend:1,signature:1,printed:1,generated:1,mon:1,tue:1,wed:1,thu:1,fri:1,gr:1,pd:1,hr:1,dob:1,sex:1,gender:1};
+var RS_HDR=[
+  ['last',/^(student\s+)?(last|family|sur)\s*-?\s*name$|^last$|^surname$|^lname$/i],
+  ['first',/^(student\s+)?(first|given|preferred)\s*-?\s*name$|^first$|^fname$|^given$/i],
+  ['name',/^(student(\s*(name|info(rmation)?))?|(full|legal|pupil|child|student)('?s)?\s*name|name|pupil|last\s*,?\s*first(\s*name)?|student\s*name\s*\(.*\))$/i],
+  ['period',/^(period|pd|per|class(\s*period)?|section|hr|homeroom|block)$/i],
+  ['contact',/^(parent|guardian|parent\s*\/\s*guardian|contact|emergency\s*contact|parent\s*name|guardian\s*name)$/i],
+  ['phone',/^(phone|parent\s*phone|contact\s*phone|phone\s*number|cell|mobile|home\s*phone)$/i],
+  ['email',/^(e-?mail|parent\s*email|contact\s*email|guardian\s*email)$/i]
+];
+function rsClean(t){return String(t==null?'':t).replace(/\s+/g,' ').replace(/[:：]\s*$/,'').trim();}
+function rsHeaderKey(t){t=rsClean(t);if(!t||t.length>40)return '';for(var i=0;i<RS_HDR.length;i++){if(RS_HDR[i][1].test(t))return RS_HDR[i][0];}return '';}
+function rsHeaderCols(cells){var out=[];cells.forEach(function(c){var k=rsHeaderKey(c.t);if(k)out.push({key:k,x0:c.x0,x1:c.x1,t:c.t});});return out;}
+function rsNameish(cols){return cols.some(function(k){return k.key==='name'||k.key==='last'||k.key==='first';});}
+function rsTitle(n){return n===n.toUpperCase()&&/[A-Z]/.test(n)?n.toLowerCase().replace(/(^|[\s'’\-,])([a-z])/g,function(m,a,b){return a+b.toUpperCase();}):n;}
+// A believable person name: 2-6 letter-only words (or "Last, First"), no digits, not a heading word.
+function rsGoodName(n){
+  n=rsClean(n);if(n.length<3||n.length>60)return false;
+  if(/\d/.test(n)||!/^[A-Za-z][A-Za-z'’.\-, ]*$/.test(n))return false;
+  var toks=n.replace(/,/g,' ').split(/\s+/).filter(Boolean);
+  if(toks.length<2||toks.length>6)return false;
+  if(toks.some(function(w){return RS_STOP[w.toLowerCase().replace(/[.,]/g,'')];}))return false;
+  return true;
+}
+function rsCommaName(t){return /^[A-Za-z][A-Za-z'’.\- ]+,\s*[A-Za-z][A-Za-z'’.\- ]+$/.test(rsClean(t))&&rsGoodName(t);}
+function rsAssign(cell,cols){
+  var best=null,bo=0;
+  cols.forEach(function(c){var o=Math.min(cell.x1,c.x1)-Math.max(cell.x0,c.x0);if(o>bo){bo=o;best=c;}});
+  if(best)return best;
+  var mid=(cell.x0+cell.x1)/2,d=1e9;
+  cols.forEach(function(c){var dd=Math.abs((c.x0+c.x1)/2-mid);if(dd<d){d=dd;best=c;}});
+  return best;
+}
+function rsSectionPeriod(cells){
+  if(cells.length>3)return '';
+  var m=rsClean(cells.map(function(c){return c.t;}).join(' ')).match(/^(?:period|pd|per|class|section|block)\s*[:#-]?\s*(\d{1,2})\b/i);
+  return m?m[1]:'';
+}
+// rows: array of rows; each row an array of {t,x0,x1}. Returns [{name,period,contact,phone,email}].
+function rsFindRoster(rows){
+  var found=[],seen={};
+  function add(name,period,extra){
+    name=rsTitle(rsClean(name));if(!rsGoodName(name))return;
+    var k=name.toLowerCase()+'|'+(period||'');if(seen[k])return;seen[k]=1;
+    var r={name:name,period:period||''};if(extra){['contact','phone','email'].forEach(function(f){if(extra[f])r[f]=extra[f];});}
+    found.push(r);
+  }
+  // 1) header-driven: locate the "Student Name" / "Last Name + First Name" columns
+  var hi=-1,cols=null;
+  for(var i=0;i<rows.length&&hi<0;i++){
+    var c=rsHeaderCols(rows[i]);
+    if(rsNameish(c)){
+      hi=i;cols=c;
+      for(var j=i+1;j<Math.min(rows.length,i+3);j++){var c2=rsHeaderCols(rows[j]);if(rsNameish(c2)&&c2.length>=cols.length){hi=j;cols=c2;}}
+    }
+  }
+  if(cols){
+    var hasLast=cols.some(function(k){return k.key==='last';}),hasFirst=cols.some(function(k){return k.key==='first';});
+    var curP='';
+    for(var q=0;q<hi;q++){var sp0=rsSectionPeriod(rows[q]);if(sp0)curP=sp0;}   // a "Period 1" heading above the header
+    // Every cell of the header row is a column anchor (ID, Grade, Mon, Tue...), so those columns
+    // soak up their own values instead of leaking into the name columns.
+    var anchors=rows[hi].map(function(c){return {key:rsHeaderKey(c.t)||'_',x0:c.x0,x1:c.x1};});
+    for(var r=hi+1;r<rows.length;r++){
+      var cells=rows[r];
+      var hc=rsHeaderCols(cells);if(rsNameish(hc)&&hc.length>=2)continue;   // header repeated on the next page
+      var sp=rsSectionPeriod(cells);if(sp){curP=sp;continue;}
+      var by={};
+      cells.forEach(function(cell){var col=rsAssign(cell,anchors);if(col&&col.key!=='_')by[col.key]=(by[col.key]?by[col.key]+' ':'')+cell.t;});
+      var name='';
+      if(hasLast&&hasFirst&&by.last&&by.first)name=rsClean(by.last).replace(/,$/,'')+', '+rsClean(by.first);
+      else if(by.name)name=by.name;
+      else if(by.last&&by.first)name=by.last+', '+by.first;
+      add(name,rsClean(by.period||'').match(/^\d{1,2}$/)?rsClean(by.period):curP,by);
+    }
+  }
+  if(found.length)return found;
+  // 2) no usable header: look for names by their shape
+  var comma=[],pair=[],single=[],curP2='';
+  rows.forEach(function(cells){
+    var sp=rsSectionPeriod(cells);if(sp){curP2=sp;return;}
+    if(rsHeaderCols(cells).length)return;   // a header row, not a student
+    var hit=false;
+    cells.forEach(function(c,i){
+      if(hit)return;
+      if(rsCommaName(c.t)){comma.push({n:c.t,p:curP2});hit=true;}
+    });
+    if(hit)return;
+    for(var i=0;i<cells.length-1;i++){
+      var a=rsClean(cells[i].t),b=rsClean(cells[i+1].t);
+      if(/^[A-Z][A-Za-z'’\-]{1,20}$/.test(a)&&/^[A-Z][A-Za-z'’\-]{1,20}$/.test(b)&&rsGoodName(a+' '+b)){pair.push({n:a+', '+b,p:curP2});return;}
+    }
+    if(cells.length&&/^[A-Z][A-Za-z'’\-]+(\s+[A-Z]\.?)?\s+[A-Z][A-Za-z'’\-]+$/.test(rsClean(cells[0].t))&&rsGoodName(cells[0].t))single.push({n:cells[0].t,p:curP2});
+  });
+  var pick=comma.length>=2?comma:(pair.length>=3?pair:(single.length>=5?single:[]));
+  pick.forEach(function(x){add(x.n,x.p);});
+  return found;
+}
+// Turn a plain 2D array (Excel / CSV / Word table) into the {t,x0,x1} rows rsFindRoster reads.
+function rsGridRows(grid){
+  return grid.map(function(row){
+    var cells=[];row.forEach(function(v,i){var t=rsClean(v);if(t)cells.push({t:t,x0:i,x1:i+0.9});});return cells;
+  }).filter(function(r){return r.length;});
+}
+// Turn pdf.js text items into rows of cells, using position instead of assuming any layout.
+function rsPdfRows(pages){
+  var rows=[];
+  pages.forEach(function(items){
+    items=items.filter(function(it){return it.str&&it.str.trim();}).sort(function(a,b){return b.y-a.y||a.x-b.x;});
+    var cur=null,rs=[];
+    items.forEach(function(it){
+      var tol=Math.max(2,(it.h||8)*0.45);
+      if(!cur||Math.abs(it.y-cur.y)>tol){cur={y:it.y,items:[]};rs.push(cur);}
+      cur.items.push(it);cur.y=(cur.y*(cur.items.length-1)+it.y)/cur.items.length;
+    });
+    rs.forEach(function(row){
+      row.items.sort(function(a,b){return a.x-b.x;});
+      var cells=[],last=null;
+      row.items.forEach(function(it){
+        var gap=last?it.x-last.x1:0,h=it.h||8;
+        if(last&&gap<Math.max(3,h*0.9)){last.t+=(gap>h*0.12?' ':'')+it.str;last.x1=it.x+it.w;}
+        else{last={t:it.str,x0:it.x,x1:it.x+it.w};cells.push(last);}
+      });
+      cells.forEach(function(c){c.t=rsClean(c.t);});
+      cells=cells.filter(function(c){return c.t;});
+      if(cells.length)rows.push(cells);
+    });
+  });
+  return rows;
+}
+function rosterFromGrid(grid){return rsFindRoster(rsGridRows(grid));}
+
 function parseCSV(text, section){
   var lines=text.trim().split('\n').filter(function(l){return l.trim();});
   if(!lines.length)return;
@@ -3403,6 +3638,11 @@ function parseCSV(text, section){
   // Use whatever columns are pertinent — a row only needs a recognizable name field to import;
   // every other field (period, contact, phone, etc.) is optional and left blank if not present.
   }).filter(function(r){return !!normalizeRow(r,section).name;});
+  if(!rows.length){
+    // Title lines above the header, or unfamiliar header names: hunt for the student columns instead.
+    rows=rosterFromGrid(lines.map(splitCSVLine));
+  }
+  if(!rows.length){toast("Couldn't find student names in that file — look for a Student Name (or Last Name + First Name) column");return;}
   showImportPreview(rows, section);
 }
 
@@ -3427,7 +3667,15 @@ function parseXLSX(buffer, section){
   var rawRows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
   var rows=rawRows.map(normalizeHeaderKeys).filter(function(r){return !!normalizeRow(r,section).name;});
   if(!rows.length){
-    toast('No student rows found in that sheet — check it has a header row with a Name column');
+    // Not a plain "header in row 1" sheet — search every sheet for the student columns.
+    wb.SheetNames.forEach(function(sn){
+      if(rows.length)return;
+      var grid=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false,blankrows:false});
+      rows=rosterFromGrid(grid);
+    });
+  }
+  if(!rows.length){
+    toast("No student names found — look for a Student Name (or Last Name + First Name) column in the sheet");
     return;
   }
   showImportPreview(rows, section);
@@ -3484,25 +3732,24 @@ function parsePDF(buffer, section){
     for(var p=1;p<=pdf.numPages;p++){
       pagePromises.push(pdf.getPage(p).then(function(page){
         return page.getTextContent().then(function(content){
-          // Group text fragments by y-position so words on the same table row land on
-          // the same text line instead of pdf.js flattening the whole page into one blob.
-          var lines={};
-          content.items.forEach(function(item){
-            var y=Math.round(item.transform[5]);
-            if(!lines[y])lines[y]=[];
-            lines[y].push(item);
+          return content.items.map(function(it){
+            return {str:it.str,x:it.transform[4],y:it.transform[5],w:it.width||0,h:Math.abs(it.transform[3])||it.height||10};
           });
-          var ys=Object.keys(lines).map(Number).sort(function(a,b){return b-a;});
-          return ys.map(function(y){
-            return lines[y].sort(function(a,b){return a.transform[4]-b.transform[4];}).map(function(it){return it.str;}).join('  ');
-          }).join('\n');
         });
       }));
     }
-    Promise.all(pagePromises).then(function(texts){
-      var rows=parseTabularText(texts.join('\n'), section);
+    Promise.all(pagePromises).then(function(pages){
+      var total=pages.reduce(function(n,it){return n+it.filter(function(x){return x.str&&x.str.trim();}).length;},0);
+      if(!total){toast("That PDF has no readable text (it's probably a scan) — use Photo/AI, or a text-based PDF / CSV");return;}
+      var prow=rsPdfRows(pages);
+      var rows=rsFindRoster(prow);
       if(!rows.length){
-        toast("Couldn't find a student list in that PDF — try Photo/AI instead, or save as CSV");
+        // last resort: the older line-by-line guess
+        var lines=prow.map(function(r){return r.map(function(c){return c.t;}).join('  ');}).join('\n');
+        rows=parseTabularText(lines, section);
+      }
+      if(!rows.length){
+        toast("Looked through the PDF for Student Name / Last, First columns but couldn't find a student list — try Photo/AI or CSV");
         return;
       }
       showImportPreview(rows, section);
@@ -3518,26 +3765,33 @@ function parseDOCX(buffer, section){
     return;
   }
   mammoth.convertToHtml({arrayBuffer:buffer}).then(function(result){
-    var div=document.createElement('div');
-    div.innerHTML=result.value;
-    var table=div.querySelector('table');
+    var div=new DOMParser().parseFromString(result.value,'text/html').body;
     var rows=[];
-    if(table){
+    Array.prototype.forEach.call(div.querySelectorAll('table'),function(table){
+      if(rows.length)return;
       var trs=Array.prototype.slice.call(table.querySelectorAll('tr'));
-      if(trs.length){
-        var headers=Array.prototype.slice.call(trs[0].querySelectorAll('th,td')).map(function(c){return c.textContent.trim().toLowerCase().replace(/['"]/g,'');});
-        trs.slice(1).forEach(function(tr){
-          var cells=Array.prototype.slice.call(tr.querySelectorAll('th,td')).map(function(c){return c.textContent.trim();});
-          var obj={};
-          headers.forEach(function(h,i){obj[h]=cells[i]||'';});
-          rows.push(obj);
-        });
+      if(!trs.length)return;
+      var headers=Array.prototype.slice.call(trs[0].querySelectorAll('th,td')).map(function(c){return c.textContent.trim().toLowerCase().replace(/['"]/g,'');});
+      var objs=[];
+      trs.slice(1).forEach(function(tr){
+        var cells=Array.prototype.slice.call(tr.querySelectorAll('th,td')).map(function(c){return c.textContent.trim();});
+        var obj={};
+        headers.forEach(function(h,i){obj[h]=cells[i]||'';});
+        objs.push(obj);
+      });
+      rows=objs.filter(function(r){return !!normalizeRow(r,section).name;});
+      if(!rows.length){
+        rows=rosterFromGrid(trs.map(function(tr){return Array.prototype.map.call(tr.querySelectorAll('th,td'),function(c){return c.textContent;});}));
       }
-    }
-    rows=rows.filter(function(r){return !!normalizeRow(r,section).name;});
+    });
     if(!rows.length){
-      // No usable table in the doc — fall back to the same freeform-text heuristic used for PDFs.
-      rows=parseTabularText(div.textContent||'', section);
+      // No usable table in the doc — read the paragraphs as lines, then fall back to the freeform heuristic.
+      var lineRows=[];
+      Array.prototype.forEach.call(div.querySelectorAll('p,li,h1,h2,h3,h4'),function(el){
+        var t=rsClean(el.textContent);if(t)lineRows.push([{t:t,x0:0,x1:1}]);
+      });
+      rows=rsFindRoster(lineRows);
+      if(!rows.length)rows=parseTabularText(div.textContent||'', section);
     }
     if(!rows.length){
       toast("Couldn't find a student list in that document — try Photo/AI instead, or save as CSV");
@@ -3552,7 +3806,12 @@ function parseDOCX(buffer, section){
 function normalizeRow(row, section){
   // normalize field names from various export formats (PowerSchool, Infinite Campus, Focus, plain spreadsheets, etc.)
   // Only Name is required — any other column that isn't present on a given roster is simply left blank.
-  var name=row.name||row['student name']||row['last, first']||row['student']||row['full name']||row['pupil']||(row['last name']&&row['first name']?(row['last name']+', '+row['first name']):'');
+  var name=row.name||row['student name']||row['last, first']||row['student']||row['full name']||row['pupil']||row['student information']||row['legal name']||'';
+  if(!name){
+    var ln=row['last name']||row['lastname']||row['last']||row['surname']||row['student last name']||row['family name']||row['legal last name']||'';
+    var fn=row['first name']||row['firstname']||row['first']||row['given name']||row['student first name']||row['legal first name']||'';
+    if(ln&&fn)name=ln+', '+fn;
+  }
   var period=row.period||row['class period']||row['pd']||row['per']||row['section']||'';
   var contact=row.contact||row['parent']||row['guardian']||row['emergency contact']||row['parent name']||row['parent/guardian']||'';
   var phone=row.phone||row['parent phone']||row['contact phone']||row['phone number']||row['cell']||row['mobile']||'';
@@ -3670,21 +3929,28 @@ function runPhotoAI(section){
 
   var prompt='This is an image of a class roster or student list. Extract all student names and any other visible information (period/class number, phone numbers, parent names, etc). Return ONLY a JSON array like: [{"name":"Last, First","period":"1","contact":"","phone":"","email":"","dismissal":"","medical":""}]. If a field is not visible, use empty string. Names should be in "Last, First" format if possible. Return only the JSON array, no other text.';
 
-  fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      model:'claude-sonnet-4-6',
-      max_tokens:1000,
-      messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:pd.mime,data:pd.data}},
-        {type:'text',text:prompt}
-      ]}]
-    })
-  }).then(function(r){return r.json();}).then(function(data){
+  if(!currentUser){
+    if(loading)loading.style.display='none';if(wrap)wrap.style.display='';
+    toast('Sign in first to use Photo / AI');return;
+  }
+  // The AI key lives on the server (Vercel). The browser sends the photo plus the signed-in
+  // teacher's login token to /api/roster-ai, which checks it and calls Gemini (Groq as backup).
+  shrinkRosterImage(pd).then(function(img){
+    return currentUser.getIdToken().then(function(token){
+      return fetch('/api/roster-ai',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({image:img.data,mime:img.mime,prompt:prompt})
+      });
+    });
+  }).then(function(r){
+    return r.json().catch(function(){return {};}).then(function(d){
+      if(!r.ok){var er=new Error(d.error||('HTTP '+r.status));er.status=r.status;er.code=d.error;throw er;}
+      return d;
+    });
+  }).then(function(data){
     if(loading)loading.style.display='none';
-    var text='';
-    if(data.content&&data.content[0]){text=data.content[0].text||'';}
+    var text=data.text||'';
     // extract JSON array
     var match=text.match(/\[[\s\S]*\]/);
     if(!match){toast('AI could not read roster — try a clearer image');if(wrap)wrap.style.display='';return;}
@@ -3699,11 +3965,33 @@ function runPhotoAI(section){
       }).join('');
       if(result)result.style.display='';
     }catch(err){toast('Could not parse AI response — try a clearer image');if(wrap)wrap.style.display='';}
-  }).catch(function(){
+  }).catch(function(err){
     if(loading)loading.style.display='none';
     if(wrap)wrap.style.display='';
-    toast('AI request failed — check connection');
+    toast(rosterAiError(err));
   });
+}
+// Photos from a phone are several MB; the server accepts about 4 MB, so scale to a readable size first.
+function shrinkRosterImage(pd){
+  return new Promise(function(resolve){
+    var img=new Image();
+    img.onload=function(){
+      var sc=Math.min(1,1800/Math.max(img.width,img.height));
+      var c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      resolve({data:c.toDataURL('image/jpeg',0.85).split(',')[1],mime:'image/jpeg'});
+    };
+    img.onerror=function(){resolve({data:pd.data,mime:pd.mime});};
+    img.src=pd.full;
+  });
+}
+function rosterAiError(err){
+  var c=err&&err.code;
+  if(c==='not_configured')return "Photo / AI isn't set up on the server yet \u2014 add GEMINI_API_KEY (or GROQ_API_KEY) to this Vercel project and redeploy";
+  if(err&&err.status===401)return 'Your sign-in expired \u2014 sign out, sign back in, and try again';
+  if(c==='provider_error')return 'The AI service returned an error'+(err.status?' ('+err.status+')':'')+' \u2014 try again in a moment';
+  if(c==='too_large')return 'That photo is too large \u2014 try a smaller or cropped image';
+  return "Couldn't reach the server \u2014 check your connection";
 }
 
 function confirmAIImport(section){
@@ -4077,6 +4365,7 @@ function openLessonForm(lessonId){
       document.getElementById('lf-independent').value=l.independent||'';
       document.getElementById('lf-closure').value=l.closure||'';
       document.getElementById('lf-hw').value=l.hw||'';
+      document.getElementById('lf-nocarry').checked=!!l.nocarry;
       document.getElementById('lf-materials').value=l.materials||'';
       document.getElementById('lf-tech').value=l.tech||'';
       document.getElementById('lf-diff').value=l.diff||'';
@@ -4101,6 +4390,7 @@ function clearLessonForm(){
   ['lf-copy1','lf-copy2','lf-copy3','lf-copy4','lf-copy5','lf-copy6','lf-copy7'].forEach(function(id){var e=document.getElementById(id);if(e)e.checked=false;});
   var as=document.getElementById('lf-assess');if(as)as.value='Observation';
   var st=document.getElementById('lf-status');if(st)st.value='Planned';
+  var nc=document.getElementById('lf-nocarry');if(nc)nc.checked=false;
 }
 
 function saveLesson(){
@@ -4120,6 +4410,7 @@ function saveLesson(){
     independent:document.getElementById('lf-independent').value,
     closure:document.getElementById('lf-closure').value,
     hw:document.getElementById('lf-hw').value,
+    nocarry:document.getElementById('lf-nocarry').checked,
     materials:document.getElementById('lf-materials').value,
     tech:document.getElementById('lf-tech').value,
     diff:document.getElementById('lf-diff').value,
@@ -4144,6 +4435,7 @@ function saveLesson(){
     toast('Lesson saved');
   }
   save();closeLessonForm();renderLessons();
+  var lnp=document.getElementById('fp-learning');if(lnp&&lnp.classList.contains('open'))lnRender();
 }
 
 function delLesson(id){DB.lessons=DB.lessons.filter(function(l){return l.id!==id;});save();renderLessons();}
@@ -5778,7 +6070,47 @@ function renderPlanner(){
 /* ── REPORTS ── */
 function populateRptStudentSelect(){
   var el=document.getElementById('rpt-stu-select');if(!el)return;
-  el.innerHTML='<option value="">Select student...</option>'+DB.students.sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+' (P'+s.period+')</option>';}).join('');
+  var perEl=document.getElementById('rpt-stu-period');
+  var sortEl=document.getElementById('rpt-stu-sort');
+  var qEl=document.getElementById('rpt-stu-search');
+  var prev=el.value;
+  var num={numeric:true};
+  // Period filter lists every period on the schedule plus any period a student is actually in.
+  var periods=[];
+  getPeriodNumbers().concat(DB.students.map(function(s){return String(s.period||'');})).forEach(function(p){if(p&&periods.indexOf(p)<0)periods.push(p);});
+  periods.sort(function(a,b){return a.localeCompare(b,undefined,num);});
+  var perVal='all';
+  if(perEl){
+    var curP=perEl.value||'all';
+    perEl.innerHTML='<option value="all">All periods</option>'+periods.map(function(p){return '<option value="'+esc(p)+'">Period '+esc(p)+'</option>';}).join('');
+    perVal=periods.indexOf(curP)>=0?curP:'all';perEl.value=perVal;
+  }
+  var byPeriod=sortEl&&sortEl.value==='period';
+  var q=((qEl&&qEl.value)||'').trim().toLowerCase();
+  var list=DB.students.filter(function(s){
+    return (perVal==='all'||String(s.period)===perVal)&&(!q||String(s.name||'').toLowerCase().indexOf(q)>=0);
+  }).sort(function(a,b){
+    if(byPeriod){var pc=String(a.period).localeCompare(String(b.period),undefined,num);if(pc)return pc;}
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+  function opt(s){return '<option value="'+esc(s.id)+'">'+esc(s.name)+' (P'+esc(s.period)+')</option>';}
+  var html='<option value="">Select student...</option>';
+  if(byPeriod&&perVal==='all'){
+    // Grouped under a heading per period so a class can be scanned top to bottom.
+    var groups={};list.forEach(function(s){var k=String(s.period);(groups[k]=groups[k]||[]).push(s);});
+    Object.keys(groups).sort(function(a,b){return a.localeCompare(b,undefined,num);}).forEach(function(k){
+      html+='<optgroup label="Period '+esc(k)+' ('+groups[k].length+')">'+groups[k].map(opt).join('')+'</optgroup>';
+    });
+  } else {
+    html+=list.map(opt).join('');
+  }
+  el.innerHTML=html;
+  var keep=list.some(function(s){return s.id===prev;});
+  el.value=keep?prev:'';
+  var cnt=document.getElementById('rpt-stu-count');
+  if(cnt)cnt.textContent=list.length+' student'+(list.length===1?'':'s')+(q||perVal!=='all'?' match':'');
+  // If the chosen student got filtered out of the list, clear the report instead of leaving a stale one.
+  if(prev&&!keep)renderStudentReport();
 }
 function renderStudentReport(){
   var sid=(document.getElementById('rpt-stu-select')||{}).value;var el=document.getElementById('student-report-content');if(!el)return;
@@ -6739,7 +7071,7 @@ function renderScheduleRows(){
       +'<input type="time" value="'+esc(row.start||'')+'" id="ss-'+i+'" style="padding:6px 8px;border:1.5px solid #f0cce8;border-radius:6px;font-size:12px;color:#5a2060;width:100%">'
       +'<input type="time" value="'+esc(row.end||'')+'" id="se-'+i+'" style="padding:6px 8px;border:1.5px solid #f0cce8;border-radius:6px;font-size:12px;color:#5a2060;width:100%">'
       +'<select id="st-'+i+'" style="padding:6px 8px;border:1.5px solid #f0cce8;border-radius:6px;font-size:12px;color:#5a2060;width:100%">'
-      +['Class','Homeroom','Lunch','Prep','Duty','Break','Planning'].map(function(t){return '<option'+(row.type===t?' selected':'')+'>'+t+'</option>';}).join('')
+      +['Class','Lunch','Prep','Duty','Break','Planning'].concat(row.type==='Homeroom'?['Homeroom']:[]).map(function(t){return '<option'+(row.type===t?' selected':'')+'>'+t+'</option>';}).join('')
       +'</select>'
       +'<button class="btn btn-sm btn-danger" onclick="removeScheduleRow('+i+')">✕</button>'
       +'</div>';
@@ -7184,6 +7516,7 @@ var OPTIONAL_FEATURES=[
   {id:'parentcomm', label:'Parent Comm Log',  icon:'💬', desc:'Log calls, emails, and messages home per student.',                                 defaultOn:true},
   {id:'planner',    label:'Daily Planner',    icon:'📅', desc:'Day-by-day plan for each period.',                                                  defaultOn:true},
   {id:'lessons',    label:'Lesson Plans',     icon:'📖', desc:'Full lesson plans linked to your daily planner.',                                   defaultOn:true},
+  {id:'learning',   label:"What We're Learning", icon:'📢', desc:'Class update for parents and students (a day, week, month or chosen dates) plus a syllabus, pulled from your lesson plans.', defaultOn:true},
   {id:'subplans',   label:'Sub Plans',        icon:'📝', desc:'Saved substitute plans ready to print anytime.',                                    defaultOn:true},
   {id:'tasklist',   label:'Task List',        icon:'✔️', desc:'Your personal to-do list.',                                                         defaultOn:true},
   {id:'reports',    label:'Printable Reports',icon:'🖨️', desc:'Student, class, missing work, grade, comm, at-risk, parent meeting, and dismissal reports.',defaultOn:true},
@@ -7354,8 +7687,8 @@ function showCurriculumSuggestions(){
 
   if(!matches.length){panel.style.display='none';return;}
 
-  var typeIcons={'Google Slides':'🖥️','Google Doc':'📄','Google Sheet':'📊','PDF':'📕','Video':'▶️','Website':'🌐','Worksheet':'📝','Assessment':'📋','Anchor Chart':'📌','Other':'📎'};
-  var typeColors={'Google Slides':'b-yellow','Google Doc':'b-blue','PDF':'b-red','Video':'b-coral','Website':'b-mint','Worksheet':'b-lav','Assessment':'b-peach','Anchor Chart':'b-green','Other':'b-gray'};
+  var typeIcons={'Google Slides':'🖥️','Google Doc':'📄','Google Sheet':'📊','PDF':'📕','Video':'▶️','Website':'🌐','Worksheet':'📝','Assessment':'📋','Anchor Chart':'📌','PowerPoint':'📽️','Excel Spreadsheet':'📈','Word Doc':'📝','Other':'📎'};
+  var typeColors={'Google Slides':'b-yellow','Google Doc':'b-blue','PDF':'b-red','Video':'b-coral','Website':'b-mint','Worksheet':'b-lav','Assessment':'b-peach','Anchor Chart':'b-green','PowerPoint':'b-coral','Excel Spreadsheet':'b-green','Word Doc':'b-blue','Other':'b-gray'};
 
   links.innerHTML=matches.map(function(r){
     var icon=typeIcons[r.type]||'📎';
@@ -7413,8 +7746,8 @@ function renderCurriculum(){
     return aActive-bActive||a.localeCompare(b);
   });
 
-  var typeIcons={'Google Slides':'🖥️','Google Doc':'📄','Google Sheet':'📊','PDF':'📕','Video':'▶️','Website':'🌐','Worksheet':'📝','Assessment':'📋','Anchor Chart':'📌','Other':'📎'};
-  var typeColors={'Google Slides':'b-yellow','Google Doc':'b-blue','Google Sheet':'b-green','PDF':'b-red','Video':'b-coral','Website':'b-mint','Worksheet':'b-lav','Assessment':'b-peach','Anchor Chart':'b-green','Other':'b-gray'};
+  var typeIcons={'Google Slides':'🖥️','Google Doc':'📄','Google Sheet':'📊','PDF':'📕','Video':'▶️','Website':'🌐','Worksheet':'📝','Assessment':'📋','Anchor Chart':'📌','PowerPoint':'📽️','Excel Spreadsheet':'📈','Word Doc':'📝','Other':'📎'};
+  var typeColors={'Google Slides':'b-yellow','Google Doc':'b-blue','Google Sheet':'b-green','PDF':'b-red','Video':'b-coral','Website':'b-mint','Worksheet':'b-lav','Assessment':'b-peach','Anchor Chart':'b-green','PowerPoint':'b-coral','Excel Spreadsheet':'b-green','Word Doc':'b-blue','Other':'b-gray'};
 
   el.innerHTML=unitKeys.length===0?'<div class="empty">No resources added yet. Add curriculum resources above — they will automatically appear in lesson plans when the unit matches.</div>'
     :unitKeys.map(function(u){
@@ -7922,6 +8255,982 @@ document.addEventListener('keydown',function(e){
 });
 
 // App starts via Firebase auth → loadFromFirestore() → startApp()
+
+/* ══════════════════════════════════════════════
+   CURRICULUM UPLOAD → PARSE → COMPARE → LESSON PLANS
+   Reads PowerPoint, Excel/CSV, Word, PDF and text files in the browser, pulls lesson
+   information out of each one, lines the files up against each other (a pacing guide's
+   rows against a slide deck's lessons, etc.), and copies the combined result into Lesson
+   Plans. Only what gets parsed is saved — the files themselves never leave the browser.
+══════════════════════════════════════════════ */
+var CI={docs:[],groups:[],status:[],start:'',periods:null,saveRes:true};
+var CI_FIELDS=['title','unit','standard','objective','donow','direct','guided','independent','closure','hw','vocab','materials','notes'];
+var CI_LABELS={objective:'Objective',donow:'Do Now',direct:'Direct instruction',guided:'Guided practice',independent:'Independent practice',closure:'Exit ticket',hw:'Homework',vocab:'Vocabulary',materials:'Materials',standard:'Standards',unit:'Unit',title:'Lesson title',notes:'Notes'};
+// Section labels found inside slides / Word / PDF text ("Do Now:", a slide titled "Exit Ticket", ...)
+var CI_SECTION_RX=[
+  ['objective',/^(learning\s+(target|goal|objective)s?|objectives?|swbat|i can|students will( be able to)?|today'?s\s+(goal|target|objective)|lesson\s+(goal|objective))\b/i],
+  ['donow',/^(do[\s-]*now|warm[\s-]*up|bell[\s-]*ringer|opener|starter|spiral\s+review|daily\s+review|entry\s+(task|ticket)|hook)\b/i],
+  ['closure',/^(exit[\s-]*(ticket|slip|task)|ticket[\s-]*out|closure|closing|wrap[\s-]*up|check\s+for\s+understanding|lesson\s+summary|plenary)\b/i],
+  ['hw',/^(home[\s-]*work|hw|take[\s-]*home|at[\s-]*home|assignment)\b/i],
+  ['guided',/^(guided\s+practice|we\s+do|group\s+work|partner\s+(work|practice)|collaborative)\b/i],
+  ['independent',/^(independent\s+(practice|work)|you\s+do|class[\s-]*work|work[\s-]*time|practice|centers|stations|activity)\b/i],
+  ['direct',/^(direct\s+instruction|mini[\s-]*lesson|instruction|notes|i\s+do|new\s+learning|concept|key\s+(ideas|concepts|points))\b/i],
+  ['vocab',/^(vocab(ulary)?|key\s+terms|words\s+to\s+know|terms)\b/i],
+  ['materials',/^(materials|supplies|resources|you\s+will\s+need)\b/i],
+  ['standard',/^(standards?|benchmarks?|teks|ccss|ngss|state\s+standards?)\b/i]
+];
+// Column headers of a pacing guide / lesson table
+var CI_HEADER_RX=[
+  ['date',/^(date|dates|day\s*\/\s*date|day)\b/i],
+  ['week',/^(week|wk)\b/i],
+  ['unit',/\b(unit|module|chapter)\b/i],
+  ['standard',/(standard|benchmark|teks|ccss|ngss|strand)/i],
+  ['objective',/(objective|learning\s+(target|goal)|swbat|i\s+can|goal|essential\s+question)/i],
+  ['donow',/(do[\s-]*now|warm[\s-]*up|bell[\s-]*ringer|opener|starter|spiral)/i],
+  ['closure',/(exit|closure|ticket|closing|wrap)/i],
+  ['hw',/(home[\s-]*work|\bhw\b|take[\s-]*home)/i],
+  ['guided',/guided/i],
+  ['independent',/(independent|class[\s-]*work|practice|activit)/i],
+  ['direct',/(instruction|mini[\s-]*lesson|teach)/i],
+  ['vocab',/(vocab|key\s+terms|key\s+words)/i],
+  ['materials',/(material|resource|supplies)/i],
+  ['assess',/(assess|quiz|test)/i],
+  ['title',/(lesson|topic|title|skill|concept|content|subject|name)/i],
+  ['notes',/(note|comment|remark)/i]
+];
+var CI_UNIT_RX=/^(unit|module|chapter)\s*#?\s*(\d+(?:\.\d+)?)\b\s*[:.\-\u2013\u2014]*\s*(.*)$/i;
+var CI_LESSON_RX=/^(lesson|day|session|class)\s*#?\s*(\d+(?:\.\d+)?)\b\s*[:.\-\u2013\u2014]*\s*(.*)$/i;
+var CI_STD_RX=/\b(?:[A-Z]{2,5}\.\d{1,2}\.[A-Z]{1,3}\.\d+\.\d+[a-z]?|(?:CCSS\.)?(?:MATH\.)?(?:CONTENT\.)?\d{1,2}\.[A-Z]{1,3}\.[A-Z]\.\d+|(?:RL|RI|RF|RH|RST|WHST|SL|L|W)\.\d{1,2}\.\d{1,2}[a-d]?|MS-[A-Z]{2,4}\d-\d)\b/g;
+
+function ciNorm(s){return String(s==null?'':s).replace(/\s+/g,' ').trim();}
+function ciJoin(a,b){a=a||'';b=ciNorm(b);return b?(a?a+'\n'+b:b):a;}
+function ciStdList(text){var m=String(text||'').match(CI_STD_RX)||[];var out=[];m.forEach(function(x){if(out.indexOf(x)<0)out.push(x);});return out;}
+function ciBaseName(n){return String(n||'').replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim();}
+function ciBlank(o){var r={title:'',unit:'',standard:'',objective:'',donow:'',direct:'',guided:'',independent:'',closure:'',hw:'',vocab:'',materials:'',notes:'',assess:'',date:'',week:'',num:'',topics:[]};for(var k in o)r[k]=o[k];return r;}
+function ciUnitGuess(str){
+  var m=String(str||'').replace(/[_]+/g,' ').match(/\b(unit|module|chapter)\s*#?\s*(\d+(?:\.\d+)?)\b[\s:.\-\u2013\u2014_]*([A-Za-z][A-Za-z &,'\u2019\-]{2,40})?/i);
+  if(!m)return '';
+  var name=ciNorm(m[3]||'').replace(/\b(lesson|day|slides?|deck|pptx?|notes|worksheet|pacing|guide)\b.*$/i,'').trim();
+  return 'Unit '+m[2]+(name?' \u2014 '+name:'');
+}
+function ciNumOf(str){var m=String(str||'').replace(/[_]+/g,' ').match(/\b(?:lesson|day|session|l)\s*#?\s*(\d+(?:\.\d+)?)\b/i);return m?m[1]:'';}
+function ciISO(y,m,d){if(m<1||m>12||d<1||d>31)return '';return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function ciYearFor(month){
+  var fd=(DB.setup&&DB.setup.firstday)||'';var fy=fd?parseInt(fd.slice(0,4),10):new Date().getFullYear();var fm=fd?parseInt(fd.slice(5,7),10):8;
+  return month>=fm?fy:fy+1;
+}
+function ciParseDate(v){
+  var t=ciNorm(v);if(!t)return '';
+  var m=t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return ciISO(+m[1],+m[2],+m[3]);
+  m=t.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if(m){var y=m[3]?(+m[3]<100?2000+ +m[3]:+m[3]):ciYearFor(+m[1]);return ciISO(y,+m[1],+m[2]);}
+  var mons={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  m=t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?/i);
+  if(m){var mo=mons[m[1].toLowerCase()];return ciISO(m[3]?+m[3]:ciYearFor(mo),mo,+m[2]);}
+  return '';
+}
+
+/* ── file readers ── */
+function ciReadFile(file){
+  return new Promise(function(resolve,reject){
+    var ext=(file.name.split('.').pop()||'').toLowerCase();
+    if(ext==='ppt'||ext==='doc'){reject(new Error('Old .'+ext+' files can\'t be read \u2014 open it and Save As .'+ext+'x, then upload that.'));return;}
+    var known=['pptx','xlsx','xls','xlsm','csv','docx','pdf','txt','md'];
+    if(known.indexOf(ext)<0){reject(new Error('.'+ext+' files aren\'t supported. Use PowerPoint (.pptx), Excel (.xlsx/.xls/.csv), Word (.docx), PDF or .txt.'));return;}
+    var fr=new FileReader();
+    fr.onerror=function(){reject(new Error('The browser could not read that file.'));};
+    fr.onload=function(){
+      var buf=fr.result,p;
+      try{
+        if(ext==='pptx')p=ciParsePptx(buf,file);
+        else if(ext==='docx')p=ciParseDocx(buf,file);
+        else if(ext==='pdf')p=ciParsePdf(buf,file);
+        else if(ext==='txt'||ext==='md')p=ciParseText(new TextDecoder('utf-8').decode(buf),file);
+        else p=ciParseSheet(buf,file);
+      }catch(e){reject(e);return;}
+      Promise.resolve(p).then(resolve,reject);
+    };
+    fr.readAsArrayBuffer(file);
+  });
+}
+function ciDocShell(file,kind){return {name:file.name,ext:(file.name.split('.').pop()||'').toLowerCase(),size:file.size,kind:kind,slides:[],tables:[],blocks:[]};}
+
+function ciXml(str){return new DOMParser().parseFromString(str,'application/xml');}
+function ciTextOfParas(node){
+  var out=[];
+  Array.prototype.forEach.call(node.getElementsByTagName('a:p'),function(p){
+    var t='';
+    Array.prototype.forEach.call(p.childNodes,function walk(c){
+      if(c.nodeType!==1)return;
+      if(c.nodeName==='a:t')t+=c.textContent;
+      else if(c.nodeName==='a:br')t+=' ';
+      else Array.prototype.forEach.call(c.childNodes,walk);
+    });
+    t=ciNorm(t);if(t)out.push(t);
+  });
+  return out;
+}
+function ciParsePptx(buf,file){
+  if(typeof JSZip==='undefined')return Promise.reject(new Error('The PowerPoint reader didn\'t load \u2014 check your connection and reload the page.'));
+  return JSZip.loadAsync(buf).then(function(zip){
+    function read(n){var f=zip.file(n);return f?f.async('string'):Promise.resolve('');}
+    // Slide order comes from presentation.xml (file numbers can differ from the real order after reordering).
+    return Promise.all([read('ppt/presentation.xml'),read('ppt/_rels/presentation.xml.rels')]).then(function(pr){
+      var names=[];
+      if(pr[0]&&pr[1]){
+        var rels={};Array.prototype.forEach.call(ciXml(pr[1]).getElementsByTagName('Relationship'),function(r){rels[r.getAttribute('Id')]=r.getAttribute('Target');});
+        Array.prototype.forEach.call(ciXml(pr[0]).getElementsByTagName('p:sldId'),function(s){
+          var t=rels[s.getAttribute('r:id')];if(t)names.push('ppt/'+String(t).replace(/^\/?(ppt\/)?/,''));
+        });
+      }
+      names=names.filter(function(n){return !!zip.file(n);});
+      if(!names.length){
+        names=Object.keys(zip.files).filter(function(n){return /^ppt\/slides\/slide\d+\.xml$/.test(n);}).sort(function(a,b){return parseInt(a.match(/\d+/)[0],10)-parseInt(b.match(/\d+/)[0],10);});
+      }
+      var doc=ciDocShell(file,'slides');
+      return Promise.all(names.map(function(n,i){
+        var relName=n.replace(/slides\/(slide\d+\.xml)$/,'slides/_rels/$1.rels');
+        return Promise.all([read(n),read(relName)]).then(function(x){
+          var sd=ciXml(x[0]);var slide={n:i+1,title:'',paras:[],notes:'',tables:[]};
+          Array.prototype.forEach.call(sd.getElementsByTagName('p:sp'),function(sp){
+            var ph=sp.getElementsByTagName('p:ph')[0];var type=ph?(ph.getAttribute('type')||'body'):'';
+            if(/^(sldNum|ftr|dt|hdr)$/.test(type))return;
+            var paras=ciTextOfParas(sp);if(!paras.length)return;
+            if((type==='title'||type==='ctrTitle')&&!slide.title)slide.title=paras.join(' ');
+            else slide.paras=slide.paras.concat(paras);
+          });
+          Array.prototype.forEach.call(sd.getElementsByTagName('a:tbl'),function(tbl){
+            var rows=[];Array.prototype.forEach.call(tbl.getElementsByTagName('a:tr'),function(tr){
+              var cells=[];Array.prototype.forEach.call(tr.getElementsByTagName('a:tc'),function(tc){cells.push(ciNorm(ciTextOfParas(tc).join(' ')));});
+              if(cells.some(Boolean))rows.push(cells);
+            });
+            if(rows.length)doc.tables.push({name:'Slide '+(i+1),rows:rows});
+          });
+          var notesRel=(x[1].match(/Target="([^"]*notesSlide[^"]*)"/)||[])[1];
+          if(!notesRel)return slide;
+          return read('ppt/'+notesRel.replace(/^\.\.\//,'').replace(/^\/?ppt\//,'')).then(function(nx){
+            if(nx){Array.prototype.forEach.call(ciXml(nx).getElementsByTagName('p:sp'),function(sp){
+              var ph=sp.getElementsByTagName('p:ph')[0];if(ph&&ph.getAttribute('type')==='body')slide.notes+=' '+ciTextOfParas(sp).join(' ');
+            });}
+            slide.notes=ciNorm(slide.notes);return slide;
+          });
+        });
+      })).then(function(slides){doc.slides=slides;return doc;});
+    });
+  });
+}
+function ciParseSheet(buf,file){
+  if(typeof XLSX==='undefined')throw new Error('The Excel reader didn\'t load \u2014 check your connection and reload the page.');
+  var wb=XLSX.read(buf,{type:'array'});var doc=ciDocShell(file,'sheet');
+  wb.SheetNames.forEach(function(sn){
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false,blankrows:false}).map(function(r){return r.map(ciNorm);});
+    if(rows.some(function(r){return r.some(Boolean);}))doc.tables.push({name:sn,rows:rows});
+  });
+  return doc;
+}
+function ciParseDocx(buf,file){
+  if(typeof mammoth==='undefined')return Promise.reject(new Error('The Word reader didn\'t load \u2014 check your connection and reload the page.'));
+  return mammoth.convertToHtml({arrayBuffer:buf}).then(function(res){
+    var doc=ciDocShell(file,'text');var body=new DOMParser().parseFromString(res.value,'text/html').body;
+    Array.prototype.forEach.call(body.children,function(el){
+      var tag=el.tagName.toLowerCase();
+      if(/^h[1-6]$/.test(tag))doc.blocks.push({t:'h',text:el.textContent});
+      else if(tag==='p')doc.blocks.push({t:'p',text:el.textContent});
+      else if(tag==='ul'||tag==='ol')Array.prototype.forEach.call(el.querySelectorAll('li'),function(li){doc.blocks.push({t:'p',text:li.textContent});});
+      else if(tag==='table'){
+        var rows=[];Array.prototype.forEach.call(el.querySelectorAll('tr'),function(tr){rows.push(Array.prototype.map.call(tr.querySelectorAll('th,td'),function(c){return ciNorm(c.textContent);}));});
+        if(rows.length)doc.tables.push({name:'Table',rows:rows});
+      }
+    });
+    return doc;
+  });
+}
+function ciParsePdf(buf,file){
+  if(typeof pdfjsLib==='undefined')return Promise.reject(new Error('The PDF reader didn\'t load \u2014 check your connection and reload the page.'));
+  return pdfjsLib.getDocument({data:buf}).promise.then(function(pdf){
+    var pages=[];for(var p=1;p<=pdf.numPages;p++)pages.push(pdf.getPage(p).then(function(page){return page.getTextContent().then(function(c){
+      var lines={};c.items.forEach(function(it){var y=Math.round(it.transform[5]);(lines[y]=lines[y]||[]).push(it);});
+      return Object.keys(lines).map(Number).sort(function(a,b){return b-a;}).map(function(y){return lines[y].sort(function(a,b){return a.transform[4]-b.transform[4];}).map(function(it){return it.str;}).join(' ');});
+    });}));
+    return Promise.all(pages).then(function(all){
+      var doc=ciDocShell(file,'text');all.forEach(function(ls){ls.forEach(function(l){if(ciNorm(l))doc.blocks.push({t:'p',text:l});});});return doc;
+    });
+  });
+}
+function ciParseText(text,file){
+  var doc=ciDocShell(file,'text');String(text).split(/\r?\n/).forEach(function(l){if(ciNorm(l))doc.blocks.push({t:'p',text:l});});return doc;
+}
+
+/* ── pull lesson records out of a parsed file ── */
+// Recognises "Do Now: ...", "Exit Ticket - ...", or a bare heading like "Homework".
+function ciLabelOf(text,blockType){
+  var t=ciNorm(text).replace(/^[\u2022\u25CF\-\*]+\s*/,'');
+  var m=t.match(/^([^:\uFF1A]{2,40})[:\uFF1A]\s*(.*)$/);
+  var label=m?m[1]:t,rest=m?m[2]:'';
+  if(!m&&(t.length>40||(blockType!=='h'&&t.split(' ').length>4)))return null;
+  for(var i=0;i<CI_SECTION_RX.length;i++){if(CI_SECTION_RX[i][1].test(label))return {field:CI_SECTION_RX[i][0],rest:rest};}
+  return null;
+}
+function ciRecordsFromBlocks(doc){
+  var recs=[],cur=null,curUnit=ciUnitGuess(doc.name),curWeek='',curField=null,firstHeading='';
+  function start(title,num){cur=ciBlank({unit:curUnit,week:curWeek,title:title,num:num});recs.push(cur);curField=null;}
+  doc.blocks.forEach(function(b){
+    var t=ciNorm(b.text);if(!t)return;
+    if(b.t==='h'&&!firstHeading)firstHeading=t;
+    var um=t.match(CI_UNIT_RX);
+    if(um&&(b.t==='h'||t.length<80)){curUnit='Unit '+um[2]+(ciNorm(um[3])?' \u2014 '+ciNorm(um[3]):'');cur=null;curField=null;return;}
+    var wm=t.match(/^week\s*#?\s*(\d+)\b/i);
+    if(wm&&(b.t==='h'||t.length<40)){curWeek=wm[1];return;}
+    var lm=t.match(CI_LESSON_RX);
+    if(lm&&(b.t==='h'||t.length<90)){start(ciNorm(lm[3])||('Lesson '+lm[2]),lm[2]);return;}
+    var lab=ciLabelOf(t,b.t);
+    if(lab){if(!cur)start('','');curField=lab.field;if(lab.rest)cur[curField]=ciJoin(cur[curField],lab.rest);return;}
+    if(cur&&curField){cur[curField]=ciJoin(cur[curField],t);}
+    else if(!cur&&b.t==='h'){start(t,'');}
+  });
+  recs.forEach(function(r){if(!r.title)r.title=firstHeading||ciBaseName(doc.name);});
+  return recs;
+}
+function ciRecordsFromSlides(doc){
+  var slides=doc.slides;if(!slides.length)return [];
+  var multi=slides.filter(function(s){return CI_LESSON_RX.test(s.title);}).length>=2;
+  var first=slides[0];
+  var unit=ciUnitGuess(doc.name)||ciUnitGuess((first.title||'')+' '+first.paras.slice(0,2).join(' '));
+  var recs=[],cur=null;
+  var generic=/^(questions?\??|thank you|thanks|agenda|today'?s agenda|review|let'?s (get started|begin)|welcome|vocabulary|reminders?|announcements?)$/i;
+  function start(title,num){cur=ciBlank({unit:unit,title:title,num:num||ciNumOf(doc.name)});recs.push(cur);}
+  slides.forEach(function(s,i){
+    var lm=s.title.match(CI_LESSON_RX);
+    if(multi&&lm)start(ciNorm(lm[3])||('Lesson '+lm[2]),lm[2]);
+    if(!cur){
+      var t0=s.title||ciBaseName(doc.name);
+      start(CI_UNIT_RX.test(t0)?ciBaseName(doc.name):t0,'');
+      if(CI_UNIT_RX.test(t0)&&!unit)cur.unit=ciUnitGuess(t0);
+    }
+    var body=s.paras;
+    // a whole slide devoted to one section ("Do Now", "Exit Ticket", "Homework"...)
+    var lab=s.title?ciLabelOf(s.title,'h'):null;
+    if(lab&&!(multi&&lm)){cur[lab.field]=ciJoin(cur[lab.field],(lab.rest?lab.rest+'\n':'')+body.join('\n'));}
+    else{
+      var curField=null;
+      body.forEach(function(p){
+        var pl=ciLabelOf(p,'p');
+        if(pl&&/[:\uFF1A]/.test(p)){curField=pl.field;if(pl.rest)cur[curField]=ciJoin(cur[curField],pl.rest);}
+        else if(curField){cur[curField]=ciJoin(cur[curField],p);}
+        else if(!cur.objective&&/^(swbat|i can|students will|we will)\b/i.test(p))cur.objective=p;
+      });
+      if(!lab&&s.title&&!(multi&&lm)&&i>0&&!generic.test(s.title)&&!CI_LESSON_RX.test(s.title))cur.topics.push(s.title);
+    }
+  });
+  recs.forEach(function(r){
+    if(!r.direct&&r.topics.length)r.direct='Covers: '+r.topics.slice(0,6).join('; ');
+    var all=[r.title,r.objective,r.direct,r.donow,r.closure,r.hw,r.standard].join(' ')+' '+slides.map(function(s){return s.title+' '+s.paras.join(' ')+' '+s.notes;}).join(' ');
+    if(!r.standard)r.standard=ciStdList(recs.length===1?all:[r.title,r.objective,r.direct,r.standard].join(' ')).join(', ');
+  });
+  return recs;
+}
+function ciMapHeader(cells){
+  var map={},n=0;
+  cells.forEach(function(c,i){
+    var h=ciNorm(c);if(!h||h.length>40)return;
+    for(var k=0;k<CI_HEADER_RX.length;k++){if(CI_HEADER_RX[k][1].test(h)){(map[CI_HEADER_RX[k][0]]=map[CI_HEADER_RX[k][0]]||[]).push(i);n++;break;}}
+  });
+  return {map:map,n:n};
+}
+function ciRecordsFromTable(doc,tbl){
+  var rows=tbl.rows,hi=-1,best=null;
+  for(var i=0;i<Math.min(8,rows.length);i++){var m=ciMapHeader(rows[i]);if(m.n>=2&&(!best||m.n>best.n)){best=m;hi=i;}}
+  if(!best)return [];
+  var meaningful=['title','unit','objective','donow','closure','hw','standard','date','direct','independent','guided'];
+  if(!meaningful.some(function(f){return best.map[f];}))return [];
+  var recs=[],curUnit=ciUnitGuess(tbl.name)||ciUnitGuess(doc.name);
+  function val(row,f){return ciNorm((best.map[f]||[]).map(function(ix){return row[ix]||'';}).filter(Boolean).join('; '));}
+  for(var r=hi+1;r<rows.length;r++){
+    var row=rows[r];if(!row.some(Boolean))continue;
+    var vals={};CI_FIELDS.concat(['date','week','assess']).forEach(function(f){vals[f]=val(row,f);});
+    if(vals.unit){var u=ciUnitGuess(vals.unit);curUnit=u&&vals.unit.length<50?(u.indexOf('\u2014')<0?vals.unit:u):vals.unit;}
+    var others=CI_FIELDS.concat(['date','assess']).filter(function(f){return f!=='unit'&&vals[f];});
+    if(!others.length)continue;   // a row that only names the unit
+    var rec=ciBlank({unit:curUnit,week:vals.week});
+    CI_FIELDS.forEach(function(f){if(f!=='unit')rec[f]=vals[f];});
+    rec.assess=vals.assess;
+    if(vals.date){rec.date=ciParseDate(vals.date);if(!rec.date){var dn=vals.date.match(/\d+/);if(dn)rec.num=dn[0];}}
+    if(!rec.title)rec.title=(vals.objective||vals.donow||vals.direct||'').slice(0,80);
+    if(!rec.title)continue;
+    var ln=ciNumOf(rec.title);if(ln&&!rec.num)rec.num=ln;
+    recs.push(rec);
+  }
+  return recs;
+}
+function ciExtract(doc,docIdx){
+  var recs=[];
+  doc.tables.forEach(function(t){recs=recs.concat(ciRecordsFromTable(doc,t));});
+  if(doc.kind==='slides')recs=recs.concat(ciRecordsFromSlides(doc));
+  if(doc.kind==='text')recs=recs.concat(ciRecordsFromBlocks(doc));
+  recs.forEach(function(r,i){
+    r.kind=doc.kind==='sheet'?'sheet':(doc.kind==='slides'?'slides':'text');
+    if(doc.tables.length&&doc.kind!=='sheet'&&i<recs.length&&r._fromTable)r.kind='sheet';
+    r.file=doc.name;r.docIdx=docIdx;r.order=i;
+    if(!r.num)r.num=ciNumOf(doc.name);
+    var s=r.standard?ciStdList(r.standard):[];r.standard=s.length?s.join(', '):ciNorm(r.standard);
+    if(!r.standard)r.standard=ciStdList([r.objective,r.direct,r.title].join(' ')).join(', ');
+  });
+  return recs;
+}
+
+/* ── compare files and combine ── */
+var CI_STOP={the:1,and:1,for:1,with:1,lesson:1,unit:1,day:1,into:1,from:1,your:1,our:1,how:1,what:1,are:1};
+function ciTokens(s){
+  return String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(function(w){return w.length>2&&!CI_STOP[w]&&!/^\d+$/.test(w);}).map(function(w){return w.replace(/(ing|ed|es|s)$/,'');});
+}
+function ciSim(a,b){
+  var A=ciTokens(a),B=ciTokens(b);if(!A.length||!B.length)return 0;
+  var inter=0,seen={};A.forEach(function(w){if(B.indexOf(w)>=0&&!seen[w]){inter++;seen[w]=1;}});
+  return inter/(new Set(A.concat(B)).size);
+}
+function ciUnitNum(u){var m=String(u||'').match(/\d+(?:\.\d+)?/);return m?parseFloat(m[0]):null;}
+// Which kind of file to trust first for each field: a pacing sheet for dates/standards/homework,
+// slides for the actual classroom pieces (Do Now, exit ticket, instruction).
+var CI_PRI={
+  title:['sheet','text','slides'],unit:['sheet','text','slides'],standard:['sheet','text','slides'],objective:['sheet','text','slides'],
+  donow:['slides','text','sheet'],direct:['slides','text','sheet'],guided:['slides','text','sheet'],independent:['slides','text','sheet'],
+  closure:['slides','text','sheet'],hw:['sheet','text','slides'],vocab:['slides','text','sheet'],materials:['slides','text','sheet'],notes:['sheet','text','slides'],
+  date:['sheet','text','slides']
+};
+function ciContains(a,b){a=ciNorm(a).toLowerCase();b=ciNorm(b).toLowerCase();return a===b||a.indexOf(b)>=0;}
+function ciMerge(records){
+  var rank={sheet:0,text:1,slides:2};var groups=[];
+  var ordered=records.slice().sort(function(a,b){return (rank[a.kind]-rank[b.kind])||(a.docIdx-b.docIdx)||(a.order-b.order);});
+  ordered.forEach(function(r){
+    var best=null,bs=0;
+    groups.forEach(function(g){
+      if(g.recs.some(function(x){return x.docIdx===r.docIdx;}))return;
+      var lead=g.recs[0],un1=ciUnitNum(lead.unit),un2=ciUnitNum(r.unit);
+      if(un1!=null&&un2!=null&&un1!==un2)return;    // "Lesson 4" of Unit 2 is not "Lesson 4" of Unit 3
+      var sc=0;
+      if(lead.num&&r.num&&String(lead.num)===String(r.num))sc+=6;
+      if(lead.date&&r.date&&lead.date===r.date)sc+=6;
+      var sim=ciSim(lead.title,r.title);
+      sc+=sim>=0.5?6*sim+2:(sim>=0.34?3:0);
+      if(sc>bs){bs=sc;best=g;}
+    });
+    if(best&&bs>=5)best.recs.push(r);else groups.push({recs:[r]});
+  });
+  groups.forEach(ciResolve);
+  groups.sort(function(a,b){
+    var sa=a.recs[0].kind==='sheet'?0:1,sb=b.recs[0].kind==='sheet'?0:1;
+    if(sa!==sb)return sa-sb;
+    if(sa===0)return (a.recs[0].docIdx-b.recs[0].docIdx)||(a.recs[0].order-b.recs[0].order);
+    var ua=ciUnitNum(a.v.unit),ub=ciUnitNum(b.v.unit),na=parseFloat(a.recs[0].num),nb=parseFloat(b.recs[0].num);
+    return ((ua==null?999:ua)-(ub==null?999:ub))||((isNaN(na)?999:na)-(isNaN(nb)?999:nb))||(a.recs[0].docIdx-b.recs[0].docIdx);
+  });
+  return groups;
+}
+function ciResolve(g){
+  g.v={};g.alts={};g.include=true;
+  g.files=[];g.recs.forEach(function(r){if(g.files.indexOf(r.file)<0)g.files.push(r.file);});
+  CI_FIELDS.forEach(function(f){
+    var cands=[];
+    g.recs.forEach(function(r){if(r[f]&&ciNorm(r[f]))cands.push({kind:r.kind,file:r.file,val:r[f]});});
+    if(!cands.length){g.v[f]='';return;}
+    if(f==='standard'){var u=[];cands.forEach(function(c){ciStdList(c.val).forEach(function(s){if(u.indexOf(s)<0)u.push(s);});});g.v[f]=u.length?u.join(', '):cands[0].val;return;}
+    var pri=CI_PRI[f]||['sheet','text','slides'];
+    cands.sort(function(a,b){return pri.indexOf(a.kind)-pri.indexOf(b.kind);});
+    var pick=cands[0],alts=[];
+    cands.slice(1).forEach(function(c){
+      if(ciContains(pick.val,c.val))return;
+      if(ciContains(c.val,pick.val)){alts.push(pick);pick=c;return;}   // the richer version wins
+      alts.push(c);
+    });
+    alts=alts.filter(function(a){return !ciContains(pick.val,a.val);});
+    g.v[f]=pick.val;
+    if(alts.length)g.alts[f]=alts;
+  });
+  var dated=g.recs.filter(function(r){return r.date;})[0];
+  g.date=dated?dated.date:'';g.dateSrc=g.date?'file':'';
+}
+function ciIsSchoolDay(ds){
+  var d=new Date(ds+'T12:00:00');var wd=d.getDay();if(wd===0||wd===6)return false;
+  return !(DB.calendarEvents||[]).some(function(ev){return /holiday|no school/i.test(ev.type||'')&&ev.start<=ds&&(!ev.end||ev.end>=ds);});
+}
+function ciNextSchoolDay(ds){
+  var d=new Date(ds+'T12:00:00');
+  for(var i=0;i<400;i++){var s=d.toISOString().slice(0,10);if(ciIsSchoolDay(s))return s;d.setDate(d.getDate()+1);}
+  return ds;
+}
+// Lessons with no date in any file get consecutive school days from the start date (weekends
+// and No-School calendar events skipped); dates that came from a file or that you typed are kept.
+function ciAssignDates(){
+  var used={};CI.groups.forEach(function(g){if(g.date&&g.dateSrc!=='auto')used[g.date]=1;});
+  var cursor=CI.start?ciNextSchoolDay(CI.start):'';
+  CI.groups.forEach(function(g){
+    if(g.dateSrc&&g.dateSrc!=='auto')return;
+    if(!cursor){g.date='';g.dateSrc='';return;}
+    while(used[cursor]){var d=new Date(cursor+'T12:00:00');d.setDate(d.getDate()+1);cursor=ciNextSchoolDay(d.toISOString().slice(0,10));}
+    g.date=cursor;g.dateSrc='auto';used[cursor]=1;
+    var n=new Date(cursor+'T12:00:00');n.setDate(n.getDate()+1);cursor=ciNextSchoolDay(n.toISOString().slice(0,10));
+  });
+}
+
+/* ── UI ── */
+var CI_KIND_LABEL={pptx:'PowerPoint',xlsx:'Excel',xls:'Excel',xlsm:'Excel',csv:'CSV',docx:'Word',pdf:'PDF',txt:'Text',md:'Text'};
+function curFilesChosen(fileList){
+  var files=Array.prototype.slice.call(fileList||[]);if(!files.length)return;
+  files.forEach(function(f){
+    if(CI.docs.some(function(d){return d.name===f.name&&d.size===f.size;}))return;
+    var st={name:f.name,state:'reading',msg:'Reading...'};CI.status.push(st);
+    ciReadFile(f).then(function(doc){st.state='ok';CI.docs.push(doc);ciRebuild();}).catch(function(e){st.state='err';st.msg=(e&&e.message)||'Could not read this file.';ciRenderPanel();});
+  });
+  ciRenderPanel();
+  var inp=document.getElementById('cur-files');if(inp)inp.value='';
+}
+function ciRebuild(){
+  var all=[];
+  CI.docs.forEach(function(d,i){
+    d.records=ciExtract(d,i);all=all.concat(d.records);
+    var units={};d.records.forEach(function(r){if(r.unit)units[r.unit]=(units[r.unit]||0)+1;});
+    d.mainUnit=Object.keys(units).sort(function(a,b){return units[b]-units[a];})[0]||ciUnitGuess(d.name)||'';
+  });
+  var prevDates={};CI.groups.forEach(function(g){if(g.dateSrc==='user')prevDates[g.recs[0].file+'|'+g.recs[0].order+'|'+g.recs[0].title]=g.date;});
+  CI.groups=ciMerge(all);
+  CI.groups.forEach(function(g){var k=g.recs[0].file+'|'+g.recs[0].order+'|'+g.recs[0].title;if(prevDates[k]){g.date=prevDates[k];g.dateSrc='user';}});
+  if(!CI.start){var t=new Date().toISOString().slice(0,10),fd=(DB.setup&&DB.setup.firstday)||'';CI.start=ciNextSchoolDay(fd&&fd>t?fd:t);}
+  ciAssignDates();ciRenderPanel();
+}
+function ciRemoveDoc(name){
+  CI.docs=CI.docs.filter(function(d){return d.name!==name;});
+  CI.status=CI.status.filter(function(s){return s.name!==name;});
+  CI.groups=[];if(CI.docs.length)ciRebuild();else ciRenderPanel();
+}
+function ciClearAll(){CI.docs=[];CI.groups=[];CI.status=[];ciRenderPanel();}
+function ciSet(i,f,v){var g=CI.groups[i];if(!g)return;g.v[f]=v;}
+function ciSetDate(i,v){var g=CI.groups[i];if(!g)return;g.date=v;g.dateSrc=v?'user':'';}
+function ciToggle(i,on){var g=CI.groups[i];if(g)g.include=!!on;ciUpdateCommitLabel();}
+function ciUseAlt(i,f,j){
+  var g=CI.groups[i];if(!g||!g.alts[f]||!g.alts[f][j])return;
+  var chosen=g.alts[f][j],old=g.v[f];
+  g.v[f]=chosen.val;g.alts[f][j]={kind:chosen.kind,file:'(previous choice)',val:old};
+  ciRenderPanel();
+}
+function ciSetStart(v){CI.start=v;ciAssignDates();ciRenderPanel();}
+function ciSelectAll(on){CI.groups.forEach(function(g){g.include=on;});ciRenderPanel();}
+function ciPeriodChecked(p){if(CI.periods===null)return null;return CI.periods.indexOf(String(p))>=0;}
+function ciTogglePeriod(p,on){
+  if(CI.periods===null)CI.periods=[];
+  var s=String(p),ix=CI.periods.indexOf(s);
+  if(on&&ix<0)CI.periods.push(s);if(!on&&ix>=0)CI.periods.splice(ix,1);
+  ciUpdateCommitLabel();
+}
+function ciUpdateCommitLabel(){
+  var b=document.getElementById('ci-commit-btn');if(!b)return;
+  var n=CI.groups.filter(function(g){return g.include;}).length,pc=(CI.periods||[]).length;
+  b.textContent='\u2795 Add '+n+' lesson'+(n===1?'':'s')+' to Lesson Plans'+(pc>1?' ('+pc+' classes)':'');
+  b.disabled=!n||!pc;b.style.opacity=(!n||!pc)?'.5':'1';
+}
+function ciRenderPanel(){
+  var panel=document.getElementById('cur-import-panel');if(!panel)return;
+  var h='';
+  if(CI.status.length){
+    h+='<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">'+CI.status.map(function(s){
+      var d=CI.docs.filter(function(x){return x.name===s.name;})[0];
+      var ext=(s.name.split('.').pop()||'').toLowerCase();
+      var info=s.state==='reading'?'Reading...':s.state==='err'?s.msg:(function(){
+        var n=d.records.length;
+        var what=d.kind==='slides'?d.slides.length+' slide'+(d.slides.length===1?'':'s'):d.kind==='sheet'?d.tables.length+' sheet'+(d.tables.length===1?'':'s'):d.blocks.length+' lines';
+        return what+' read \u2192 '+(n?n+' lesson'+(n===1?'':'s')+' found':'no lesson structure found, saved as a resource only');
+      })();
+      var col=s.state==='err'?'#dc2626':s.state==='reading'?'#888':(d&&d.records.length?'#166534':'#92400e');
+      return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;background:var(--surface);border-radius:7px;padding:6px 10px">'
+        +'<span class="badge b-blue" style="font-size:9px">'+esc(CI_KIND_LABEL[ext]||ext.toUpperCase())+'</span>'
+        +'<strong style="color:var(--dark)">'+esc(s.name)+'</strong>'
+        +'<span style="color:'+col+';flex:1">'+esc(info)+'</span>'
+        +'<button onclick="ciRemoveDoc(\''+esc(s.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:#999;font-size:14px" title="Remove this file">\u2715</button></div>';
+    }).join('')+'</div>';
+  }
+  if(!CI.groups.length){panel.innerHTML=h;return;}
+  var matched=CI.groups.filter(function(g){return g.files.length>1;}).length;
+  var conflicts=0;CI.groups.forEach(function(g){conflicts+=Object.keys(g.alts).length;});
+  h+='<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#0369a1">'
+    +'<strong>'+CI.docs.length+' file'+(CI.docs.length===1?'':'s')+' compared \u2192 '+CI.groups.length+' lesson'+(CI.groups.length===1?'':'s')+'.</strong> '
+    +(matched?matched+' combined from more than one file. ':(CI.docs.length>1?'No lessons lined up across files (titles/lesson numbers differ). ':''))
+    +(conflicts?conflicts+' field'+(conflicts===1?'':'s')+' had different wording in different files \u2014 the best source was chosen and the others are offered as buttons. ':'')
+    +'Check and edit anything below, then add them.</div>';
+  var periods=getSchedule().filter(function(r){return r.type==='Class';}).map(function(r){var m=r.label.match(/\d+/);return {p:m?m[0]:r.label,subject:r.subject||''};});
+  if(CI.periods===null){
+    CI.periods=[];
+    // Default to the classes teaching the same subject as the uploaded units, else the first class.
+    if(periods.length)CI.periods.push(periods[0].p);
+  }
+  h+='<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px">'
+    +'<div class="fg" style="max-width:190px"><label>Start date for lessons with no date</label><input type="date" value="'+esc(CI.start)+'" onchange="ciSetStart(this.value)"></div>'
+    +'<div class="fg"><label>Add to these classes</label><div style="display:flex;flex-wrap:wrap;gap:8px;padding:6px 0">'
+    +periods.map(function(x){return '<label style="text-transform:none;font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" '+(CI.periods.indexOf(x.p)>=0?'checked ':'')+'onchange="ciTogglePeriod(\''+esc(x.p)+'\',this.checked)"> P'+esc(x.p)+(x.subject?' '+esc(x.subject):'')+'</label>';}).join('')
+    +'</div></div>'
+    +'<div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="ciSelectAll(true)">Select all</button><button class="btn btn-sm" onclick="ciSelectAll(false)">Select none</button></div></div>';
+  var ta='width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;min-height:46px;resize:vertical;color:var(--dark);background:var(--card-bg)';
+  var inp='width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg)';
+  function field(i,g,f,rows){
+    var altHtml=(g.alts[f]||[]).map(function(a,j){
+      return '<button class="btn btn-sm" style="font-size:10px;margin:3px 4px 0 0;padding:2px 7px" onclick="ciUseAlt('+i+',\''+f+'\','+j+')" title="'+esc(a.val)+'">\u21C4 Use '+esc(a.file)+': '+esc(ciNorm(a.val).slice(0,38))+(ciNorm(a.val).length>38?'\u2026':'')+'</button>';
+    }).join('');
+    return '<div class="fg" style="margin:0"><label style="font-size:10px">'+esc(CI_LABELS[f])+'</label><textarea style="'+ta+(rows?';min-height:'+rows+'px':'')+'" oninput="ciSet('+i+',\''+f+'\',this.value)">'+esc(g.v[f])+'</textarea>'+altHtml+'</div>';
+  }
+  h+=CI.groups.map(function(g,i){
+    var dateNote=g.dateSrc==='file'?'date from file':g.dateSrc==='auto'?'auto date':g.dateSrc==='user'?'your date':'no date';
+    return '<div style="border:1.5px solid '+(g.include?'#bae6fd':'var(--border)')+';border-radius:9px;margin-bottom:8px;background:'+(g.include?'var(--card-bg)':'var(--surface)')+';opacity:'+(g.include?'1':'.6')+'">'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px">'
+      +'<input type="checkbox" '+(g.include?'checked ':'')+'onchange="ciToggle('+i+',this.checked)" title="Include this lesson">'
+      +'<input type="date" value="'+esc(g.date)+'" onchange="ciSetDate('+i+',this.value)" style="padding:5px 6px;border:1.5px solid '+(g.date?'var(--border)':'#fca5a5')+';border-radius:6px;font-size:12px" title="'+dateNote+'">'
+      +'<span style="font-size:9px;color:var(--mid)">'+dateNote+'</span>'
+      +'<input type="text" value="'+esc(g.v.title)+'" oninput="ciSet('+i+',\'title\',this.value)" style="'+inp+';flex:2;min-width:180px;width:auto;font-weight:700" placeholder="Lesson title">'
+      +'<input type="text" value="'+esc(g.v.unit)+'" oninput="ciSet('+i+',\'unit\',this.value)" style="'+inp+';flex:1;min-width:120px;width:auto" placeholder="Unit">'
+      +'<span style="display:flex;gap:3px;flex-wrap:wrap">'+g.files.map(function(f){return '<span class="badge '+(g.files.length>1?'b-mint':'b-gray')+'" style="font-size:8px" title="'+esc(f)+'">'+esc(f.length>22?f.slice(0,20)+'\u2026':f)+'</span>';}).join('')+'</span>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;padding:0 10px 8px">'
+      +field(i,g,'standard',0)+field(i,g,'objective',0)+field(i,g,'donow',0)+field(i,g,'closure',0)+field(i,g,'hw',0)
+      +'</div>'
+      +'<details style="padding:0 10px 8px"><summary style="font-size:11px;color:var(--mid);cursor:pointer">More fields (instruction, practice, vocabulary, materials)</summary>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:6px">'
+      +field(i,g,'direct',0)+field(i,g,'guided',0)+field(i,g,'independent',0)+field(i,g,'vocab',0)+field(i,g,'materials',0)+'</div></details></div>';
+  }).join('');
+  h+='<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px">'
+    +'<button id="ci-commit-btn" class="btn btn-primary" onclick="ciCommit()">\u2795 Add to Lesson Plans</button>'
+    +'<label style="text-transform:none;font-size:12px;display:flex;align-items:center;gap:5px"><input type="checkbox" '+(CI.saveRes?'checked ':'')+'onchange="CI.saveRes=this.checked"> Also list these files under Curriculum Resources</label>'
+    +'<span style="font-size:11px;color:var(--mid)">If a lesson already exists on that date and period, only its empty fields are filled \u2014 nothing you wrote is overwritten.</span></div>';
+  panel.innerHTML=h;ciUpdateCommitLabel();
+}
+var CI_RES_TYPE={pptx:'PowerPoint',xlsx:'Excel Spreadsheet',xls:'Excel Spreadsheet',xlsm:'Excel Spreadsheet',csv:'Excel Spreadsheet',docx:'Word Doc',pdf:'PDF',txt:'Other',md:'Other'};
+function ciCommit(){
+  var periods=(CI.periods||[]).slice();if(!periods.length){toast('Choose at least one class');return;}
+  var made=0,filled=0,undated=0,touched=0,uid=0;
+  var textFields=['unit','standard','objective','donow','direct','guided','independent','closure','hw','materials'];
+  CI.groups.forEach(function(g){
+    if(!g.include)return;
+    if(!g.date){undated++;return;}
+    periods.forEach(function(p){
+      var d=g.v;
+      var notes=d.vocab?('Vocabulary: '+ciNorm(d.vocab).replace(/\s*;\s*/g,', ')):'';
+      var ex=DB.lessons.find(function(l){return l.date===g.date&&String(l.period)===String(p);});
+      if(ex){
+        var changed=false;
+        textFields.forEach(function(f){if(!String(ex[f]||'').trim()&&d[f]){ex[f]=d[f];changed=true;}});
+        if(!String(ex.title||'').trim()&&d.title){ex.title=d.title;changed=true;}
+        if(notes&&String(ex.notes||'').indexOf(notes)<0){ex.notes=(ex.notes?ex.notes+'\n':'')+notes;changed=true;}
+        if(changed)filled++;else touched++;
+      }else{
+        var les={id:Date.now()+'_'+(uid++)+Math.random().toString(36).slice(2,5),title:d.title||'Lesson',date:g.date,period:String(p),
+          unit:d.unit||'',standard:d.standard||'',objective:d.objective||'',donow:d.donow||'',direct:d.direct||'',guided:d.guided||'',
+          independent:d.independent||'',closure:d.closure||'',hw:d.hw||'',materials:d.materials||'',tech:'',diff:'',
+          assess:d.closure?'Exit ticket':'Observation',link:'',status:'Planned',notes:notes,importedFrom:g.files.join(', ')};
+        DB.lessons.push(les);made++;
+      }
+    });
+  });
+  var resAdded=0;
+  if(CI.saveRes){
+    CI.docs.forEach(function(doc){
+      if(DB.curriculum.some(function(r){return r.fileName===doc.name;}))return;
+      var n=(doc.records||[]).length;
+      DB.curriculum.push({id:Date.now()+'_r'+(uid++),name:ciBaseName(doc.name),unit:doc.mainUnit||'',period:'all',type:CI_RES_TYPE[doc.ext]||'Other',url:'',
+        notes:'Uploaded '+doc.ext.toUpperCase()+' \u2014 '+n+' lesson'+(n===1?'':'s')+' read into Lesson Plans',fileName:doc.name,uploaded:true});
+      resAdded++;
+    });
+  }
+  save();renderCurriculum();
+  var msg='Added '+made+' new lesson'+(made===1?'':'s')+(filled?', filled in '+filled+' existing':'')+(touched?', '+touched+' already complete':'')+(undated?'. '+undated+' had no date \u2014 set a start date and try again':'')+(resAdded?'. '+resAdded+' file'+(resAdded===1?'':'s')+' listed under resources':'');
+  toast('\u2705 '+msg);
+  var res=document.getElementById('ci-result');
+  if(res){
+    res.style.display='block';
+    res.innerHTML='<strong>\u2705 '+esc(msg)+'.</strong> <button class="btn btn-sm" onclick="openFull(\'lessons\')">\uD83D\uDCDA View Lesson Plans</button> <button class="btn btn-sm" onclick="openFull(\'learning\')">\uD83D\uDCE2 See it in What We\'re Learning</button>';
+  }
+  if(!undated){CI.docs=[];CI.groups=[];CI.status=[];CI.periods=null;}
+  else{CI.groups=CI.groups.filter(function(g){return g.include&&!g.date;});}
+  ciRenderPanel();
+}
+function ciDrop(e){e.preventDefault();var z=document.getElementById('cur-drop');if(z)z.style.borderColor='#bae6fd';curFilesChosen(e.dataTransfer&&e.dataTransfer.files);}
+
+/* ══════════════════════════════════════════════
+   WHAT WE'RE LEARNING — class update for a day / week / month / chosen dates, plus a syllabus.
+   Everything here is read straight from the Lesson Plans (title, objective, Do Now, exit ticket,
+   homework), so what parents and students see always matches what's planned.
+══════════════════════════════════════════════ */
+var LN_DEFAULT_DISC='Unfinished classwork becomes homework unless otherwise noted.';
+function lnSetup(){if(!DB.setup)DB.setup={};return DB.setup;}
+function lnPad(n){return String(n).padStart(2,'0');}
+function lnISO(d){return d.getFullYear()+'-'+lnPad(d.getMonth()+1)+'-'+lnPad(d.getDate());}
+function lnParse(s){return new Date(s+'T12:00:00');}
+function lnAdd(d,n){var x=new Date(d.getTime());x.setDate(x.getDate()+n);return x;}
+function lnVal(id){var e=document.getElementById(id);return e?e.value:'';}
+function lnChk(id){var e=document.getElementById(id);return !!(e&&e.checked);}
+function lnLong(d){return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+
+// "6th Grade Math": the period's subject, dressed with the grade from Schedule Setup when it lacks one.
+function lnCourseTitle(sub){
+  var base=ciNorm(lnSetup().subject||'');sub=ciNorm(sub);
+  if(sub&&/grade|\d/i.test(sub))return sub;
+  var pre=(base.match(/^\s*((?:\d+(?:st|nd|rd|th)|kindergarten)\s+grade|grade\s+\d+|kindergarten)\b/i)||[])[1];
+  if(sub){if(base&&base.toLowerCase().indexOf(sub.toLowerCase())>=0)return base;return pre?pre+' '+sub:sub;}
+  return base||'Class';
+}
+function lnClasses(){
+  return getSchedule().filter(function(r){return r.type==='Class';}).map(function(r){
+    var m=r.label.match(/\d+/);var p=m?m[0]:r.label;
+    return {p:String(p),subject:r.subject||'',title:lnCourseTitle(r.subject||'')};
+  });
+}
+function lnPrefs(){
+  var s=lnSetup();if(!s.lnPrefs)s.lnPrefs={obj:true,donow:true,exit:true,hw:true,std:false,disc:true};
+  return s.lnPrefs;
+}
+function lnDisclaimer(){var d=lnSetup().learningDisclaimer;return (d==null||d==='')?LN_DEFAULT_DISC:d;}
+
+function renderLearning(){
+  var sel=document.getElementById('ln-class');if(!sel)return;
+  var classes=lnClasses(),prev=sel.value||'all';
+  sel.innerHTML='<option value="all">All classes</option>'+classes.map(function(c){return '<option value="'+esc(c.p)+'">Period '+esc(c.p)+' — '+esc(c.title)+'</option>';}).join('');
+  sel.value=(prev==='all'||classes.some(function(c){return c.p===prev;}))?prev:'all';
+  var today=lnISO(new Date());
+  if(!lnVal('ln-date'))document.getElementById('ln-date').value=today;
+  if(!lnVal('ln-month'))document.getElementById('ln-month').value=today.slice(0,7);
+  if(!lnVal('ln-from'))document.getElementById('ln-from').value=today;
+  if(!lnVal('ln-to'))document.getElementById('ln-to').value=lnISO(lnAdd(new Date(),13));
+  var P=lnPrefs();
+  [['obj','ln-opt-obj'],['donow','ln-opt-donow'],['exit','ln-opt-exit'],['hw','ln-opt-hw'],['std','ln-opt-std'],['disc','ln-opt-disc']].forEach(function(x){document.getElementById(x[1]).checked=!!P[x[0]];});
+  document.getElementById('ln-disclaimer').value=lnDisclaimer();
+  lnModeChanged(true);
+  lnSylInit();
+  lnTab(lnSetup().lnTab||'range');
+}
+function lnTab(t){
+  lnSetup().lnTab=t;
+  document.getElementById('ln-pane-range').style.display=t==='range'?'block':'none';
+  document.getElementById('ln-pane-syl').style.display=t==='syl'?'block':'none';
+  document.getElementById('ln-tab-range').className='btn btn-sm'+(t==='range'?' btn-primary':'');
+  document.getElementById('ln-tab-syl').className='btn btn-sm'+(t==='syl'?' btn-primary':'');
+}
+function lnModeChanged(skipRender){
+  var m=lnVal('ln-mode');
+  document.getElementById('ln-wrap-date').style.display=(m==='day'||m==='week')?'':'none';
+  document.getElementById('ln-wrap-month').style.display=m==='month'?'':'none';
+  document.getElementById('ln-wrap-range').style.display=m==='custom'?'flex':'none';
+  document.getElementById('ln-step').style.display=m==='custom'?'none':'';
+  if(!skipRender)lnRender();else lnRender();
+}
+function lnStep(dir){
+  var m=lnVal('ln-mode');
+  if(m==='day'||m==='week'){
+    var d=lnParse(lnVal('ln-date')||lnISO(new Date()));
+    if(m==='week')d=lnAdd(d,7*dir);
+    else{d=lnAdd(d,dir);while(d.getDay()===0||d.getDay()===6)d=lnAdd(d,dir);}
+    document.getElementById('ln-date').value=lnISO(d);
+  }else if(m==='month'){
+    var mv=lnVal('ln-month')||lnISO(new Date()).slice(0,7);
+    var dd=new Date(+mv.slice(0,4),+mv.slice(5,7)-1+dir,1);
+    document.getElementById('ln-month').value=dd.getFullYear()+'-'+lnPad(dd.getMonth()+1);
+  }
+  lnRender();
+}
+function lnPrefChanged(){
+  var P=lnPrefs();
+  P.obj=lnChk('ln-opt-obj');P.donow=lnChk('ln-opt-donow');P.exit=lnChk('ln-opt-exit');P.hw=lnChk('ln-opt-hw');P.std=lnChk('ln-opt-std');P.disc=lnChk('ln-opt-disc');
+  lnSetup().learningDisclaimer=lnVal('ln-disclaimer');
+  save();lnRender();
+}
+function lnDates(){
+  var m=lnVal('ln-mode'),out=[],d,i;
+  if(m==='day'){var v=lnVal('ln-date');if(v)out=[v];}
+  else if(m==='week'){
+    var w=lnVal('ln-date');if(w){var mon=getMondayOf(lnParse(w));for(i=0;i<5;i++)out.push(lnISO(lnAdd(mon,i)));}
+  }else if(m==='month'){
+    var mv=lnVal('ln-month');
+    if(mv){var mo=+mv.slice(5,7)-1;d=new Date(+mv.slice(0,4),mo,1);while(d.getMonth()===mo){if(d.getDay()%6)out.push(lnISO(d));d=lnAdd(d,1);}}
+  }else{
+    var a=lnVal('ln-from'),b=lnVal('ln-to');
+    if(a&&b&&a<=b){d=lnParse(a);var end=lnParse(b),n=0;while(d<=end&&n<130){if(d.getDay()%6)out.push(lnISO(d));d=lnAdd(d,1);n++;}}
+  }
+  return out;
+}
+function lnRangeLabel(dates){
+  if(!dates.length)return '';
+  var m=lnVal('ln-mode'),a=lnParse(dates[0]),b=lnParse(dates[dates.length-1]);
+  if(m==='day')return a.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  if(m==='month')return a.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  var y=b.getFullYear();
+  if(m==='week'){return 'Week of '+lnLong(a)+(a.getMonth()===b.getMonth()?'–'+b.getDate():' – '+lnLong(b))+', '+y;}
+  return lnLong(a)+' – '+lnLong(b)+', '+y;
+}
+function lnNoSchool(ds){
+  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school/i.test(e.type||'')&&e.start<=ds&&(!e.end||e.end>=ds);})[0];
+  return ev?ev.name:'';
+}
+function lnDayLabel(ds){var d=lnParse(ds);return d.toLocaleDateString('en-US',{weekday:'short'})+' '+(d.getMonth()+1)+'/'+d.getDate();}
+function lnSig(days){
+  return days.map(function(d){
+    return d.noSchool?'NS:'+d.noSchool:d.lessons.map(function(l){return [l.title,l.objective,l.donow,l.closure,l.hw,l.standard,l.nocarry,l.status].join('|');}).join('||');
+  }).join('##');
+}
+function lnBuild(){
+  var dates=lnDates(),sel=lnVal('ln-class')||'all',all=lnClasses();
+  var picked=sel==='all'?all:all.filter(function(c){return c.p===sel;});
+  var groups=[];
+  picked.forEach(function(c){
+    var days=dates.map(function(ds){
+      return {date:ds,noSchool:lnNoSchool(ds),lessons:DB.lessons.filter(function(l){return l.date===ds&&String(l.period)===c.p;})};
+    });
+    var sig=c.title+'@@'+lnSig(days);
+    var same=groups.filter(function(g){return g.sig===sig;})[0];
+    if(same)same.periods.push(c.p);else groups.push({sig:sig,periods:[c.p],title:c.title,days:days});
+  });
+  groups.forEach(function(g){
+    g.heading=g.title+(picked.length>1&&g.periods.length?' (Period'+(g.periods.length>1?'s':'')+' '+g.periods.join(', ')+')':'');
+  });
+  return {dates:dates,mode:lnVal('ln-mode'),label:lnRangeLabel(dates),groups:groups,prefs:lnPrefs(),disclaimer:lnDisclaimer()};
+}
+function lnOne(s){return ciNorm(String(s||'').replace(/\n+/g,'; '));}
+function lnSummary(g,model){
+  if(model.mode==='day')return '';
+  var lessons=[];g.days.forEach(function(d){if(!d.noSchool)d.lessons.forEach(function(l){if(l.status!=='Cancelled — Sub')lessons.push(l);});});
+  if(!lessons.length)return '';
+  var units=[],titles=[];
+  lessons.forEach(function(l){var u=ciNorm(l.unit);if(u&&units.indexOf(u)<0)units.push(u);var t=ciNorm(l.title);if(t&&titles.indexOf(t)<0)titles.push(t);});
+  var lead=model.mode==='week'?"This week we're working on":model.mode==='month'?"This month we're working on":"During this stretch we're working on";
+  var tl=titles.length>6?titles.slice(0,5).join(', ')+', and more':titles.join(', ');
+  return lead+' '+(units.length?units.join(' and ')+' ('+tl+').':tl+'.');
+}
+function lnText(model){
+  var L=[],P=model.prefs;
+  model.groups.forEach(function(g,gi){
+    if(gi)L.push('','------------------------------','');
+    L.push(g.heading+' — '+model.label);
+    var sum=lnSummary(g,model);if(sum)L.push(sum);
+    L.push('');
+    var any=false;
+    g.days.forEach(function(d){
+      var wd=lnDayLabel(d.date);
+      if(d.noSchool){L.push(wd+' — No school ('+d.noSchool+')','');any=true;return;}
+      d.lessons.forEach(function(l){
+        any=true;
+        L.push(wd+' — '+(l.title||'Lesson')+(l.status==='Cancelled — Sub'?' (sub day)':''));
+        if(P.obj&&l.objective)L.push('Learning target: '+lnOne(l.objective));
+        if(P.std&&l.standard)L.push('Standards: '+lnOne(l.standard));
+        if(P.donow&&l.donow)L.push('Do Now: '+lnOne(l.donow));
+        if(P.exit&&l.closure)L.push('Exit Ticket: '+lnOne(l.closure));
+        if(P.hw)L.push('Homework: '+(l.hw?lnOne(l.hw):'None assigned')+(l.nocarry?' (unfinished classwork is not homework today)':''));
+        L.push('');
+      });
+    });
+    if(!any)L.push('Nothing is planned for this time yet.','');
+  });
+  if(P.disc&&model.disclaimer)L.push('Note: '+model.disclaimer);
+  return L.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+// One renderer for the on-screen preview, the rich-text copy and the print page.
+function lnHtml(model,preview){
+  var P=model.prefs,s=lnSetup();
+  var h='<div style="font-family:Arial,Helvetica,sans-serif;color:#222;line-height:1.45">';
+  var meta=[s.teacher,s.school].filter(Boolean).join(' · ');
+  model.groups.forEach(function(g,gi){
+    if(gi)h+='<hr style="border:none;border-top:1px solid #ccc;margin:18px 0">';
+    h+='<h2 style="margin:0 0 2px;font-size:19px">'+esc(g.heading)+'</h2><div style="color:#555;margin-bottom:6px">'+esc(model.label)+(meta&&!preview?' · '+esc(meta):'')+'</div>';
+    var sum=lnSummary(g,model);if(sum)h+='<p style="margin:6px 0 12px;font-style:italic">'+esc(sum)+'</p>';
+    var any=false;
+    g.days.forEach(function(d){
+      var wd=lnDayLabel(d.date);
+      if(d.noSchool){any=true;h+='<div style="margin:0 0 10px"><strong>'+esc(wd)+' — No school</strong> <span style="color:#666">('+esc(d.noSchool)+')</span></div>';return;}
+      if(!d.lessons.length){
+        if(preview&&(model.mode!=='day'||true))h+='<div style="margin:0 0 8px;color:#999;font-size:12px">'+esc(wd)+' — no lesson plan entered <button class="btn btn-sm" style="font-size:10px;padding:1px 7px" onclick="lnAddLesson(\''+d.date+'\',\''+esc(g.periods[0])+'\')">+ add</button></div>';
+        return;
+      }
+      d.lessons.forEach(function(l){
+        any=true;
+        h+='<div style="margin:0 0 12px"><strong style="font-size:14px">'+esc(wd)+' — '+esc(l.title||'Lesson')+(l.status==='Cancelled — Sub'?' <span style="font-weight:400;color:#666">(sub day)</span>':'')+'</strong><ul style="margin:3px 0 0 18px;padding:0">';
+        function li(k,v){h+='<li style="margin:1px 0"><b>'+k+':</b> '+esc(lnOne(v))+'</li>';}
+        if(P.obj&&l.objective)li('Learning target',l.objective);
+        if(P.std&&l.standard)li('Standards',l.standard);
+        if(P.donow&&l.donow)li('Do Now',l.donow);
+        if(P.exit&&l.closure)li('Exit Ticket',l.closure);
+        if(P.hw)li('Homework',(l.hw?lnOne(l.hw):'None assigned')+(l.nocarry?' (unfinished classwork is not homework today)':''));
+        h+='</ul></div>';
+      });
+    });
+    if(!any)h+='<div style="color:#777;margin:6px 0 12px">Nothing is planned for this time yet.</div>';
+  });
+  if(P.disc&&model.disclaimer)h+='<p style="margin:14px 0 0;padding-top:8px;border-top:1px solid #ccc;font-size:12px;color:#444"><b>Note:</b> '+esc(model.disclaimer)+'</p>';
+  return h+'</div>';
+}
+function lnAddLesson(ds,p){openLessonFormForDay(ds,p);}
+function lnRender(){
+  var box=document.getElementById('ln-preview');if(!box)return;
+  var model=lnBuild();
+  if(!model.dates.length){box.innerHTML='<div class="empty">Pick a date (or a start and end date) to see what\'s planned.</div>';return;}
+  box.innerHTML=lnHtml(model,true);
+  var n=0,total=0;
+  model.groups.forEach(function(g){g.days.forEach(function(d){if(!d.noSchool){total++;if(d.lessons.length)n++;}});});
+  var st=document.getElementById('ln-status');
+  if(st)st.textContent=n+' of '+total+' class days have a lesson plan'+(n<total?' — the empty days are left out of the copy/print.':'.');
+}
+function lnCopyPlain(txt,okMsg){
+  function fb(){var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast(okMsg);}catch(e){toast('Copy failed — select the text and copy it manually');}document.body.removeChild(ta);}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){toast(okMsg);}).catch(fb);else fb();
+}
+function lnCopyText(){var m=lnBuild();if(!m.dates.length){toast('Pick a date first');return;}lnCopyPlain(lnText(m),'✅ Copied — paste it into a Focus message or an email');}
+function lnCopyRich(){
+  var m=lnBuild();if(!m.dates.length){toast('Pick a date first');return;}
+  var html=lnHtml(m,false),txt=lnText(m);
+  if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){
+    navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})])
+      .then(function(){toast('✅ Copied with formatting — paste into Docs, Gmail or Word');}).catch(function(){lnCopyPlain(txt,'✅ Copied as plain text');});
+  }else lnCopyPlain(txt,'✅ Copied as plain text');
+}
+function lnPrintHtml(title,body){
+  var w=window.open('','_blank');if(!w){toast('Allow pop-ups to print');return;}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;font-size:11pt;color:#111;padding:28px;max-width:780px;margin:0 auto}.no-print{background:#f5f5f5;border-bottom:2px solid #ddd;padding:10px 14px;margin:-28px -28px 18px;display:flex;gap:10px}@media print{.no-print{display:none!important}body{padding:0}}</style></head><body><div class="no-print"><button onclick="window.print()" style="padding:6px 14px;font-weight:bold;cursor:pointer">🖨️ Print / Save PDF</button><button onclick="window.close()" style="padding:6px 14px;cursor:pointer">Close</button></div>'+body+'</body></html>');
+  w.document.close();
+}
+function lnPrint(){var m=lnBuild();if(!m.dates.length){toast('Pick a date first');return;}lnPrintHtml((m.groups[0]?m.groups[0].heading:'Class update')+' — '+m.label,lnHtml(m,false));}
+
+/* ── Syllabus ── */
+var LN_SUBJ_TOPICS={
+  math6:['Ratios and rates','Fractions, decimals, and percents','Dividing fractions','Expressions and equations','Integers and the coordinate plane','Area, surface area, and volume','Statistics and data'],
+  math7:['Proportional relationships','Operations with rational numbers','Expressions and equations','Scale drawings, angles, area, and volume','Probability','Statistics and sampling'],
+  math8:['Linear equations and systems','Functions','Exponents and scientific notation','Transformations and congruence','The Pythagorean theorem','Statistics and bivariate data'],
+  math:['Number sense and operations','Fractions, decimals, and percents','Expressions and equations','Geometry and measurement','Data and statistics'],
+  ela:['Reading fiction closely','Nonfiction and informational text','Writing arguments','Narrative writing','Vocabulary and grammar in context','Research and presenting'],
+  science:['Scientific inquiry and lab skills','Matter and energy','Earth and space systems','Life science and ecosystems','Engineering and design'],
+  ss:['Geography and maps','Early civilizations','Government and citizenship','Economics basics','Primary sources and research']
+};
+var LN_MATERIALS={
+  math:"A pencil with an eraser, a notebook or binder just for this class, and a calculator on the days I ask for one. Graph paper and colored pencils are nice to have but not required. If you're missing something, tell me and we'll work it out.",
+  ela:"A notebook or folder for notes and writing, pens or pencils, and a book you're reading on your own. Have it with you every day.",
+  science:"A notebook or binder, pencils and a few colored pencils, and your charged Chromebook when we need it. Labs can get messy, so dress for that.",
+  ss:"A binder or notebook, pens and pencils, and colored pencils for maps.",
+  other:"A notebook or binder for this class, pencils and pens, and your charged school device when we need it."
+};
+function lnSubjectOf(t){
+  t=String(t||'');
+  if(/math|algebra|geometry|pre-?alg/i.test(t))return 'math';
+  if(/\bela\b|english|reading|language arts|literature|writing/i.test(t))return 'ela';
+  if(/science|biology|chemistry|physics|earth/i.test(t))return 'science';
+  if(/social studies|history|civics|geograph|government/i.test(t))return 'ss';
+  return 'other';
+}
+function lnGradeOf(t){var m=String(t||'').match(/(\d{1,2})(?:st|nd|rd|th)?\s*grade|grade\s*(\d{1,2})/i);return m?(m[1]||m[2]):'';}
+function lnCourses(){
+  var out=[],seen={};
+  lnClasses().forEach(function(c){if(!seen[c.title]){seen[c.title]=1;out.push({title:c.title,periods:[c.p]});}else out.filter(function(o){return o.title===c.title;})[0].periods.push(c.p);});
+  if(!out.length)out.push({title:lnCourseTitle(''),periods:[]});
+  return out;
+}
+function lnSylState(title){var s=lnSetup();if(!s.syllabi)s.syllabi={};if(!s.syllabi[title])s.syllabi[title]={};return s.syllabi[title];}
+var LN_DEFAULT_GRADING=[['Tests',35],['Homework',20],['Quizzes',20],['Projects',15],['Participation',10]];
+function lnSylInit(){
+  var sel=document.getElementById('syl-course');if(!sel)return;
+  var courses=lnCourses(),prev=sel.value;
+  sel.innerHTML=courses.map(function(c){return '<option value="'+esc(c.title)+'">'+esc(c.title)+(c.periods.length?' (P'+esc(c.periods.join(', P'))+')':'')+'</option>';}).join('');
+  if(courses.some(function(c){return c.title===prev;}))sel.value=prev;
+  lnSylLoad();
+}
+function lnSylLoad(){
+  var title=lnVal('syl-course');var st=lnSylState(title),s=lnSetup();
+  function set(id,v){document.getElementById(id).value=v;}
+  set('syl-title',st.title||title);
+  set('syl-teacher',st.teacher!=null?st.teacher:(s.teacher||''));
+  set('syl-school',st.school!=null?st.school:(s.school||''));
+  set('syl-year',st.year!=null?st.year:(s.year||''));
+  set('syl-room',st.room||'');set('syl-email',st.email||'');set('syl-std',st.std||'');
+  set('syl-materials',st.materials!=null?st.materials:LN_MATERIALS[lnSubjectOf(title)]);
+  set('syl-late',st.late!=null?st.late:3);set('syl-latepct',st.latepct!=null?st.latepct:10);
+  var g=st.grading||LN_DEFAULT_GRADING;
+  document.getElementById('syl-grading').innerHTML=g.map(function(r,i){
+    return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input type="text" id="syl-gn-'+i+'" value="'+esc(r[0])+'" oninput="lnSylChanged()" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px"><input type="number" id="syl-gp-'+i+'" value="'+esc(r[1])+'" min="0" max="100" oninput="lnSylChanged()" style="width:64px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px"><span style="font-size:12px;color:var(--mid)">%</span></div>';
+  }).join('');
+  document.getElementById('syl-text').value=st.text||'';
+  lnSylSum();
+}
+function lnSylRead(){
+  var g=[];for(var i=0;i<LN_DEFAULT_GRADING.length;i++){var n=document.getElementById('syl-gn-'+i);if(n&&ciNorm(n.value))g.push([ciNorm(n.value),parseFloat(lnVal('syl-gp-'+i))||0]);}
+  return {title:ciNorm(lnVal('syl-title'))||lnVal('syl-course'),teacher:lnVal('syl-teacher'),school:lnVal('syl-school'),year:lnVal('syl-year'),room:lnVal('syl-room'),email:lnVal('syl-email'),
+    std:lnVal('syl-std'),materials:lnVal('syl-materials'),late:parseInt(lnVal('syl-late'),10)||0,latepct:parseInt(lnVal('syl-latepct'),10)||0,grading:g};
+}
+function lnSylSum(){
+  var f=lnSylRead(),sum=f.grading.reduce(function(a,r){return a+r[1];},0);
+  var el=document.getElementById('syl-sum');
+  el.textContent='Total: '+sum+'%'+(sum===100?'':' — should add up to 100');el.style.color=sum===100?'#166534':'#dc2626';
+}
+function lnSylChanged(){
+  var course=lnVal('syl-course'),st=lnSylState(course),f=lnSylRead();
+  Object.keys(f).forEach(function(k){st[k]=f[k];});
+  st.text=lnVal('syl-text');
+  save();lnSylSum();
+}
+function lnSylUnits(course){
+  var periods=lnCourses().filter(function(c){return c.title===course;})[0];periods=periods?periods.periods:[];
+  var units=[],first={};
+  DB.lessons.forEach(function(l){
+    if(periods.indexOf(String(l.period))<0)return;var u=ciNorm(l.unit);if(!u)return;
+    if(!(u in first)||(l.date&&l.date<first[u]))first[u]=l.date||'9999';
+    if(units.indexOf(u)<0)units.push(u);
+  });
+  units.sort(function(a,b){return (first[a]||'').localeCompare(first[b]||'');});
+  if(units.length)return {list:units,fromPlans:true};
+  var subj=lnSubjectOf(course),g=lnGradeOf(course);
+  return {list:LN_SUBJ_TOPICS[subj+g]||LN_SUBJ_TOPICS[subj]||[],fromPlans:false};
+}
+function lnSylDraft(f,course){
+  var t=f.title,subj=lnSubjectOf(course||t),L=[];
+  L.push(t,'Course Syllabus'+(ciNorm(f.year)?', '+ciNorm(f.year):''));
+  var who=[];if(ciNorm(f.teacher))who.push(ciNorm(f.teacher));if(ciNorm(f.room))who.push('Room '+ciNorm(f.room));if(ciNorm(f.school))who.push(ciNorm(f.school));
+  if(who.length)L.push(who.join(' | '));
+  var about={
+    math:t+" is about more than getting answers. You'll learn new ideas, practice them until they stick, and explain your thinking in words and on paper. Everything we do builds toward next year, so none of it is wasted effort. Mistakes are part of the deal. I'd rather see a wrong answer with real thinking behind it than a blank page.",
+    ela:"In "+t+" we read, write, talk, and argue about ideas. You'll read stories and articles closely, write almost every week, and learn to back up what you say with evidence from the text. Expect some reading at home most weeks and plenty of chances to share your writing with classmates.",
+    science:t+" is hands-on. You'll ask questions, test ideas, collect data, and work out what it means. Some days we'll be doing labs and some days reading and talking it through. You'll be expected to explain what you see in your own words, not just copy it down.",
+    ss:t+" is about people, places, and the choices that shaped the world we live in. We'll use maps, primary sources, and discussion to figure out why things happened, not just when. You'll be asked to form an opinion and back it up.",
+    other:"Welcome to "+t+". This page explains how the class works, what I expect from you, and how to reach me. Please read it over with a parent or guardian and keep it somewhere you can find it."
+  }[subj];
+  L.push('','ABOUT THIS CLASS',about);
+  var std=ciNorm(f.std)||'state';
+  var u=lnSylUnits(course||t);
+  L.push('','WHAT WE WILL COVER',"Our work follows the "+std+" standards for "+t+". "+(u.list.length?"Here's the plan. Dates can shift a little depending on how the class is going.":"The topics for each week are sent home in the weekly class update."));
+  u.list.forEach(function(x,i){L.push((i+1)+'. '+x);});
+  L.push('','HOW A CLASS DAY GOES',"Most days follow the same pattern. There's a Do Now on the board when you walk in, then a lesson, then time to practice, and an exit ticket at the end so I can see what stuck. A weekly update goes home listing what we're learning, each day's Do Now and exit ticket, and the homework, so you always know where we are.");
+  L.push('','WHAT YOU NEED',ciNorm(f.materials)||LN_MATERIALS[subj]);
+  var g=f.grading.filter(function(r){return r[1]>0;});
+  if(g.length){
+    L.push('','GRADING','Your grade is made up of these parts:');
+    g.forEach(function(r){L.push('- '+r[0]+': '+r[1]+'%');});
+    L.push('A is 90 to 100, B is 80 to 89, C is 70 to 79, D is 60 to 69, and F is below 60.');
+  }
+  L.push('','HOMEWORK',"Homework is short and meant to practice what we did that day. It's listed in the weekly update. "+lnDisclaimer().replace(/otherwise noted\.?$/,'I say otherwise.').replace(/unless I say otherwise\.$/,'unless I say otherwise.'));
+  if(f.late>0)L.push('','LATE WORK AND MAKE-UP WORK',"Late work is accepted for "+f.late+" school day"+(f.late===1?'':'s')+" after the due date and loses "+f.latepct+"% for each day it's late. After that it becomes a zero unless we've talked about it. If something is going on, talk to me before the due date and I'll work with you.");
+  L.push('','IF YOU ARE ABSENT',"You get the same number of days to make up the work as days you missed. Check the weekly update, ask a classmate, or ask me. It's your job to come ask for what you missed.");
+  L.push('','CLASS EXPECTATIONS','- Be on time and ready when the bell rings.','- Bring your materials every day.','- Listen when someone else is talking, whether it is me or a classmate.','- Keep phones and headphones put away unless I say otherwise.','- Treat people and their things with respect.');
+  L.push('','YOUR OWN WORK',"Talking through problems with classmates is great when I say it's okay. Copying someone else's work, or letting someone copy yours, gets a zero on that assignment and a call home.");
+  L.push('','GETTING HELP AND CONTACTING ME',"The best way to reach me is email"+(ciNorm(f.email)?' at '+ciNorm(f.email):'')+". I answer within one school day, usually sooner. If it is urgent, call the front office.");
+  L.push('','SIGNATURES',"I have read this syllabus and talked it over at home.",'','Student name: ______________________________   Date: ____________','','Parent/guardian signature: __________________________   Date: ____________');
+  return L.join('\n');
+}
+function lnSylGenerate(){
+  var course=lnVal('syl-course'),st=lnSylState(course),ta=document.getElementById('syl-text');
+  if(ciNorm(ta.value)&&st.text&&ciNorm(st.text)!==ciNorm(st.generated||'')&&!confirm('This replaces the syllabus text you edited. Continue?'))return;
+  var f=lnSylRead();ta.value=lnSylDraft(f,course);st.generated=ta.value;lnSylChanged();
+  toast('✅ Draft written — edit anything you like, it saves as you type');
+}
+function lnSylCopy(){var t=lnVal('syl-text');if(!ciNorm(t)){toast('Generate the draft first');return;}lnCopyPlain(t,'✅ Syllabus copied — paste it into Focus, Docs or an email');}
+function lnSylHtml(){
+  var lines=lnVal('syl-text').split('\n'),h='<div style="font-family:Arial,sans-serif;line-height:1.5">';
+  lines.forEach(function(l,i){
+    var t=l.replace(/\s+$/,'');
+    if(!t)h+='<div style="height:8px"></div>';
+    else if(i===0)h+='<h1 style="margin:0 0 2px;font-size:22px">'+esc(t)+'</h1>';
+    else if(/^[A-Z][A-Z ,&'\/-]{3,45}$/.test(t))h+='<h3 style="margin:14px 0 3px;font-size:13px;letter-spacing:.04em;border-bottom:1px solid #999;padding-bottom:2px">'+esc(t)+'</h3>';
+    else h+='<div style="white-space:pre-wrap">'+esc(t)+'</div>';
+  });
+  return h+'</div>';
+}
+function lnSylPrint(){var t=lnVal('syl-text');if(!ciNorm(t)){toast('Generate the draft first');return;}lnPrintHtml(lnVal('syl-title')+' Syllabus',lnSylHtml());}
+
 </script>
 
 <!-- AUTH SCREEN -->
