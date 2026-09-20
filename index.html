@@ -3106,9 +3106,11 @@ function loadFromFirestore(){
 function load(){}
 function loadFromLocal(){}
 
+// The Beta Testing Agreement popup is switched off. Set this to true to bring it back for new accounts.
+var SHOW_BETA_AGREEMENT=false;
 function checkBetaAgreement(){
   var o=document.getElementById('beta-agreement-overlay');if(!o)return;
-  o.style.display=(!isBetaTesterAccount||(DB.setup&&DB.setup.betaAgreementAccepted))?'none':'flex';
+  o.style.display=(!SHOW_BETA_AGREEMENT||!isBetaTesterAccount||(DB.setup&&DB.setup.betaAgreementAccepted))?'none':'flex';
 }
 function acceptBetaAgreement(){
   if(!DB.setup)DB.setup={};
