@@ -948,6 +948,10 @@ textarea{resize:vertical;min-height:64px}
           <div class="fg"><label>Reason</label><div style="display:flex;align-items:center" id="commreason-wrap"></div></div>
         </div>
         <div class="fg" style="margin-bottom:12px"><label>Notes (private)</label><textarea id="cm-notes" placeholder="What was discussed? Outcome?"></textarea></div>
+        <div id="cm-flag-row" style="display:none;margin-bottom:12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:12px">
+          <label style="text-transform:none;display:flex;gap:6px;align-items:center;font-weight:700;color:#b91c1c"><input type="checkbox" id="cm-flag"> ⚠️ Also add this to the Concern Dashboard</label>
+          <div style="font-size:11px;color:var(--mid);margin-top:3px">Creates an Open concern for this student (type: <strong id="cm-flag-type"></strong>) that you can assign, follow up on, and resolve.</div>
+        </div>
         <button class="btn btn-primary" onclick="saveComm()">💾 Save Contact</button>
       </div>
     </div>
@@ -1285,6 +1289,9 @@ textarea{resize:vertical;min-height:64px}
           </div>
         </div>
         <div class="fg" style="margin-bottom:12px"><label>Notes</label><textarea id="bh-notes" placeholder="Details of incident..."></textarea></div>
+        <div id="bh-flag-row" style="display:none;margin-bottom:12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:12px">
+          <label style="text-transform:none;display:flex;gap:6px;align-items:center;font-weight:700;color:#b91c1c"><input type="checkbox" id="bh-flag"> ⚠️ This is a referral — also add it to the Concern Dashboard</label>
+        </div>
         <button class="btn btn-primary" onclick="saveBehavior()">💾 Save Entry</button>
       </div>
     </div>
@@ -3215,7 +3222,7 @@ function promptAddOpt(key,selectId){
   if(!val||!val.trim())return;
   addOpt(key,val.trim());
   var el=document.getElementById(selectId);
-  if(el){var opt=document.createElement('option');opt.text=val.trim();el.add(opt);el.value=val.trim();}
+  if(el){var opt=document.createElement('option');opt.text=val.trim();el.add(opt);el.value=val.trim();el.dispatchEvent(new Event('change'));}
   toast('Option added');
 }
 function rebuildSelect(id,key){
@@ -3327,7 +3334,7 @@ function openFull(id){
       var pw=document.getElementById('pttype-wrap');if(pw)pw.innerHTML=buildSelect('pt-type','ptType','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');}
     if(id==='comms'){renderCommStats();renderCommTable();populateStudentSelect('cm-student','cm-period');renderCommCharts();
       var cmw=document.getElementById('commmethod-wrap');if(cmw)cmw.innerHTML=buildSelect('cm-method','commMethod','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
-      var crw=document.getElementById('commreason-wrap');if(crw)crw.innerHTML=buildSelect('cm-reason','commReason','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');}
+      var crw=document.getElementById('commreason-wrap');if(crw)crw.innerHTML=buildSelect('cm-reason','commReason','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');commReasonWire();}
     if(id==='boy')renderBOY();
     if(id==='subplans'){loadSubInfo();renderSubPlans();buildSubPeriodInputs();}
     if(id==='lessons'){lessonWeekStart=getMondayOf(new Date());lessonView('week');buildLessonCopyPeriods();}
@@ -3335,7 +3342,7 @@ function openFull(id){
     if(id==='curriculum'){renderCurriculum();populateStudentSelect&&curMatchUnit();refreshAllPeriodTabs();}
     if(id==='behavior'){renderBehavior();populateBhStudentSelect();
       var bhtw=document.getElementById('bhtype-wrap');if(bhtw)bhtw.innerHTML=buildSelect('bh-type','bhType','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
-      var bhaw=document.getElementById('bhaction-wrap');if(bhaw)bhaw.innerHTML=buildSelect('bh-action','bhAction','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');
+      var bhaw=document.getElementById('bhaction-wrap');if(bhaw)bhaw.innerHTML=buildSelect('bh-action','bhAction','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');bhFlagWire();
       var bhd=document.getElementById('bh-date');if(bhd&&!bhd.value)bhd.value=new Date().toISOString().split('T')[0];
       buildBhTypeFilter();}
     if(id==='groups')renderGroups();
@@ -4273,23 +4280,29 @@ function saveComm(){
   var student=document.getElementById('cm-student').value.trim();if(!student){toast('⚠️ Select a student');return;}
   var time=document.getElementById('cm-time').value;var ts='';
   if(time){var pts=time.split(':');var h=parseInt(pts[0]);var ap=h>=12?'PM':'AM';h=h%12||12;ts=h+':'+pts[1]+' '+ap;}
-  DB.comms.push({id:Date.now()+'',student:student,period:document.getElementById('cm-period').value,date:document.getElementById('cm-date').value,time:ts,method:document.getElementById('cm-method').value,reason:document.getElementById('cm-reason').value,notes:document.getElementById('cm-notes').value});
+  var entry={id:Date.now()+'',student:student,period:document.getElementById('cm-period').value,date:document.getElementById('cm-date').value,time:ts,method:document.getElementById('cm-method').value,reason:document.getElementById('cm-reason').value,notes:document.getElementById('cm-notes').value};
+  DB.comms.push(entry);
+  var flagCb=document.getElementById('cm-flag');
+  var flagged=!!(flagCb&&flagCb.checked&&commKind(entry.reason)==='concern');
+  if(flagged)concernFromComm(entry);
   save();document.getElementById('cm-notes').value='';
-  toast('✅ Contact logged');renderCommStats();renderCommTable();renderCommCharts();updatePills();
+  toast(flagged?'✅ Contact logged and added to the Concern Dashboard':'✅ Contact logged');renderCommStats();renderCommTable();renderCommCharts();updatePills();
+  if(typeof renderConcerns==='function')renderConcerns();commReasonChanged();
 }
 function renderCommStats(){
   var el=document.getElementById('comm-stats');if(!el)return;
-  var pos=DB.comms.filter(function(c){return c.reason.startsWith('+');}).length;
+  var pos=DB.comms.filter(function(c){return commKind(c.reason)==='positive';}).length;
+  var cons=DB.comms.filter(function(c){return commKind(c.reason)==='concern';}).length;
   el.innerHTML='<div class="sc" style="border-left-color:#e040a0"><div class="sc-val">'+DB.comms.length+'</div><div class="sc-lbl">Total Contacts</div></div>'
     +'<div class="sc" style="border-left-color:#7de8cc"><div class="sc-val">'+pos+'</div><div class="sc-lbl">Positive</div></div>'
-    +'<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+(DB.comms.length-pos)+'</div><div class="sc-lbl">Concerns</div></div>';
+    +'<div class="sc" style="border-left-color:#ff9a8e"><div class="sc-val">'+cons+'</div><div class="sc-lbl">Concerns</div></div>';
 }
 function renderCommTable(){
   var el=document.getElementById('comm-tbody');if(!el)return;
   el.innerHTML=DB.comms.length===0?'<tr><td colspan="7" class="empty">No contacts logged</td></tr>'
     :DB.comms.slice().reverse().map(function(c){
-      var pos=c.reason.startsWith('+');
-      return '<tr><td>'+esc(c.date||'—')+'</td><td><span class="badge b-pink">P'+c.period+'</span></td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-lav">'+esc(c.method)+'</span></td><td><span class="badge '+(pos?'b-green':'b-red')+'">'+esc(c.reason)+'</span></td><td><button class="btn btn-sm" onclick="viewCommNote(\''+c.id+'\')">Notes</button></td><td><button class="btn btn-sm btn-danger" onclick="delComm(\''+c.id+'\')">✕</button></td></tr>';
+      var kind=commKind(c.reason);
+      return '<tr><td>'+esc(c.date||'—')+'</td><td><span class="badge b-pink">P'+c.period+'</span></td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-lav">'+esc(c.method)+'</span></td><td><span class="badge '+(kind==='positive'?'b-green':kind==='neutral'?'b-gray':'b-red')+'">'+esc(c.reason)+'</span>'+(c.concernId?' <span title="On the Concern Dashboard" style="font-size:11px">\uD83D\uDD17</span>':'')+'</td><td><button class="btn btn-sm" onclick="viewCommNote(\''+c.id+'\')">Notes</button></td><td><button class="btn btn-sm btn-danger" onclick="delComm(\''+c.id+'\')">✕</button></td></tr>';
     }).join('');
 }
 function viewCommNote(id){var c=DB.comms.find(function(x){return x.id===id;});if(!c)return;alert(c.notes||'No notes recorded.');}
@@ -4790,9 +4803,17 @@ function saveBehavior(){
     status:(document.getElementById('bh-status')||{}).value||'Completed',
     notes:document.getElementById('bh-notes').value
   });
+  var bhE=DB.behavior[DB.behavior.length-1],bhFlag=document.getElementById('bh-flag');
+  var bhFlagged=!!(bhFlag&&bhFlag.checked&&bhIsReferral(bhE.action));
+  if(bhFlagged){
+    var bc=newConcernFrom({student:bhE.student,period:bhE.period,date:bhE.date,type:'Behavioral',referred:/counselor/i.test(bhE.action)?'Counselor':'Admin',
+      incident:(bhE.type?bhE.type+(bhE.level?' ('+bhE.level+')':'')+'. ':'')+(bhE.notes||''),action:bhE.action,source:'behavior',sourceId:bhE.id});
+    bhE.concernId=bc.id;
+  }
   save();
   document.getElementById('bh-notes').value='';
-  toast('✅ Behavior logged!');
+  toast(bhFlagged?'✅ Behavior logged and added to the Concern Dashboard':'✅ Behavior logged!');
+  bhFlagChanged();
   buildBhTypeFilter();
   renderBehavior();
 }
@@ -5189,7 +5210,7 @@ function renderConcerns(){
   el.innerHTML=DB.concerns.length===0?'<tr><td colspan="8" class="empty">No concerns logged</td></tr>'
     :DB.concerns.slice().reverse().map(function(c){
       var sc={Open:'b-red','In progress':'b-yellow',Resolved:'b-green'}[c.status]||'b-gray';
-      return '<tr><td>'+esc(c.date||'—')+'</td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-pink">P'+c.period+'</span></td><td style="font-size:11px">'+esc(c.type)+'</td><td style="font-size:11px">'+esc(c.referred)+'</td><td><span class="badge '+sc+'">'+esc(c.status)+'</span></td><td>'+esc(c.followup||'—')+'</td><td><button class="btn btn-sm btn-danger" onclick="delConcern(\''+c.id+'\')">✕</button></td></tr>';
+      return '<tr><td>'+esc(c.date||'—')+'</td><td><strong>'+esc(c.student)+'</strong></td><td><span class="badge b-pink">P'+c.period+'</span></td><td style="font-size:11px">'+esc(c.type)+concernSrcBadge(c)+'</td><td style="font-size:11px">'+esc(c.referred)+'</td><td><span class="badge '+sc+'">'+esc(c.status)+'</span></td><td>'+esc(c.followup||'—')+'</td><td><button class="btn btn-sm btn-danger" onclick="delConcern(\''+c.id+'\')">✕</button></td></tr>';
     }).join('');
 }
 function delConcern(id){DB.concerns=DB.concerns.filter(function(c){return c.id!==id;});save();renderConcerns();}
@@ -5505,8 +5526,8 @@ function renderFullDashboard(type,isManualRefresh){
   }
 
   else if(type==='commdash'){
-    var pos=DB.comms.filter(function(c){return c.reason.startsWith('+');}).length;
-    var neg=DB.comms.length-pos;
+    var pos=DB.comms.filter(function(c){return commKind(c.reason)==='positive';}).length;
+    var neg=DB.comms.filter(function(c){return commKind(c.reason)==='concern';}).length;
     var methods={};DB.comms.forEach(function(c){methods[c.method]=(methods[c.method]||0)+1;});
     var byStudent={};DB.comms.forEach(function(c){byStudent[c.student]=(byStudent[c.student]||0)+1;});
     var contacted=Object.keys(byStudent);
@@ -5549,7 +5570,7 @@ function renderFullDashboard(type,isManualRefresh){
     var types2={};DB.concerns.forEach(function(c){types2[c.type]=(types2[c.type]||0)+1;});
     var byRef={};DB.concerns.forEach(function(c){byRef[c.referred]=(byRef[c.referred]||0)+1;});
 
-    el.innerHTML='<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">'
+    el.innerHTML=commConcernNotice()+'<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">'
       +'<div class="sc" style="border-left-color:#dc2626"><div class="sc-val">'+open2.length+'</div><div class="sc-lbl">Open</div></div>'
       +'<div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+inprog2.length+'</div><div class="sc-lbl">In Progress</div></div>'
       +'<div class="sc" style="border-left-color:#059669"><div class="sc-val">'+resolved2.length+'</div><div class="sc-lbl">Resolved</div></div>'
@@ -5557,7 +5578,7 @@ function renderFullDashboard(type,isManualRefresh){
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">'
       +'<div class="card"><div class="card-hdr"><span class="card-title" style="color:#dc2626">🔴 Open Concerns</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Student</th><th>Type</th><th>Date</th><th>Referred To</th><th>Follow-up</th></tr></thead><tbody>'
-      +(open2.length?open2.map(function(c){return '<tr><td><strong>'+esc(c.student)+'</strong></td><td>'+esc(c.type)+'</td><td>'+esc(c.date||'—')+'</td><td>'+esc(c.referred)+'</td><td>'+esc(c.followup||'—')+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:#059669;padding:20px">No open concerns 🎉</td></tr>')
+      +(open2.length?open2.map(function(c){return '<tr><td><strong>'+esc(c.student)+'</strong></td><td>'+esc(c.type)+concernSrcBadge(c)+'</td><td>'+esc(c.date||'—')+'</td><td>'+esc(c.referred)+'</td><td>'+concernFollowCell(c)+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:#059669;padding:20px">No open concerns 🎉</td></tr>')
       +'</tbody></table></div></div>'
       +'<div class="card"><div class="card-hdr"><span class="card-title" style="color:#d97706">🟡 In Progress</span></div><div class="card-body tbl-wrap"><table><thead><tr><th>Student</th><th>Type</th><th>Referred To</th></tr></thead><tbody>'
       +(inprog2.length?inprog2.map(function(c){return '<tr><td><strong>'+esc(c.student)+'</strong></td><td>'+esc(c.type)+'</td><td>'+esc(c.referred)+'</td></tr>';}).join(''):'<tr><td colspan="3" style="text-align:center;color:var(--mid)">None in progress</td></tr>')
@@ -9370,6 +9391,72 @@ function lnSylHtml(){
   return h+'</div>';
 }
 function lnSylPrint(){var t=lnVal('syl-text');if(!ciNorm(t)){toast('Generate the draft first');return;}lnPrintHtml(lnVal('syl-title')+' Syllabus',lnSylHtml());}
+
+/* ══════════════════════════════════════════════
+   COMMUNICATION / BEHAVIOR → CONCERN DASHBOARD
+   A parent contact (or behavior referral) that is really a concern can be flagged when it is saved.
+   That creates an Open entry on the Concern Dashboard, linked both ways (comm.concernId / concern.sourceId).
+══════════════════════════════════════════════ */
+function commKind(reason){
+  var r=String(reason||'').trim();
+  if(r.charAt(0)==='+')return 'positive';
+  if(/general|update|fyi|informational|check[\s-]?in/i.test(r))return 'neutral';
+  return 'concern';
+}
+var COMM_CONCERN_TYPES=[[/behavior/i,'Behavioral'],[/attendance|absent|tardy/i,'Attendance'],[/missing|homework|academic|grade/i,'Academic concern'],[/bully|peer/i,'Bullying / peer conflict'],[/family/i,'Family situation'],[/mental|emotional|social/i,'Social-emotional'],[/safety/i,'Safety concern']];
+function commConcernType(reason){
+  for(var i=0;i<COMM_CONCERN_TYPES.length;i++){if(COMM_CONCERN_TYPES[i][0].test(reason||''))return COMM_CONCERN_TYPES[i][1];}
+  return String(reason||'').replace(/^[−\-\s]+/,'')||'Academic concern';
+}
+function newConcernFrom(o){
+  var c={id:Date.now()+'_c'+Math.random().toString(36).slice(2,6),student:o.student,period:o.period||'',date:o.date||new Date().toISOString().slice(0,10),
+    type:o.type,referred:o.referred||'Not referred yet',incident:o.incident||'',action:o.action||'',followup:'',status:'Open',source:o.source||'',sourceId:o.sourceId||''};
+  DB.concerns.push(c);return c;
+}
+function concernFromComm(c){
+  var cn=newConcernFrom({student:c.student,period:c.period,date:c.date,type:commConcernType(c.reason),
+    incident:c.notes||('Parent contact ('+c.method+'): '+c.reason),action:'Contacted by '+c.method+(c.date?' on '+c.date:''),source:'comm',sourceId:c.id});
+  c.concernId=cn.id;return cn;
+}
+function commReasonChanged(){
+  var r=document.getElementById('cm-reason'),row=document.getElementById('cm-flag-row'),cb=document.getElementById('cm-flag');if(!r||!row||!cb)return;
+  var concern=commKind(r.value)==='concern';
+  row.style.display=concern?'block':'none';cb.checked=concern;
+  var t=document.getElementById('cm-flag-type');if(t)t.textContent=commConcernType(r.value);
+}
+function commReasonWire(){var r=document.getElementById('cm-reason');if(r&&!r._wired){r.addEventListener('change',commReasonChanged);r._wired=true;}commReasonChanged();}
+function bhIsReferral(a){return /referral/i.test(a||'');}
+function bhFlagChanged(){
+  var a=document.getElementById('bh-action'),row=document.getElementById('bh-flag-row'),cb=document.getElementById('bh-flag');if(!a||!row||!cb)return;
+  var ref=bhIsReferral(a.value);row.style.display=ref?'block':'none';cb.checked=ref;
+}
+function bhFlagWire(){var a=document.getElementById('bh-action');if(a&&!a._wired){a.addEventListener('change',bhFlagChanged);a._wired=true;}bhFlagChanged();}
+function concernSrcBadge(c){
+  return c.source==='comm'?' <span class="badge b-lav" style="font-size:8px" title="Created from the Parent Comm Log">from Comm Log</span>'
+    :c.source==='behavior'?' <span class="badge b-peach" style="font-size:8px" title="Created from the Behavior Log">from Behavior</span>':'';
+}
+function concernFollowCell(c){
+  var today=new Date().toISOString().slice(0,10);
+  if(!c.followup)return '—';
+  return (c.status!=='Resolved'&&c.followup<today)?'<span style="color:#dc2626;font-weight:700">'+esc(c.followup)+' (overdue)</span>':esc(c.followup);
+}
+// Concern-type contacts logged before this link existed (or saved with the box unticked).
+function commUnflagged(){
+  return DB.comms.filter(function(c){return commKind(c.reason)==='concern'&&!c.concernId&&!DB.concerns.some(function(x){return x.sourceId===c.id;});});
+}
+function commConcernNotice(){
+  var n=commUnflagged().length;if(!n)return '';
+  return '<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:220px;font-size:13px;color:#7f1d1d"><strong>'+n+' parent contact'+(n===1?'':'s')+'</strong> logged with a concern reason (behavior, missing work, attendance, academic) '+(n===1?'is':'are')+' not on this dashboard yet.</div>'
+    +'<button class="btn btn-sm btn-primary" onclick="flagLegacyComms()">Add '+(n===1?'it':'them')+' as Open concerns</button></div>';
+}
+function flagLegacyComms(){
+  var list=commUnflagged();if(!list.length)return;
+  if(!confirm('Add '+list.length+' contact'+(list.length===1?'':'s')+' to the Concern Dashboard as Open concerns?'))return;
+  list.forEach(function(c){concernFromComm(c);});
+  save();toast('✅ Added '+list.length+' to the Concern Dashboard');
+  renderFullDashboard('counseldash');if(typeof renderConcerns==='function')renderConcerns();
+}
 
 </script>
 
