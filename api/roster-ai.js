@@ -6,7 +6,6 @@
 //
 // Optional env overrides: GEMINI_MODEL, GROQ_VISION_MODEL.
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
-const { getAuth } = require('firebase-admin/auth');
 
 function ensureApp() {
   if (!getApps().length) {
@@ -49,10 +48,14 @@ module.exports = async function handler(req, res) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) { res.status(401).json({ error: 'unauthorized' }); return; }
   try {
+    // Loaded here (not at the top) so a problem loading the auth module is reported instead of crashing the function.
+    const { getAuth } = require('firebase-admin/auth');
     ensureApp();
     await getAuth().verifyIdToken(token);
   } catch (e) {
-    res.status(401).json({ error: 'unauthorized' });
+    const bad = e && /id-token|argument-error|expired|invalid|malformed|decoding/i.test(String(e.code || '') + ' ' + String(e.message || ''));
+    if (!bad) console.error('roster-ai auth check failed', e && e.message);
+    res.status(bad ? 401 : 500).json({ error: bad ? 'unauthorized' : 'auth_unavailable' });
     return;
   }
 
