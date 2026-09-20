@@ -2816,14 +2816,17 @@ var fbAuth=firebase.auth();
 var fbDb=firebase.firestore();
 fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 var currentUser=null;var saveTimeout=null;var authMode='signin';
+// Invite codes are not in use right now — signup is open (email + password only). Set this to true
+// to bring back the private-beta invite-code gate (also requires publishing FIRESTORE_RULES.md).
+var REQUIRE_INVITE_CODE=false;
 
 function authToggleMode(){
   authMode=authMode==='signin'?'register':'signin';var r=authMode==='register';
   document.getElementById('auth-subtitle').textContent=r?'Create your account':'Sign in to your account';
   document.getElementById('auth-submit-btn').textContent=r?'Create Account':'Sign In';
   document.getElementById('auth-toggle-btn').innerHTML=r?'Already have an account? <strong style="color:#7b2ff7">Sign In</strong>':'New teacher? <strong style="color:#7b2ff7">Create account</strong>';
-  document.getElementById('auth-password2').style.display=r?'block':'none';
-  document.getElementById('auth-invite').style.display=r?'block':'none';
+  document.getElementById('auth-password2-wrap').style.display=r?'block':'none';
+  document.getElementById('auth-invite').style.display=(r&&REQUIRE_INVITE_CODE)?'block':'none';
   document.getElementById('auth-forgot-btn').style.display=r?'none':'block';
   document.getElementById('auth-error').style.display='none';
   document.getElementById('auth-success').style.display='none';
@@ -2842,13 +2845,14 @@ function authSubmit(){
   if(authMode==='register'){
     var pw2=(document.getElementById('auth-password2').value||'');
     if(pw!==pw2){errEl.style.display='block';errEl.textContent='Passwords do not match.';return;}
-    inviteCode=(document.getElementById('auth-invite').value||'').trim();
-    if(!inviteCode){errEl.style.display='block';errEl.textContent='This is a private beta — enter the invite code you were given.';return;}
+    if(REQUIRE_INVITE_CODE){inviteCode=(document.getElementById('auth-invite').value||'').trim();}
+    if(REQUIRE_INVITE_CODE&&!inviteCode){errEl.style.display='block';errEl.textContent='This is a private beta — enter the invite code you were given.';return;}
   }
   loadEl.style.display='block';btnEl.style.display='none';
   if(authMode==='register'){
     fbAuth.createUserWithEmailAndPassword(email,pw).then(function(c){
       currentUser=c.user;
+      if(!REQUIRE_INVITE_CODE){authSuccess();return;}
       return claimInviteCode(inviteCode).then(function(){authSuccess();}).catch(function(claimErr){
         // Invite was invalid/already used — undo the just-created account so it can't be reused as a backdoor.
         return c.user.delete().catch(function(){}).then(function(){
@@ -2877,6 +2881,55 @@ function claimInviteCode(code){
   });
 }
 
+// Eye button on password fields: flips the input between hidden and visible.
+function authTogglePw(id,btn){
+  var inp=document.getElementById(id);if(!inp)return;
+  var show=inp.type==='password';
+  inp.type=show?'text':'password';
+  if(btn){btn.textContent=show?'🙈':'👁️';btn.title=show?'Hide password':'Show password';btn.setAttribute('aria-label',btn.title);}
+}
+
+// Account modal (signed-in): change email + send a password reset email.
+function openAccountModal(){
+  if(!currentUser)return;
+  document.getElementById('acct-current-email').textContent=currentUser.email;
+  document.getElementById('acct-new-email').value='';
+  var pw=document.getElementById('acct-password');pw.value='';pw.type='password';
+  acctMsg('','');
+  document.getElementById('account-overlay').style.display='flex';
+}
+function closeAccountModal(){document.getElementById('account-overlay').style.display='none';}
+function acctMsg(text,kind){
+  var el=document.getElementById('acct-msg');
+  el.style.display=text?'block':'none';el.textContent=text;
+  el.style.background=kind==='ok'?'#f0fdf4':'#fef2f2';
+  el.style.border='1px solid '+(kind==='ok'?'#bbf7d0':'#fca5a5');
+  el.style.color=kind==='ok'?'#166534':'#dc2626';
+}
+function acctChangeEmail(){
+  var newEmail=(document.getElementById('acct-new-email').value||'').trim();
+  var pw=document.getElementById('acct-password').value||'';
+  if(!newEmail){acctMsg('Enter the new email address.','err');return;}
+  if(newEmail.toLowerCase()===(currentUser.email||'').toLowerCase()){acctMsg('That is already your email address.','err');return;}
+  if(!pw){acctMsg('Enter your current password to confirm it is you.','err');return;}
+  var btn=document.getElementById('acct-email-btn');btn.disabled=true;
+  var cred=firebase.auth.EmailAuthProvider.credential(currentUser.email,pw);
+  currentUser.reauthenticateWithCredential(cred).then(function(){
+    // Firebase sends a confirmation link to the NEW address; the email only changes once it's clicked.
+    return currentUser.verifyBeforeUpdateEmail(newEmail);
+  }).then(function(){
+    acctMsg('✅ Confirmation link sent to '+newEmail+'. Click it to finish the change, then sign in with the new email. Your data stays with your account.','ok');
+  }).catch(function(e){
+    var m={'auth/wrong-password':'Current password is incorrect.','auth/invalid-credential':'Current password is incorrect.','auth/invalid-email':'Enter a valid email address.','auth/email-already-in-use':'That email is already used by another account.','auth/too-many-requests':'Too many attempts. Wait a few minutes.','auth/requires-recent-login':'Please sign out and sign back in, then try again.'};
+    acctMsg(m[e.code]||e.message,'err');
+  }).then(function(){btn.disabled=false;});
+}
+function acctSendReset(){
+  fbAuth.sendPasswordResetEmail(currentUser.email).then(function(){
+    acctMsg('✅ Password reset email sent to '+currentUser.email+'.','ok');
+  }).catch(function(e){acctMsg(e.message,'err');});
+}
+
 function authForgotPassword(){
   var email=(document.getElementById('auth-email').value||'').trim();
   var errEl=document.getElementById('auth-error');var sucEl=document.getElementById('auth-success');
@@ -2895,7 +2948,7 @@ function authShowError(err,loadEl,btnEl){
 function authSuccess(){
   var o=document.getElementById('auth-overlay');if(o){o.style.transition='opacity .3s';o.style.opacity='0';setTimeout(function(){o.classList.add('hidden');o.style.opacity='1';},300);}
   var uel=document.getElementById('user-display');
-  if(uel&&currentUser)uel.innerHTML='<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+currentUser.email+'</span><button onclick="authSignOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:6px">Sign out</button>';
+  if(uel&&currentUser)uel.innerHTML='<span style="font-size:11px;color:rgba(255,255,255,.8);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+currentUser.email+'</span><button onclick="openAccountModal()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:6px">Account</button><button onclick="authSignOut()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:6px">Sign out</button>';
   loadFromFirestore();
 }
 
@@ -2906,7 +2959,7 @@ function authSignOut(){
     Object.keys(DB).forEach(function(k){if(Array.isArray(DB[k]))DB[k]=[];else if(typeof DB[k]==='object'&&k!=='setup')DB[k]={};});
     var o=document.getElementById('auth-overlay');if(o)o.classList.remove('hidden');
     var uel=document.getElementById('user-display');if(uel)uel.innerHTML='';
-    ['auth-email','auth-password','auth-password2','auth-invite'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+    ['auth-email','auth-password','auth-password2','auth-invite'].forEach(function(id){var e=document.getElementById(id);if(e){e.value='';if(e.type==='text'&&id.indexOf('password')>-1)e.type='password';}});
     document.getElementById('auth-error').style.display='none';
     document.getElementById('auth-loading').style.display='none';
     document.getElementById('auth-submit-btn').style.display='block';
@@ -7881,8 +7934,8 @@ document.addEventListener('keydown',function(e){
     </div>
     <div style="display:flex;flex-direction:column;gap:12px">
       <input id="auth-email" type="email" placeholder="Email address" style="padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
-      <input id="auth-password" type="password" placeholder="Password (min 6 characters)" style="padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()">
-      <input id="auth-password2" type="password" placeholder="Confirm password" style="display:none;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()">
+      <div style="position:relative"><input id="auth-password" type="password" placeholder="Password (min 6 characters)" style="width:100%;box-sizing:border-box;padding-right:46px;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()"><button type="button" onclick="authTogglePw('auth-password',this)" title="Show password" aria-label="Show password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:6px 8px;color:#666">👁️</button></div>
+      <div id="auth-password2-wrap" style="display:none;position:relative"><input id="auth-password2" type="password" placeholder="Confirm password" style="width:100%;box-sizing:border-box;padding-right:46px;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()"><button type="button" onclick="authTogglePw('auth-password2',this)" title="Show password" aria-label="Show password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:6px 8px;color:#666">👁️</button></div>
       <input id="auth-invite" type="text" placeholder="Invite code" style="display:none;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')authSubmit()">
     </div>
     <div id="auth-error" style="display:none;margin-top:10px;padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626"></div>
@@ -7902,6 +7955,26 @@ document.addEventListener('keydown',function(e){
 <style>@keyframes spin{to{transform:rotate(360deg)}}#auth-overlay.hidden{display:none!important}</style>
 
 <!-- BETA TESTING AGREEMENT — shown once per account after sign-in, before entering the app -->
+<!-- ACCOUNT (change email / password reset) -->
+<div id="account-overlay" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(20,10,30,.6);align-items:center;justify-content:center;font-family:'Nunito',sans-serif;padding:20px" onclick="if(event.target===this)closeAccountModal()">
+  <div style="background:#fff;border-radius:18px;padding:26px 28px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-size:18px;font-weight:900;color:#1a1a2e">👤 My Account</div>
+      <button type="button" onclick="closeAccountModal()" aria-label="Close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+    </div>
+    <div style="font-size:13px;color:#888;margin-bottom:16px">Signed in as <strong id="acct-current-email" style="color:#1a1a2e"></strong></div>
+    <div style="font-size:13px;font-weight:800;color:#1a1a2e;margin-bottom:8px">Change email</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <input id="acct-new-email" type="email" placeholder="New email address" style="padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none">
+      <div style="position:relative"><input id="acct-password" type="password" placeholder="Current password (to confirm)" style="width:100%;box-sizing:border-box;padding-right:46px;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;color:#1a1a2e;outline:none" onkeydown="if(event.key==='Enter')acctChangeEmail()"><button type="button" onclick="authTogglePw('acct-password',this)" title="Show password" aria-label="Show password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:6px 8px;color:#666">👁️</button></div>
+      <button id="acct-email-btn" type="button" onclick="acctChangeEmail()" style="padding:11px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer">Send confirmation to new email</button>
+    </div>
+    <div style="border-top:1px solid #eee;margin:18px 0 14px"></div>
+    <button type="button" onclick="acctSendReset()" style="background:none;border:none;color:#7b2ff7;font-size:13px;cursor:pointer;text-decoration:underline;padding:0">Forgot / change password? Send me a reset email</button>
+    <div id="acct-msg" style="display:none;margin-top:12px;padding:10px 12px;border-radius:8px;font-size:12px"></div>
+  </div>
+</div>
+
 <div id="beta-agreement-overlay" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(20,10,30,.75);align-items:center;justify-content:center;font-family:'Nunito',sans-serif;padding:20px">
   <div style="background:#fff;border-radius:18px;padding:0;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35)">
     <div style="padding:22px 28px 14px;border-bottom:1px solid #eee">
@@ -7909,7 +7982,7 @@ document.addEventListener('keydown',function(e){
       <div style="font-size:13px;color:#888;margin-top:4px">Please read before continuing. This applies to your account.</div>
     </div>
     <div style="padding:18px 28px;overflow-y:auto;font-size:14px;line-height:1.7;color:#333">
-      <p style="margin-bottom:10px"><strong>1. Access.</strong> Teacher Command Center is currently a private, invite-only beta. Your access is personal to you and tied to the invite code you used — do not share your login or invite code with anyone else.</p>
+      <p style="margin-bottom:10px"><strong>1. Access.</strong> Teacher Command Center is currently a private, invite-only beta. Your access is personal to you — do not share your login with anyone else.</p>
       <p style="margin-bottom:10px"><strong>2. Confidentiality.</strong> The app, its source code, design, and any content you see in it (including sample/demo data) are confidential and provided to you solely to evaluate the product. Please don't redistribute, publish, or share screenshots/recordings of it outside of giving feedback directly to the developer.</p>
       <p style="margin-bottom:10px"><strong>3. No copying or reverse engineering.</strong> You agree not to copy, extract, decompile, scrape, or otherwise reproduce the app's code or content, and not to use automated tools (including AI agents) to do so, beyond what's needed to use the app normally as a tester.</p>
       <p style="margin-bottom:10px"><strong>4. Your data.</strong> This is beta software — back up anything important (Schedule Setup → Export/Backup). Features and data structures may change; data loss, while not expected, is possible during testing.</p>
