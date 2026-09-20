@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     const bad = e && /id-token|argument-error|expired|invalid|malformed|decoding/i.test(String(e.code || '') + ' ' + String(e.message || ''));
     if (!bad) console.error('roster-ai auth check failed', e && e.message);
-    res.status(bad ? 401 : 500).json({ error: bad ? 'unauthorized' : 'auth_unavailable' });
+    res.status(bad ? 401 : 500).json(bad ? { error: 'unauthorized' } : { error: 'auth_unavailable', detail: String((e && (e.code || e.message)) || e).slice(0, 120) });
     return;
   }
 
