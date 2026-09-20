@@ -1151,50 +1151,53 @@ textarea{resize:vertical;min-height:64px}
       <!-- CURRICULUM RESOURCE PANEL — auto-populated from Curriculum folder -->
       <div id="lf-curriculum-panel" style="display:none;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 12px;margin-bottom:10px">
         <div id="lf-cur-pull" style="display:none;margin-bottom:8px">
-          <div style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:4px">📋 Pull a lesson from your Curriculum Map <span id="lf-cur-count" style="font-weight:600;color:#0369a1"></span></div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><select id="lf-cur-lesson" style="flex:1;min-width:220px;padding:6px 8px;border:1.5px solid #bae6fd;border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg)"></select><button type="button" class="btn btn-sm btn-primary" onclick="lfPullCurriculum()">⬇ Fill empty fields</button></div>
-          <div style="font-size:10px;color:#0369a1;margin-top:3px">Only empty fields are filled — anything you already typed stays.</div>
+          <div style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:4px">📋 Add a lesson from your Curriculum Map (uploaded PDF / slides / doc) <span id="lf-cur-count" style="font-weight:600;color:#0369a1"></span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><select id="lf-cur-lesson" style="flex:1;min-width:220px;padding:6px 8px;border:1.5px solid #bae6fd;border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg)"></select><button type="button" class="btn btn-sm btn-primary" onclick="lfPullCurriculum()">+ Add lesson</button></div>
+          <div style="font-size:10px;color:#0369a1;margin-top:3px">Adds the lesson and the activities extracted from its source file; choose what goes where below.</div>
         </div>
         <div id="lf-cur-links-label" style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:6px">📁 Curriculum Resources for this unit — click to open</div>
         <div id="lf-curriculum-links" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
-      <!-- LESSON TITLE / OBJECTIVE -->
-      <div class="form-row">
-        <div class="fg"><label>Lesson title</label><input type="text" id="lf-title" placeholder="Name of today's lesson..."></div>
+      <!-- DAILY PLAN: LESSONS FOR THIS DAY -->
+      <input type="hidden" id="lf-title"><input type="hidden" id="lf-obj">
+      <div style="display:none"><textarea id="lf-direct"></textarea><textarea id="lf-guided"></textarea></div>
+      <div style="font-size:12px;margin-bottom:8px"><b>Source:</b> <span id="lf-source" style="color:var(--mid)"></span></div>
+      <div style="border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:900;color:var(--dark)">Lessons for this day</span>
+          <span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-primary" onclick="lfAddLesson()">+ Add lesson</button><button type="button" class="btn btn-sm" onclick="lfAutoArrange()" title="Fill Do Now, sequence, practice and exit ticket from the selected lessons">Auto-arrange</button><button type="button" class="btn btn-sm" onclick="lfToggleReview()">Review extracted information</button></span>
+        </div>
+        <div id="lf-lessons"></div>
+        <div id="lf-review" style="display:none"></div>
       </div>
-      <div class="fg" style="margin-bottom:10px">
-        <label>Learning objective (SWBAT)</label>
-        <input type="text" id="lf-obj" placeholder="Students will be able to...">
+      <div class="fg" style="margin-bottom:12px">
+        <label>Do Now / Warm-Up</label>
+        <select id="lf-donow-pick" onchange="lfPickInto('donow',this.value)" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--dark);background:var(--card-bg);width:100%;box-sizing:border-box;margin-bottom:5px"></select>
+        <textarea id="lf-donow" placeholder="Editable activity instructions..." style="min-height:60px;resize:vertical"></textarea>
+        <div id="lf-donow-src" style="font-size:10px;color:#0369a1;margin-top:2px"></div>
       </div>
-
-      <!-- LESSON COMPONENTS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div class="fg">
-          <label>Do Now / Warm Up</label>
-          <textarea id="lf-donow" placeholder="Opening activity or review prompt..." style="min-height:64px;resize:vertical"></textarea>
-        </div>
-        <div class="fg">
-          <label>Direct Instruction / Mini Lesson</label>
-          <textarea id="lf-direct" placeholder="What you'll teach directly..." style="min-height:64px;resize:vertical"></textarea>
-        </div>
-        <div class="fg">
-          <label>Guided Practice</label>
-          <textarea id="lf-guided" placeholder="We do together..." style="min-height:64px;resize:vertical"></textarea>
-        </div>
-        <div class="fg">
-          <label>Independent Practice</label>
-          <textarea id="lf-independent" placeholder="Students do alone..." style="min-height:64px;resize:vertical"></textarea>
-        </div>
-        <div class="fg">
-          <label>Closure / Exit Ticket</label>
-          <textarea id="lf-closure" placeholder="How students demonstrate understanding..." style="min-height:64px;resize:vertical"></textarea>
-        </div>
-        <div class="fg">
-          <label>Homework assigned</label>
-          <textarea id="lf-hw" placeholder="Assignment for tonight..." style="min-height:64px;resize:vertical"></textarea>
-          <label style="text-transform:none;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;margin-top:4px"><input type="checkbox" id="lf-nocarry"> Unfinished classwork is NOT homework this day</label>
-        </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label>Teaching sequence</label>
+        <div id="lf-seq"></div>
+        <button type="button" class="btn btn-sm" onclick="lfAddSeq()" style="margin-top:4px">+ Add activity</button>
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label>Independent practice</label>
+        <select id="lf-independent-pick" onchange="lfPickInto('independent',this.value)" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--dark);background:var(--card-bg);width:100%;box-sizing:border-box;margin-bottom:5px"></select>
+        <textarea id="lf-independent" placeholder="Select a source activity or enter your own..." style="min-height:60px;resize:vertical"></textarea>
+        <div id="lf-independent-src" style="font-size:10px;color:#0369a1;margin-top:2px"></div>
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label>Exit Ticket / Closure</label>
+        <select id="lf-closure-pick" onchange="lfPickInto('closure',this.value)" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--dark);background:var(--card-bg);width:100%;box-sizing:border-box;margin-bottom:5px"></select>
+        <textarea id="lf-closure" placeholder="Select a source activity or enter your own..." style="min-height:60px;resize:vertical"></textarea>
+        <div id="lf-closure-src" style="font-size:10px;color:#0369a1;margin-top:2px"></div>
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label>Homework assigned <span style="font-weight:400;color:var(--mid);font-size:10px">(optional)</span></label>
+        <textarea id="lf-hw" placeholder="Assignment for tonight..." style="min-height:50px;resize:vertical"></textarea>
+        <label style="text-transform:none;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;margin-top:4px"><input type="checkbox" id="lf-nocarry"> Unfinished classwork is NOT homework this day</label>
       </div>
 
       <!-- MATERIALS / DIFFERENTIATION / NOTES -->
@@ -4515,7 +4518,7 @@ function openLessonForm(lessonId){
     document.getElementById('lf-date').value=today;
   }
   modal.style.display='flex';
-  showCurriculumSuggestions();lfWeekInfo();
+  showCurriculumSuggestions();lfWeekInfo();lfInitState(lessonId);
 }
 function closeLessonForm(){
   var modal=document.getElementById('lesson-modal');if(modal)modal.style.display='none';
@@ -4530,8 +4533,9 @@ function clearLessonForm(){
 
 function saveLesson(){
   var _prevIds={};DB.lessons.forEach(function(l){_prevIds[l.id]=1;});
+  lfSync();
   var title=document.getElementById('lf-title').value.trim();
-  if(!title){toast('Enter lesson title');return;}
+  if(!title){toast('Add at least one lesson with a title');return;}
   var editId=document.getElementById('lf-edit-id').value;
   var lessonData={
     title:title,
@@ -4553,7 +4557,8 @@ function saveLesson(){
     assess:document.getElementById('lf-assess').value,
     link:document.getElementById('lf-link').value,
     status:document.getElementById('lf-status').value,
-    notes:document.getElementById('lf-notes').value
+    notes:document.getElementById('lf-notes').value,
+    lessonsList:lfClone(LF.lessons),seq:lfClone(LF.seq),srcFiles:LF.srcFiles.slice(),srcMap:lfClone(LF.srcMap)
   };
   if(editId){
     DB.lessons=DB.lessons.map(function(l){return l.id===editId?Object.assign({},l,lessonData,{id:editId}):l;});
@@ -6534,12 +6539,11 @@ function printReport(type){
       var planText=plan&&plan.periods?plan.periods['p'+period]:'';
       var students=DB.students.filter(function(s){return s.period===period;}).sort(function(a,b){return a.name.localeCompare(b.name);});
       return '<div class="period-block"><div class="period-label">'+esc(row.label)+(row.start?' ('+row.start+'–'+row.end+')':'')+'</div>'
-        +(lesson?'<p><b>Lesson:</b> '+esc(lesson.title)+'</p>'+(lesson.objective?'<p><b>Objective:</b> '+esc(lesson.objective)+'</p>':'')+(lesson.donow?'<p><b>Do Now:</b> '+esc(lesson.donow)+'</p>':'')+(lesson.direct?'<p><b>Instruction:</b> '+esc(lesson.direct)+'</p>':'')+(lesson.independent?'<p><b>Practice:</b> '+esc(lesson.independent)+'</p>':'')+(lesson.closure?'<p><b>Closure:</b> '+esc(lesson.closure)+'</p>':'')+(lesson.materials?'<p><b>Materials:</b> '+esc(lesson.materials)+'</p>':''):'')
+        +(lesson?subLessonHtml(lesson):'')
         +(planText&&!lesson?'<p>'+esc(planText)+'</p>':'')
         +(!lesson&&!planText?'<p style="color:#999;font-style:italic">No lesson plan entered for this date</p>':'')
-        +(students.length?'<p style="font-size:8.5pt;margin-top:6px"><b>Roster ('+students.length+'):</b> '+students.map(function(s){return esc(s.name)+(s.medical?' ⚠️':'');}).join(', ')+'</p>':'')
         +'</div>';
-    }).join('')+'</div>';
+    }).join('')+'</div>'+subRosterPages();
 
   } else if(type==='parent-meeting'){
     var sid=(document.getElementById('pm-stu-select')||{}).value;
@@ -7926,18 +7930,6 @@ function showCurriculumSuggestions(){
   }else pull.style.display='none';
   panel.style.display='block';
 }
-// Copies a Curriculum Map lesson into the open lesson form, filling only fields that are still empty.
-function lfPullCurriculum(){
-  var sel=document.getElementById('lf-cur-lesson');var i=sel?parseInt(sel.value,10):NaN;
-  if(isNaN(i)||!CUR_PULL[i]){toast('Choose a lesson from the list first');return;}
-  var p=CUR_PULL[i],l=p.lesson,n=0;
-  function fill(id,v){var e=document.getElementById(id);if(e&&v&&!String(e.value||'').trim()){e.value=v;n++;}}
-  fill('lf-title',l.title);fill('lf-unit',p.unit);fill('lf-std',l.standard);fill('lf-obj',l.objective);fill('lf-donow',l.donow);
-  fill('lf-direct',l.direct);fill('lf-guided',l.guided);fill('lf-independent',l.independent);fill('lf-closure',l.closure);fill('lf-hw',l.hw);fill('lf-materials',l.materials);
-  if(l.vocab){var nt=document.getElementById('lf-notes'),vt='Vocabulary: '+ciNorm(l.vocab).replace(/\s*;\s*/g,', ');if(nt&&nt.value.indexOf(vt)<0){nt.value=(nt.value?nt.value+'\n':'')+vt;n++;}}
-  var as=document.getElementById('lf-assess');if(l.closure&&as&&as.value==='Observation')as.value='Exit ticket';
-  toast(n?'✅ Filled '+n+' empty field'+(n===1?'':'s')+' from the Curriculum Map':'Nothing to fill — those fields already have text');
-}
 
 // Build dynamic copy-period checkboxes in lesson form
 function buildLessonCopyPeriods(){
@@ -8551,7 +8543,7 @@ function ciNorm(s){return String(s==null?'':s).replace(/\s+/g,' ').trim();}
 function ciJoin(a,b){a=a||'';b=ciNorm(b);return b?(a?a+'\n'+b:b):a;}
 function ciStdList(text){var m=String(text||'').match(CI_STD_RX)||[];var out=[];m.forEach(function(x){if(out.indexOf(x)<0)out.push(x);});return out;}
 function ciBaseName(n){return String(n||'').replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim();}
-function ciBlank(o){var r={title:'',unit:'',standard:'',objective:'',donow:'',direct:'',guided:'',independent:'',closure:'',hw:'',vocab:'',materials:'',notes:'',assess:'',date:'',week:'',num:'',topics:[]};for(var k in o)r[k]=o[k];return r;}
+function ciBlank(o){var r={title:'',unit:'',standard:'',objective:'',donow:'',direct:'',guided:'',independent:'',closure:'',hw:'',vocab:'',materials:'',notes:'',assess:'',date:'',week:'',num:'',topics:[],comps:[]};for(var k in o)r[k]=o[k];return r;}
 function ciUnitGuess(str){
   var m=String(str||'').replace(/[_]+/g,' ').match(/\b(unit|module|chapter)\s*#?\s*(\d+(?:\.\d+)?)\b[\s:.\-\u2013\u2014_]*([A-Za-z][A-Za-z &,'\u2019\-]{2,40})?/i);
   if(!m)return '';
@@ -8698,7 +8690,7 @@ function ciParsePdf(buf,file){
       return Object.keys(lines).map(Number).sort(function(a,b){return b-a;}).map(function(y){return lines[y].sort(function(a,b){return a.transform[4]-b.transform[4];}).map(function(it){return it.str;}).join(' ');});
     });}));
     return Promise.all(pages).then(function(all){
-      var doc=ciDocShell(file,'text');all.forEach(function(ls){ls.forEach(function(l){if(ciNorm(l))doc.blocks.push({t:'p',text:l});});});return doc;
+      var doc=ciDocShell(file,'text');all.forEach(function(ls,pi){ls.forEach(function(l){if(ciNorm(l))doc.blocks.push({t:'p',text:l,page:pi+1});});});return doc;
     });
   });
 }
@@ -8716,21 +8708,57 @@ function ciLabelOf(text,blockType){
   for(var i=0;i<CI_SECTION_RX.length;i++){if(CI_SECTION_RX[i][1].test(label))return {field:CI_SECTION_RX[i][0],rest:rest};}
   return null;
 }
+var CI_COMP_RX=/^(warm[\s-]*up|cool[\s-]*down|launch|activity\s*\d*|lesson\s+synthesis|synthesis|practice\s+problems|do\s+now|exit\s+ticket|independent\s+practice|guided\s+practice|direct\s+instruction|mini[\s-]*lesson|closing|closure|centers|stations|discussion|reflection|extension|student\s+task|task\s*\d*)\b/i;
+function ciCompType(label){
+  var l=String(label||'');
+  if(/warm|do[\s-]*now|launch/i.test(l))return 'donow';
+  if(/cool|exit|closing|closure|synthesis/i.test(l))return 'closure';
+  if(/practice\s+problems|independent|centers|stations/i.test(l))return 'independent';
+  return 'activity';
+}
+// A heading that starts a named piece of a lesson ("Warm-up", "Activity 1: Unit Rates", "Cool-down")
+function ciCompHead(t,b){
+  if(t.length>90)return null;
+  var m=t.match(/^([^:\uFF1A]{2,60})[:\uFF1A]\s*(.*)$/);
+  var head=m?m[1]:t,rest=m?m[2]:'';
+  if(!CI_COMP_RX.test(head))return null;
+  if(!m&&b.t!=='h'&&t.split(' ').length>8)return null;
+  var titled=rest&&rest.length<=70&&!/[.!?]$/.test(rest);
+  return {label:titled?ciNorm(head+': '+rest):ciNorm(head),rest:titled?'':rest,type:ciCompType(head)};
+}
+// "Lesson 8: Digging Deeper" -> "Lesson 8 — Digging Deeper"
+function ciLessonTitle(lm){
+  var w=String(lm[1]||'Lesson');w=w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+  return ciNorm(lm[3])?w+' '+lm[2]+' — '+ciNorm(lm[3]):w+' '+lm[2];
+}
+function ciCompact(comps){
+  return (comps||[]).slice(0,30).map(function(c){return {label:String(c.label||'').slice(0,90),type:c.type,text:String(c.text||'').slice(0,500),page:c.page==null?'':c.page,file:c.file||''};});
+}
+function ciSeqFrom(d,g){
+  return (g.comps||[]).filter(function(c){return !LF_NOT_STEPS[c.type];}).slice(0,20).map(function(c){return {lesson:d.title||'',label:String(c.label||'').slice(0,90),page:c.page==null?'':c.page,file:c.file||'',text:String(c.text||'').slice(0,500)};});
+}
 function ciRecordsFromBlocks(doc){
-  var recs=[],cur=null,curUnit=ciUnitGuess(doc.name),curWeek='',curField=null,firstHeading='';
-  function start(title,num){cur=ciBlank({unit:curUnit,week:curWeek,title:title,num:num});recs.push(cur);curField=null;}
+  var recs=[],cur=null,curUnit=ciUnitGuess(doc.name),curWeek='',curField=null,curComp=null,firstHeading='';
+  function start(title,num){cur=ciBlank({unit:curUnit,week:curWeek,title:title,num:num});recs.push(cur);curField=null;curComp=null;}
   doc.blocks.forEach(function(b){
     var t=ciNorm(b.text);if(!t)return;
     if(b.t==='h'&&!firstHeading)firstHeading=t;
     var um=t.match(CI_UNIT_RX);
-    if(um&&(b.t==='h'||t.length<80)){curUnit='Unit '+um[2]+(ciNorm(um[3])?' \u2014 '+ciNorm(um[3]):'');cur=null;curField=null;return;}
+    if(um&&(b.t==='h'||t.length<80)){curUnit='Unit '+um[2]+(ciNorm(um[3])?' \u2014 '+ciNorm(um[3]):'');cur=null;curField=null;curComp=null;return;}
     var wm=t.match(/^week\s*#?\s*(\d+)\b/i);
     if(wm&&(b.t==='h'||t.length<40)){curWeek=wm[1];return;}
     var lm=t.match(CI_LESSON_RX);
-    if(lm&&(b.t==='h'||t.length<90)){start(ciNorm(lm[3])||('Lesson '+lm[2]),lm[2]);return;}
-    var lab=ciLabelOf(t,b.t);
-    if(lab){if(!cur)start('','');curField=lab.field;if(lab.rest)cur[curField]=ciJoin(cur[curField],lab.rest);return;}
-    if(cur&&curField){cur[curField]=ciJoin(cur[curField],t);}
+    if(lm&&(b.t==='h'||t.length<90)){start(ciLessonTitle(lm),lm[2]);return;}
+    var lab=ciLabelOf(t,b.t),cm=ciCompHead(t,b);
+    if(lab||cm){
+      if(!cur)start('','');
+      if(lab){curField=lab.field;if(lab.rest)cur[curField]=ciJoin(cur[curField],lab.rest);}
+      var c=cm?{label:cm.label,type:cm.type,text:cm.rest}:{label:ciNorm(t.split(/[:\uFF1A]/)[0]),type:/^(direct|guided)$/.test(lab.field)?'activity':lab.field,text:lab.rest||''};
+      c.page=b.page==null?'':b.page;c.file=doc.name;cur.comps.push(c);curComp=c;
+      return;
+    }
+    if(cur&&curField){cur[curField]=ciJoin(cur[curField],t);if(curComp)curComp.text=ciJoin(curComp.text,t);}
+    else if(cur&&curComp){curComp.text=ciJoin(curComp.text,t);}
     else if(!cur&&b.t==='h'){start(t,'');}
   });
   recs.forEach(function(r){if(!r.title)r.title=firstHeading||ciBaseName(doc.name);});
@@ -8746,7 +8774,7 @@ function ciRecordsFromSlides(doc){
   function start(title,num){cur=ciBlank({unit:unit,title:title,num:num||ciNumOf(doc.name)});recs.push(cur);}
   slides.forEach(function(s,i){
     var lm=s.title.match(CI_LESSON_RX);
-    if(multi&&lm)start(ciNorm(lm[3])||('Lesson '+lm[2]),lm[2]);
+    if(multi&&lm)start(ciLessonTitle(lm),lm[2]);
     if(!cur){
       var t0=s.title||ciBaseName(doc.name);
       start(CI_UNIT_RX.test(t0)?ciBaseName(doc.name):t0,'');
@@ -8766,6 +8794,7 @@ function ciRecordsFromSlides(doc){
       });
       if(!lab&&s.title&&!(multi&&lm)&&i>0&&!generic.test(s.title)&&!CI_LESSON_RX.test(s.title))cur.topics.push(s.title);
     }
+    if(i>0||lab)cur.comps.push({label:s.title||('Slide '+s.n),type:lab?(/^(direct|guided)$/.test(lab.field)?'activity':lab.field):'activity',text:s.paras.join('\n'),page:s.n,file:doc.name});
   });
   recs.forEach(function(r){
     if(!r.direct&&r.topics.length)r.direct='Covers: '+r.topics.slice(0,6).join('; ');
@@ -8873,6 +8902,7 @@ function ciMerge(records){
 }
 function ciResolve(g){
   g.v={};g.alts={};g.include=true;
+  g.comps=[];g.recs.forEach(function(r){(r.comps||[]).forEach(function(c){g.comps.push(c);});});
   g.files=[];g.recs.forEach(function(r){if(g.files.indexOf(r.file)<0)g.files.push(r.file);});
   CI_FIELDS.forEach(function(f){
     var cands=[];
@@ -8923,6 +8953,7 @@ function curFilesChosen(fileList){
   var files=Array.prototype.slice.call(fileList||[]);if(!files.length)return;
   files.forEach(function(f){
     if(CI.docs.some(function(d){return d.name===f.name&&d.size===f.size;}))return;
+    ciStoreFile(f);
     var st={name:f.name,state:'reading',msg:'Reading...'};CI.status.push(st);
     ciReadFile(f).then(function(doc){st.state='ok';CI.docs.push(doc);ciRebuild();}).catch(function(e){st.state='err';st.msg=(e&&e.message)||'Could not read this file.';ciRenderPanel();});
   });
@@ -9066,7 +9097,8 @@ function ciCommit(){
         var les={id:Date.now()+'_'+(uid++)+Math.random().toString(36).slice(2,5),title:d.title||'Lesson',date:g.date,period:String(p),
           unit:d.unit||'',standard:d.standard||'',objective:d.objective||'',donow:d.donow||'',direct:d.direct||'',guided:d.guided||'',
           independent:d.independent||'',closure:d.closure||'',hw:d.hw||'',materials:d.materials||'',tech:'',diff:'',
-          assess:d.closure?'Exit ticket':'Observation',link:'',status:'Planned',notes:notes,importedFrom:g.files.join(', ')};
+          assess:d.closure?'Exit ticket':'Observation',link:'',status:'Planned',notes:notes,importedFrom:g.files.join(', '),
+          lessonsList:[{title:d.title||'Lesson',targets:d.objective||'',file:g.files[0],comps:ciCompact(g.comps)}],seq:ciSeqFrom(d,g),srcFiles:g.files.slice()};
         DB.lessons.push(les);made++;
       }
     });
@@ -9080,7 +9112,7 @@ function ciCommit(){
     CI.groups.forEach(function(g){
       // every lesson read is kept, including ones left unticked now, so they can be planned later
       var d=g.v;(lib[g.files[0]]=lib[g.files[0]]||[]).push({title:cap(d.title),unit:cap(d.unit),standard:cap(d.standard),objective:cap(d.objective),donow:cap(d.donow),
-        direct:cap(d.direct),guided:cap(d.guided),independent:cap(d.independent),closure:cap(d.closure),hw:cap(d.hw),vocab:cap(d.vocab),materials:cap(d.materials)});
+        direct:cap(d.direct),guided:cap(d.guided),independent:cap(d.independent),closure:cap(d.closure),hw:cap(d.hw),vocab:cap(d.vocab),materials:cap(d.materials),comps:ciCompact(g.comps),file:g.files[0]});
     });
     CI.docs.forEach(function(doc){
       var mine=lib[doc.name]||[],n=(doc.records||[]).length;
@@ -9742,6 +9774,250 @@ function lessonTestLink(l){
   if(DB.tests.some(function(t){return t.fromLesson===l.id;}))return;
   var t={id:Date.now()+'_t'+Math.random().toString(36).slice(2,5),name:(l.assess+': '+(l.title||'Lesson')).slice(0,80),date:l.date,period:String(l.period||''),max:100,fromLesson:l.id};
   DB.tests.push(t);l.testId=t.id;
+}
+
+/* ══════════════════════════════════════════════
+   DAILY LESSON PLAN — several lessons per day, a teaching sequence built from the source file
+   State lives in LF while the form is open; saveLesson copies it onto the lesson
+   (lessonsList / seq / srcFiles / srcMap) and also writes the older single-lesson fields
+   (title, objective, direct) so the planner, class update and sub packet keep working.
+══════════════════════════════════════════════ */
+var LF={lessons:[],seq:[],srcFiles:[],srcMap:{}};
+var LF_COMPS=[];
+var LF_NOT_STEPS={donow:1,closure:1,independent:1,hw:1,vocab:1,materials:1,standard:1,objective:1,notes:1};
+function lfClone(o){return o==null?o:JSON.parse(JSON.stringify(o));}
+function lfEl(id){return document.getElementById(id);}
+function ciPageLabel(c){
+  if(!c||c.page===''||c.page==null)return '';
+  return (/\.pptx$/i.test(c.file||'')?'slide ':'p. ')+c.page;
+}
+// A curriculum lesson uploaded before components existed still offers its old fields as activities.
+function lfCompsOf(l){
+  if(l.comps&&l.comps.length)return l.comps;
+  var out=[];
+  [['donow','Do Now','donow'],['direct','Direct instruction','activity'],['guided','Guided practice','activity'],['independent','Independent practice','independent'],['closure','Exit ticket','closure'],['hw','Homework','hw']].forEach(function(p){
+    if(l[p[0]])out.push({label:p[1],type:p[2],text:l[p[0]],page:'',file:''});
+  });
+  return out;
+}
+function lfInitState(lessonId){
+  var l=lessonId?DB.lessons.find(function(x){return x.id===lessonId;}):null;
+  LF={lessons:[],seq:[],srcFiles:[],srcMap:{}};
+  if(l){
+    LF.lessons=(l.lessonsList&&l.lessonsList.length)?lfClone(l.lessonsList):(l.title?[{title:l.title,targets:l.objective||'',comps:[]}]:[]);
+    if(l.seq&&l.seq.length)LF.seq=lfClone(l.seq);
+    else{
+      if(l.direct)LF.seq.push({lesson:'',label:'Direct instruction',text:l.direct,page:'',file:''});
+      if(l.guided)LF.seq.push({lesson:'',label:'Guided practice',text:l.guided,page:'',file:''});
+    }
+    LF.srcFiles=(l.srcFiles||[]).slice();LF.srcMap=lfClone(l.srcMap)||{};
+  }
+  var rv=lfEl('lf-review');if(rv)rv.style.display='none';
+  lfRenderAll();
+}
+function lfSync(){
+  var titles=LF.lessons.map(function(x){return ciNorm(x.title);}).filter(Boolean);
+  lfEl('lf-title').value=titles.join(' / ');
+  lfEl('lf-obj').value=LF.lessons.map(function(x){return ciNorm(x.targets);}).filter(Boolean).join('; ');
+  lfEl('lf-direct').value=LF.seq.map(function(r,i){
+    return (i+1)+'. '+(r.lesson?r.lesson+' \u2014 ':'')+(r.label?r.label+': ':'')+ciNorm(r.text);
+  }).filter(function(x){return x.length>4;}).join('\n');
+  lfEl('lf-guided').value='';
+}
+function lfBuildComps(){
+  LF_COMPS=[];
+  LF.lessons.forEach(function(ls){(ls.comps||[]).forEach(function(c){LF_COMPS.push({lesson:ls.title,label:c.label,type:c.type,text:c.text,page:c.page,file:c.file||ls.file||''});});});
+}
+function lfCompLabel(c){return (c.label||'Activity')+(ciPageLabel(c)?' ('+ciPageLabel(c)+')':'');}
+function lfCompOptions(){
+  var html='<option value="">\u2014 choose an activity from the selected lessons \u2014</option>',cur=null;
+  LF_COMPS.forEach(function(c,i){
+    if(c.lesson!==cur){if(cur!==null)html+='</optgroup>';html+='<optgroup label="'+esc(c.lesson||'Lesson')+'">';cur=c.lesson;}
+    html+='<option value="'+i+'">'+esc(lfCompLabel(c))+'</option>';
+  });
+  return LF_COMPS.length?html+'</optgroup>':'<option value="">Add a lesson from your Curriculum Map to see its activities here</option>';
+}
+function lfRenderAll(){
+  lfBuildComps();lfRenderLessons();lfRenderPickers();lfRenderSeq();lfRenderSource();lfSync();
+}
+function lfRenderLessons(){
+  var el=lfEl('lf-lessons');if(!el)return;
+  if(!LF.lessons.length){el.innerHTML='<div style="font-size:12px;color:var(--mid);padding:6px 0">No lessons yet. Use <strong>+ Add lesson</strong> to type one, or pick one from your Curriculum Map in the blue box above.</div>';return;}
+  var inp='padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg);width:100%;box-sizing:border-box';
+  el.innerHTML='<div style="display:grid;grid-template-columns:46px 1.3fr 2fr 76px;gap:6px;font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px"><span>Order</span><span>Selected lesson</span><span>Learning targets</span><span></span></div>'
+    +LF.lessons.map(function(ls,i){
+      return '<div style="display:grid;grid-template-columns:46px 1.3fr 2fr 76px;gap:6px;align-items:start;margin-bottom:5px">'
+        +'<span style="font-weight:900;color:var(--accent1);padding-top:6px">'+(i+1)+'</span>'
+        +'<input type="text" value="'+esc(ls.title)+'" placeholder="e.g. Lesson 8 \u2014 Digging Deeper Into Unit Rates" oninput="LF.lessons['+i+'].title=this.value;lfSync()" style="'+inp+'">'
+        +'<input type="text" value="'+esc(ls.targets)+'" placeholder="Students will be able to..." oninput="LF.lessons['+i+'].targets=this.value;lfSync()" style="'+inp+'">'
+        +'<span style="display:flex;gap:2px;padding-top:3px"><button type="button" class="btn btn-sm" style="padding:1px 6px" onclick="lfMoveLesson('+i+',-1)" title="Move up">\u2191</button><button type="button" class="btn btn-sm" style="padding:1px 6px" onclick="lfMoveLesson('+i+',1)" title="Move down">\u2193</button><button type="button" class="btn btn-sm btn-danger" style="padding:1px 6px" onclick="lfRemoveLesson('+i+')" title="Remove">\u2715</button></span></div>';
+    }).join('');
+}
+function lfAddLesson(){LF.lessons.push({title:'',targets:'',comps:[]});lfRenderAll();}
+function lfRemoveLesson(i){LF.lessons.splice(i,1);lfRenderAll();}
+function lfMoveLesson(i,d){var j=i+d;if(j<0||j>=LF.lessons.length)return;var t=LF.lessons[i];LF.lessons[i]=LF.lessons[j];LF.lessons[j]=t;lfRenderAll();}
+
+var LF_PICK_FIELDS={donow:'lf-donow',independent:'lf-independent',closure:'lf-closure'};
+function lfRenderPickers(){
+  var opts=lfCompOptions();
+  ['donow','independent','closure'].forEach(function(f){
+    var sel=lfEl('lf-'+f+'-pick');if(sel)sel.innerHTML=opts;
+    lfShowSrc(f);
+  });
+}
+function lfShowSrc(f){
+  var el=lfEl('lf-'+f+'-src');if(!el)return;var m=LF.srcMap[f];
+  el.innerHTML=m?'From '+esc(m.text)+(m.file?' <a href="#" onclick="lfViewSource(\''+esc(m.file).replace(/'/g,"\\'")+'\','+(parseInt(m.page,10)||1)+');return false">[view source]</a>':'')+' <a href="#" onclick="delete LF.srcMap[\''+f+'\'];lfShowSrc(\''+f+'\');return false" style="color:#999">\u2715</a>':'';
+}
+function lfPickInto(f,idx){
+  var c=LF_COMPS[parseInt(idx,10)];if(!c)return;
+  var ta=lfEl(LF_PICK_FIELDS[f]);
+  if(ta.value.trim()&&!confirm('Replace what is in this box with the activity from the source?'))return;
+  ta.value=c.text||c.label;
+  LF.srcMap[f]={text:(c.lesson?c.lesson+' \u00B7 ':'')+lfCompLabel(c),file:c.file,page:c.page};
+  var sel=lfEl('lf-'+f+'-pick');if(sel)sel.value='';
+  lfShowSrc(f);
+}
+function lfRenderSeq(){
+  var el=lfEl('lf-seq');if(!el)return;
+  var inp='padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg);width:100%;box-sizing:border-box';
+  var lessonOpts=function(sel){return '<option value="">(any)</option>'+LF.lessons.map(function(l){return '<option'+(l.title===sel?' selected':'')+'>'+esc(l.title)+'</option>';}).join('');};
+  el.innerHTML=(LF.seq.length?'<div style="display:grid;grid-template-columns:52px 1fr 1.3fr 2fr 30px;gap:6px;font-size:10px;font-weight:800;color:var(--mid);text-transform:uppercase;margin-bottom:3px"><span>Order</span><span>Lesson</span><span>Activity from source</span><span>Plan for today</span><span></span></div>':'<div style="font-size:12px;color:var(--mid);padding:4px 0">No activities yet. Use <strong>+ Add activity</strong>, or <strong>Auto-arrange</strong> to fill this from the selected lessons.</div>')
+    +LF.seq.map(function(r,i){
+      var comps=LF_COMPS.map(function(c,ci){return {c:c,ci:ci};}).filter(function(x){return !r.lesson||x.c.lesson===r.lesson;});
+      var copts='<option value="">\u2014 choose \u2014</option>'+comps.map(function(x){return '<option value="'+x.ci+'"'+(x.c.label===r.label&&String(x.c.page)===String(r.page)?' selected':'')+'>'+esc(lfCompLabel(x.c))+'</option>';}).join('');
+      if(r.label&&!comps.some(function(x){return x.c.label===r.label;}))copts+='<option selected value="">'+esc(r.label)+'</option>';
+      return '<div style="display:grid;grid-template-columns:52px 1fr 1.3fr 2fr 30px;gap:6px;align-items:start;margin-bottom:5px">'
+        +'<span style="padding-top:4px;white-space:nowrap"><b style="color:var(--accent1)">'+(i+1)+'</b> <button type="button" class="btn btn-sm" style="padding:0 4px" onclick="lfMoveSeq('+i+',-1)">\u2191</button><button type="button" class="btn btn-sm" style="padding:0 4px" onclick="lfMoveSeq('+i+',1)">\u2193</button></span>'
+        +'<select onchange="LF.seq['+i+'].lesson=this.value;lfRenderSeq();lfSync()" style="'+inp+'">'+lessonOpts(r.lesson)+'</select>'
+        +'<div><select onchange="lfSeqPick('+i+',this.value)" style="'+inp+'">'+copts+'</select>'+(r.page!==''&&r.page!=null?'<div style="font-size:10px;color:var(--mid);margin-top:2px">'+esc(ciPageLabel(r))+(r.file?' <a href="#" onclick="lfViewSource(\''+esc(r.file).replace(/'/g,"\\'")+'\','+(parseInt(r.page,10)||1)+');return false">view</a>':'')+'</div>':'')+'</div>'
+        +'<textarea oninput="LF.seq['+i+'].text=this.value;lfSync()" placeholder="Editable instructions..." style="'+inp+';min-height:50px;resize:vertical">'+esc(r.text)+'</textarea>'
+        +'<button type="button" class="btn btn-sm btn-danger" style="padding:1px 6px" onclick="lfRemoveSeq('+i+')" title="Remove">\u2715</button></div>';
+    }).join('');
+}
+function lfAddSeq(){LF.seq.push({lesson:LF.lessons.length===1?LF.lessons[0].title:'',label:'',text:'',page:'',file:''});lfRenderSeq();lfSync();}
+function lfRemoveSeq(i){LF.seq.splice(i,1);lfRenderSeq();lfSync();}
+function lfMoveSeq(i,d){var j=i+d;if(j<0||j>=LF.seq.length)return;var t=LF.seq[i];LF.seq[i]=LF.seq[j];LF.seq[j]=t;lfRenderSeq();lfSync();}
+function lfSeqPick(i,idx){
+  var c=LF_COMPS[parseInt(idx,10)];if(!c)return;var r=LF.seq[i];
+  r.lesson=c.lesson;r.label=c.label;r.page=c.page;r.file=c.file;if(!ciNorm(r.text))r.text=c.text||'';
+  lfRenderSeq();lfSync();
+}
+function lfRenderSource(){
+  var el=lfEl('lf-source');if(!el)return;
+  el.innerHTML=LF.srcFiles.length?LF.srcFiles.map(function(f){return '\uD83D\uDCC4 '+esc(f)+' <a href="#" onclick="lfViewSource(\''+esc(f).replace(/'/g,"\\'")+'\',1);return false">[View]</a>';}).join(' &nbsp; '):'No source file linked yet \u2014 pick a lesson from your Curriculum Map above, or type your own below.';
+}
+// The original file is kept on this device only (IndexedDB); the lesson data itself is what syncs.
+function lfFileDb(){
+  return new Promise(function(res,rej){
+    if(!window.indexedDB){rej(new Error('no idb'));return;}
+    var rq=indexedDB.open('tcc-files',1);
+    rq.onupgradeneeded=function(){rq.result.createObjectStore('files');};
+    rq.onsuccess=function(){res(rq.result);};rq.onerror=function(){rej(rq.error);};
+  });
+}
+function ciStoreFile(f){
+  lfFileDb().then(function(db){var tx=db.transaction('files','readwrite');tx.objectStore('files').put(f,f.name);}).catch(function(){});
+}
+function lfViewSource(name,page){
+  lfFileDb().then(function(db){
+    var rq=db.transaction('files').objectStore('files').get(name);
+    rq.onsuccess=function(){
+      var blob=rq.result;
+      if(!blob){toast('The original file isn\'t stored on this device \u2014 re-upload it on the Curriculum Map page to view it here');return;}
+      var url=URL.createObjectURL(blob);
+      if(/\.pdf$/i.test(name))window.open(url+'#page='+(page||1),'_blank');
+      else{var a=document.createElement('a');a.href=url;a.download=name;a.click();}
+    };
+  }).catch(function(){toast('Could not open the stored file');});
+}
+// Add a Curriculum Map lesson (with its extracted activities) to today's plan
+function lfPullCurriculum(){
+  var sel=lfEl('lf-cur-lesson');var i=sel?parseInt(sel.value,10):NaN;
+  if(isNaN(i)||!CUR_PULL[i]){toast('Choose a lesson from the list first');return;}
+  var p=CUR_PULL[i],l=p.lesson,file=p.res.fileName||l.file||'';
+  if(LF.lessons.some(function(x){return x.title===l.title;})){toast('That lesson is already on this plan');return;}
+  LF.lessons=LF.lessons.filter(function(x){return ciNorm(x.title)||ciNorm(x.targets);});
+  LF.lessons.push({title:l.title||'Lesson',targets:l.objective||'',file:file,comps:lfCompsOf(l).map(function(c){return {label:c.label,type:c.type,text:c.text,page:c.page,file:c.file||file};})});
+  if(file&&LF.srcFiles.indexOf(file)<0)LF.srcFiles.push(file);
+  function fill(id,v){var e=lfEl(id);if(e&&v&&!String(e.value||'').trim())e.value=v;}
+  fill('lf-unit',p.unit);fill('lf-std',l.standard);fill('lf-materials',l.materials);
+  if(l.vocab){var nt=lfEl('lf-notes'),vt='Vocabulary: '+ciNorm(l.vocab).replace(/\s*;\s*/g,', ');if(nt&&nt.value.indexOf(vt)<0)nt.value=(nt.value?nt.value+'\n':'')+vt;}
+  lfRenderAll();lfAutoArrange(true);
+  toast('\u2705 Added '+(l.title||'lesson')+' \u2014 its activities are available in the pickers below');
+}
+// Fill empty parts from the selected lessons' extracted activities (warm-up, activities in order, practice, exit ticket)
+function lfAutoArrange(quiet){
+  lfBuildComps();var n=0;
+  function firstOf(t){var all=LF_COMPS.filter(function(c){return c.type===t;});return (t==='closure'&&all.filter(function(c){return /cool|exit/i.test(c.label);})[0])||all[0];}
+  [['donow','lf-donow'],['independent','lf-independent'],['closure','lf-closure']].forEach(function(p){
+    var ta=lfEl(p[1]),c=firstOf(p[0]);
+    if(c&&!ta.value.trim()){ta.value=c.text||c.label;LF.srcMap[p[0]]={text:(c.lesson?c.lesson+' \u00B7 ':'')+lfCompLabel(c),file:c.file,page:c.page};n++;}
+  });
+  // every selected lesson contributes its activities, in the order the lessons are listed
+  LF.lessons.forEach(function(ls){
+    if(LF.seq.some(function(r){return r.lesson===ls.title;}))return;
+    LF_COMPS.filter(function(c){return c.lesson===ls.title&&!LF_NOT_STEPS[c.type];}).forEach(function(c){LF.seq.push({lesson:c.lesson,label:c.label,page:c.page,file:c.file,text:c.text||''});n++;});
+  });
+  lfRenderAll();
+  if(!quiet)toast(n?'Filled '+n+' part'+(n===1?'':'s')+' from the selected lessons':'Nothing new to fill \u2014 add a lesson with extracted activities first');
+}
+function lfToggleReview(){
+  var box=lfEl('lf-review');if(!box)return;
+  if(box.style.display!=='none'){box.style.display='none';return;}
+  lfBuildComps();
+  if(!LF_COMPS.length){box.style.display='block';box.innerHTML='<div style="font-size:12px;color:var(--mid);padding:6px 0">Nothing extracted yet. Add a lesson from your Curriculum Map (uploaded PDF, PowerPoint or Word file) and its activities will be listed here with the page they came from.</div>';return;}
+  box.style.display='block';
+  box.innerHTML='<div style="font-size:11px;font-weight:800;color:#0369a1;margin:8px 0 4px">Extracted from your source files \u2014 shows which lesson and page each activity came from</div>'
+    +'<div class="tbl-wrap" style="max-height:230px;overflow:auto"><table><thead><tr><th>Lesson</th><th>Activity</th><th>Source</th><th>Text</th><th>Use as</th></tr></thead><tbody>'
+    +LF_COMPS.map(function(c,i){
+      return '<tr><td style="font-size:11px">'+esc(c.lesson)+'</td><td style="font-size:11px"><strong>'+esc(c.label)+'</strong></td>'
+        +'<td style="font-size:10px;white-space:nowrap">'+esc(c.file||'')+(ciPageLabel(c)?' \u00B7 '+esc(ciPageLabel(c)):'')+'</td>'
+        +'<td style="font-size:11px;max-width:260px">'+esc(ciNorm(c.text).slice(0,140))+(ciNorm(c.text).length>140?'\u2026':'')+'</td>'
+        +'<td style="white-space:nowrap"><button type="button" class="btn btn-sm" style="font-size:10px;padding:1px 6px" onclick="lfPickInto(\'donow\','+i+')">Do Now</button> <button type="button" class="btn btn-sm" style="font-size:10px;padding:1px 6px" onclick="lfUseInSeq('+i+')">+ Sequence</button> <button type="button" class="btn btn-sm" style="font-size:10px;padding:1px 6px" onclick="lfPickInto(\'independent\','+i+')">Practice</button> <button type="button" class="btn btn-sm" style="font-size:10px;padding:1px 6px" onclick="lfPickInto(\'closure\','+i+')">Exit</button></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+function lfUseInSeq(i){var c=LF_COMPS[i];if(!c)return;LF.seq.push({lesson:c.lesson,label:c.label,page:c.page,file:c.file,text:c.text||''});lfRenderSeq();lfSync();}
+
+// How a saved daily plan reads in the Sub Packet
+function subLessonHtml(l){
+  var ls=(l.lessonsList&&l.lessonsList.length)?l.lessonsList:[{title:l.title,targets:l.objective}];
+  var h='<p><b>Lesson'+(ls.length>1?'s':'')+':</b> '+(ls.length>1?'<br>'+ls.map(function(x,i){return (i+1)+'. '+esc(x.title)+(x.targets?' \u2014 <i>'+esc(x.targets)+'</i>':'');}).join('<br>'):esc(ls[0].title))+'</p>';
+  if(ls.length===1&&ls[0].targets)h+='<p><b>Learning target:</b> '+esc(ls[0].targets)+'</p>';
+  if(l.donow)h+='<p><b>Do Now:</b> '+esc(l.donow)+'</p>';
+  if(l.seq&&l.seq.length)h+='<p><b>Teaching sequence:</b></p><ol style="margin:2px 0 6px 18px">'+l.seq.map(function(r){return '<li>'+(r.lesson&&ls.length>1?'<i>'+esc(r.lesson)+'</i> \u2014 ':'')+(r.label?'<b>'+esc(r.label)+'</b>: ':'')+esc(ciNorm(r.text))+'</li>';}).join('')+'</ol>';
+  else{if(l.direct)h+='<p><b>Instruction:</b> '+esc(l.direct)+'</p>';if(l.guided)h+='<p><b>Guided practice:</b> '+esc(l.guided)+'</p>';}
+  if(l.independent)h+='<p><b>Independent practice:</b> '+esc(l.independent)+'</p>';
+  if(l.closure)h+='<p><b>Exit ticket:</b> '+esc(l.closure)+'</p>';
+  if(l.hw)h+='<p><b>Homework:</b> '+esc(l.hw)+'</p>';
+  if(l.nocarry)h+='<p><i>Unfinished classwork is not homework today.</i></p>';
+  if(l.materials)h+='<p><b>Materials:</b> '+esc(l.materials)+'</p>';
+  if(l.diff)h+='<p><b>Accommodations:</b> '+esc(l.diff)+'</p>';
+  return h;
+}
+// Class rosters for the Sub Packet: each class in 2-3 columns, as many classes per sheet as fit
+function subRosterPages(){
+  var plans=(typeof iepPlanMap==='function')?iepPlanMap():{};
+  var classes=getSchedule().filter(function(r){return r.type==='Class';}).map(function(row){
+    var p=row.label.replace('Period ','');
+    return {row:row,students:DB.students.filter(function(s){return String(s.period)===String(p);}).sort(function(a,b){return a.name.localeCompare(b.name);})};
+  }).filter(function(c){return c.students.length;});
+  if(!classes.length)return '';
+  var ROW=0.235,HEAD=0.62,GAP=0.15,PAGE=8.4,pages=[],cur=[],used=0;   // inches: row height, class heading, gap, usable page height
+  classes.map(function(c){var cols=c.students.length>10?3:2;return {c:c,cols:cols,h:HEAD+Math.ceil(c.students.length/cols)*ROW+GAP};}).forEach(function(b){
+    if(cur.length&&used+b.h>PAGE){pages.push(cur);cur=[];used=0;}
+    cur.push(b);used+=b.h;
+  });
+  if(cur.length)pages.push(cur);
+  return pages.map(function(pg,pi){
+    return '<div style="break-before:page;page-break-before:always"><div class="section-title">Class Rosters'+(pages.length>1?' ('+(pi+1)+' of '+pages.length+')':'')+'</div>'
+      +pg.map(function(b){
+        return '<div style="margin-bottom:14px;break-inside:avoid;page-break-inside:avoid"><div class="period-label">'+esc(b.c.row.label)+(b.c.row.subject?' \u00B7 '+esc(b.c.row.subject):'')+' \u2014 '+b.c.students.length+' students</div>'
+          +'<div style="column-count:'+b.cols+';column-gap:18px;font-size:9.5pt;line-height:1.5">'
+          +b.c.students.map(function(s){var pl=plans[s.name];return '<div style="break-inside:avoid">\u2610 '+esc(s.name)+(pl?' <b style="font-size:8pt">['+esc(/504/.test(pl.type)?'504':(/IEP/.test(pl.type)?'IEP':pl.type))+']</b>':'')+(s.medical?' \u26A0\uFE0F':'')+'</div>';}).join('')
+          +'</div></div>';
+      }).join('')+'</div>';
+  }).join('');
 }
 
 </script>
