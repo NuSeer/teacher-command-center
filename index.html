@@ -281,7 +281,7 @@ textarea{resize:vertical;min-height:64px}
         <span style="font-size:14px;opacity:.6" title="Edit title">✏️</span>
       </h1>
       <div class="hdr-sub" id="hdr-sub-wrap">
-        <span id="hdr-subtitle" onclick="editSubtitle()" title="Click to edit" style="cursor:pointer">7 Periods · <span id="hdr-student-count">0</span> Students</span>
+        <span id="hdr-subtitle" onclick="editSubtitle()" title="Click to edit" style="cursor:pointer"><span id="hdr-student-count">0</span> Students</span>
         <span style="opacity:.5;margin-left:4px;font-size:10px">✏️</span>
       </div>
     </div>
@@ -1010,7 +1010,7 @@ textarea{resize:vertical;min-height:64px}
       <div class="card-body">
         <div class="form-row">
           <div class="fg"><label>Restroom policy</label><input type="text" id="sub-restroom" placeholder="e.g. One at a time, sign out log on desk"></div>
-          <div class="fg"><label>Emergency contacts</label><input type="text" id="sub-emergency" placeholder="e.g. Ms. Rivera Rm 204, Office x123"></div>
+          <div class="fg"><label>Emergency contacts</label><input type="text" id="sub-emergency" placeholder="e.g. counselor name, room, office extension"></div>
         </div>
         <div class="form-row">
           <div class="fg"><label>Attendance procedure</label><input type="text" id="sub-attendance" placeholder="e.g. PowerSchool by 8:15am"></div>
@@ -2165,7 +2165,7 @@ textarea{resize:vertical;min-height:64px}
           <div class="fg"><label>Goals / Notes</label><textarea id="iep-goals" rows="2" placeholder="Current goals or focus areas..."></textarea></div>
         </div>
         <div class="form-row">
-          <div class="fg"><label>Contact / Case manager</label><input type="text" id="iep-contact" placeholder="Ms. Rivera, x204"></div>
+          <div class="fg"><label>Contact / Case manager</label><input type="text" id="iep-contact" placeholder="Case manager name, extension"></div>
           <div class="fg"><label>Last meeting date</label><input type="date" id="iep-lastmeet"></div>
           <div class="fg"><label>Status</label>
             <select id="iep-status" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;color:var(--dark)">
@@ -2698,7 +2698,7 @@ textarea{resize:vertical;min-height:64px}
           <div style="padding:8px;background:var(--surface);border-radius:6px">🖨️ <strong>Parent Meeting Packet</strong> — generates automatically from your existing data. No prep needed — just select the student and print.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">💾 <strong>Backup weekly</strong> — Setup → <strong>⬇️ Export / Backup to Computer</strong> → saves a .json file to your <strong>Downloads folder</strong>. To restore: Setup → <strong>⬆️ Restore from Backup File</strong> → navigate to Downloads → select the TCC_Backup file → click Open.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔄 <strong>New Year Reset</strong> — go to Schedule Setup → <strong>🔄 New Year Reset</strong>. Auto-exports your data, then clears students, grades, behavior, and attendance while keeping your schedule, lessons, and curriculum resources.</div>
-          <div style="padding:8px;background:var(--surface);border-radius:6px">📋 <strong>Sample data</strong> — the app starts with demo students so you can explore every feature. When ready, go to Schedule Setup → <strong>🗑️ Clear all data</strong> to start fresh. Your schedule setup is preserved.</div>
+          <div style="padding:8px;background:var(--surface);border-radius:6px">📋 <strong>Sample data</strong> — a new account starts empty. To explore every feature first, go to Schedule Setup → <strong>📋 Load sample data</strong>; <strong>🗑️ Clear all data</strong> removes it again (and your name / school info). Your schedule setup is preserved.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">⭐ <strong>Concern Referral</strong> — select a student in Concern & Referral, fill in your observations, urgency, and request, then print. Generates a full packet for the counselor including all your existing data + a counselor response section.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">💬 <strong>Student Comm Report tabs</strong> — Parent Contact Log, Discipline Documentation, Coaching/Academic, and Admin Referral Packet each print a different version of the student's record. Coaching tab saves your intervention notes even after closing.</div>
         </div>
@@ -2758,14 +2758,14 @@ textarea{resize:vertical;min-height:64px}
           <button class="btn btn-sm" onclick="document.getElementById('import-backup-file').click()">⬆️ Restore from Backup File</button>
           <input type="file" id="import-backup-file" accept=".json" style="display:none" onchange="importBackupFile(this)">
           <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border-color:#d97706" onclick="yearEndReset()">🔄 New Year Reset</button>
-          <button class="btn btn-sm btn-danger" onclick="if(confirm('Clear ALL data? This cannot be undone.')){Object.keys(DB).forEach(function(k){if(Array.isArray(DB[k]))DB[k]=[];else if(typeof DB[k]==='object'&&k!=='setup')DB[k]={};});save();updatePills();toast('All data cleared');renderSetup();}">🗑️ Clear all data</button>
+          <button class="btn btn-sm btn-danger" onclick="clearAllData()">🗑️ Clear all data</button>
           <button class="btn btn-sm btn-primary" onclick="saveSetupInfo()">Save</button>
         </div>
       </div>
       <div class="card-body">
         <div style="background:#fef9e7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:#92400e">
           <div style="font-weight:800;font-size:12px;margin-bottom:6px">📋 Sample Data</div>
-          The app starts with demo students so you can explore every feature. When ready for your real class, click <strong>🗑️ Clear all data</strong> — your Schedule Setup is preserved.
+          A new account starts empty. Click <strong>📋 Load sample data</strong> to explore every feature with demo students; <strong>🗑️ Clear all data</strong> removes it again, along with your name / school info. Your Schedule Setup is preserved.
           <div style="font-weight:800;font-size:12px;margin:8px 0 4px">💾 How Backup Works</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div style="background:rgba(255,255,255,.6);padding:8px;border-radius:6px">
@@ -2783,9 +2783,9 @@ textarea{resize:vertical;min-height:64px}
           Auto-exports your data to Downloads first, then clears students, grades, behavior, missing work, and attendance — keeping your schedule, lessons, and curriculum for next year.
         </div>
         <div class="form-row">
-          <div class="fg"><label>Teacher name</label><input type="text" id="setup-teacher" placeholder="Ms. Johnson"></div>
-          <div class="fg"><label>School name</label><input type="text" id="setup-school" placeholder="Lincoln Middle School"></div>
-          <div class="fg"><label>School year</label><input type="text" id="setup-year" placeholder="2026–2027"></div>
+          <div class="fg"><label>Teacher name</label><input type="text" id="setup-teacher" placeholder="Your name"></div>
+          <div class="fg"><label>School name</label><input type="text" id="setup-school" placeholder="Your school"></div>
+          <div class="fg"><label>School year</label><input type="text" id="setup-year" placeholder="e.g. 2026–2027"></div>
           <div class="fg"><label>Grade / Subject</label><input type="text" id="setup-subject" placeholder="e.g. 7th Grade Math, English 10"></div>
         </div>
         <div class="form-row">
@@ -3064,15 +3064,17 @@ fbAuth.onAuthStateChanged(function(user){
 /* ══ FIRESTORE ══ */
 function save(){if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(saveToFirestore,400);}
 
-function saveToFirestore(){
+// b.set(ref,data,opts) — opts only when merging; a full replace passes none.
+var MERGE_OPT=function(replaceAll){return replaceAll?{merge:false}:{merge:true};};
+function saveToFirestore(replaceAll){
   if(!currentUser)return;
   var ref=fbDb.collection('teachers').doc(currentUser.uid);
   var b=fbDb.batch();
-  b.set(ref.collection('data').doc('main'),{setup:DB.setup||{},tasks:DB.tasks||[],calendarEvents:DB.calendarEvents||[],plannerNotes:DB.plannerNotes||{},subInfo:DB.subInfo||{},customOptions:DB.customOptions||{}},{merge:true});
-  b.set(ref.collection('data').doc('students'),{students:DB.students||[],grades:DB.grades||{},seating:DB.seating||{},boyForms:DB.boyForms||{}},{merge:true});
-  b.set(ref.collection('data').doc('tracking'),{missing:DB.missing||[],participation:DB.participation||[],behavior:DB.behavior||[],attendance:DB.attendance||{},iep:DB.iep||[],smallGroups:DB.smallGroups||[]},{merge:true});
-  b.set(ref.collection('data').doc('comms'),{comms:DB.comms||[],conferences:DB.conferences||[],concerns:DB.concerns||[],groups:DB.groups||[]},{merge:true});
-  b.set(ref.collection('data').doc('planning'),{lessons:DB.lessons||[],subPlans:DB.subPlans||[],curriculum:DB.curriculum||[],tests:DB.tests||[],testScores:DB.testScores||{},assignments:DB.assignments||[]},{merge:true});
+  b.set(ref.collection('data').doc('main'),{setup:DB.setup||{},tasks:DB.tasks||[],calendarEvents:DB.calendarEvents||[],plannerNotes:DB.plannerNotes||{},subInfo:DB.subInfo||{},customOptions:DB.customOptions||{}},MERGE_OPT(replaceAll));
+  b.set(ref.collection('data').doc('students'),{students:DB.students||[],grades:DB.grades||{},seating:DB.seating||{},boyForms:DB.boyForms||{}},MERGE_OPT(replaceAll));
+  b.set(ref.collection('data').doc('tracking'),{missing:DB.missing||[],participation:DB.participation||[],behavior:DB.behavior||[],attendance:DB.attendance||{},iep:DB.iep||[],smallGroups:DB.smallGroups||[]},MERGE_OPT(replaceAll));
+  b.set(ref.collection('data').doc('comms'),{comms:DB.comms||[],conferences:DB.conferences||[],concerns:DB.concerns||[],groups:DB.groups||[]},MERGE_OPT(replaceAll));
+  b.set(ref.collection('data').doc('planning'),{lessons:DB.lessons||[],subPlans:DB.subPlans||[],curriculum:DB.curriculum||[],tests:DB.tests||[],testScores:DB.testScores||{},assignments:DB.assignments||[]},MERGE_OPT(replaceAll));
   b.commit().then(function(){var si=document.getElementById('save-indicator');if(si){si.textContent='✓ Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}}).catch(function(e){console.warn('Save:',e);});
 }
 
@@ -3097,7 +3099,6 @@ function loadFromFirestore(){
     var hasData=docs.some(function(d){return d.exists;});
     isBetaTesterAccount=!hasData;
     if(hasData){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});dropHomeroomRow();}
-    else{loadSampleData();}
     startApp();
     Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){});
   }).catch(function(){startApp();});
@@ -3188,7 +3189,7 @@ var DEFAULT_OPTIONS={
   mwStatus:['Missing','Excused','Partial','Late - Submitted','Parent Notified']
 };
 var DB={students:[],missing:[],participation:[],comms:[],lessons:[],grades:{},subInfo:{},subPlans:[],boyForms:{},behavior:[],groups:[],tests:[],testScores:{},assignments:[],conferences:[],concerns:[],tasks:[],curriculum:[],plannerNotes:{},calendarEvents:[],customOptions:{},seating:{},attendance:{},iep:[],smallGroups:[],
-  setup:{teacher:'',school:'',year:'',subject:'',firstday:'2026-08-27',lastday:'2027-05-28',starttime:'8:00',endtime:'15:30',schedule:null}};
+  setup:{teacher:'',school:'',year:'',subject:'',firstday:'',lastday:'',starttime:'',endtime:'',schedule:null}};
 
 function getOpts(key){return(DB.customOptions&&DB.customOptions[key]&&DB.customOptions[key].length)?DB.customOptions[key]:DEFAULT_OPTIONS[key]||[];}
 function addOpt(key,val){val=val.trim();if(!val)return;if(!DB.customOptions)DB.customOptions={};if(!DB.customOptions[key])DB.customOptions[key]=DEFAULT_OPTIONS[key].slice();if(!DB.customOptions[key].includes(val))DB.customOptions[key].push(val);save();}
@@ -5189,7 +5190,7 @@ function renderClassComm(period,btn){
 
 /* ── PLANNER ── */
 var plannerDate=new Date();
-function getSchoolStart(){return new Date(((DB.setup&&DB.setup.firstday)||'2026-08-27')+'T12:00:00');}
+function getSchoolStart(){var fd=DB.setup&&DB.setup.firstday;return fd?new Date(fd+'T12:00:00'):null;}
 
 function plannerInit(){if(!plannerDate)plannerDate=new Date();}
 function plannerNav(d){var nd=new Date(plannerDate);nd.setDate(nd.getDate()+d);plannerDate=nd;renderPlanner();}
@@ -5910,9 +5911,10 @@ function renderPlanner(){
   if(fd)fd.textContent=dayNames[d.getDay()]+', '+months[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
 
   // day of school
-  var dayNum=Math.floor((d-getSchoolStart())/86400000)+1;
+  var start=getSchoolStart();
+  var dayNum=start?Math.floor((d-start)/86400000)+1:0;
   var dc=document.getElementById('pl-day-count');
-  if(dc)dc.textContent='📅 '+(dayNum>0?'Day '+dayNum:Math.abs(dayNum-1)+' days until start');
+  if(dc)dc.textContent=start?'📅 '+(dayNum>0?'Day '+dayNum:Math.abs(dayNum-1)+' days until start'):'📅 Set first day in Setup';
 
   var todayLessons=DB.lessons.filter(function(l){return l.date===ds;});
   var el=document.getElementById('pl-lesson-count');if(el)el.textContent='📖 '+todayLessons.length+' lesson'+(todayLessons.length!==1?'s':'');
@@ -7013,7 +7015,7 @@ function restoreCustomizations(){
 function renderSetup(){
   var s=DB.setup||{};
   ['teacher','school','year','subject','firstday','lastday','starttime','endtime'].forEach(function(k){
-    var e=document.getElementById('setup-'+k);if(e&&s[k])e.value=s[k];
+    var e=document.getElementById('setup-'+k);if(e)e.value=s[k]||'';
   });
   renderScheduleRows();renderSetupPreview();renderCalendarEvents();renderCalendarSyncUI();
 }
@@ -7054,6 +7056,29 @@ function regenerateCalendarToken(){
   save();
   renderCalendarSyncUI();
   toast('🔄 New calendar link generated — update it wherever you subscribed');
+}
+// Clear ALL data: students, grades, lessons, curriculum, planner, calendar events, sample data AND the
+// teacher / school / year / subject / dates. Kept: your period schedule, plus look-and-feel choices
+// (theme, layout, feature toggles) and the calendar-sync secret so an existing feed link keeps working.
+function clearAllData(){
+  if(!confirm('Clear ALL data?\n\nThis removes students, grades, lessons, curriculum, planner items, calendar events, syllabi, and your name / school / year info (including any sample data). Your period schedule and display settings are kept.\n\nThis cannot be undone.'))return;
+  Object.keys(DB).forEach(function(k){
+    if(k==='setup')return;
+    if(Array.isArray(DB[k]))DB[k]=[];
+    else if(DB[k]&&typeof DB[k]==='object')DB[k]={};
+  });
+  if(!DB.setup)DB.setup={};
+  ['teacher','school','year','subject','firstday','lastday','starttime','endtime','subtitle','learningDisclaimer'].forEach(function(k){DB.setup[k]='';});
+  DB.setup.subtitleCustomized=false;
+  DB.setup.syllabi={};
+  delete DB.setup.lnPrefs;
+  // Replace (not merge) the cloud copy, otherwise the old values are merged straight back in on next load.
+  if(saveTimeout)clearTimeout(saveTimeout);
+  try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){}
+  saveToFirestore(true);
+  updatePills();updateHdrSubtitle();renderSetup();
+  var hn=document.getElementById('setup-preview');if(hn)renderSetupPreview();
+  toast('All data cleared');
 }
 function saveSetupInfo(){
   if(!DB.setup)DB.setup={};
@@ -7147,8 +7172,9 @@ function renderBOYDash(){
   var complete=DB.students.filter(function(s){var bf=DB.boyForms[s.id]||{};return BOY_FORMS.every(function(f){return bf[f]==='✓';});}).length;
   var partial=DB.students.filter(function(s){var bf=DB.boyForms[s.id]||{};var done=BOY_FORMS.filter(function(f){return bf[f]==='✓';}).length;return done>0&&done<BOY_FORMS.length;}).length;
   var none=total-complete-partial;
-  var firstDay=new Date((DB.setup&&DB.setup.firstday)||'2026-08-27');
-  var today=new Date();var daysUntil=Math.ceil((firstDay-today)/86400000);
+  var fdStr=DB.setup&&DB.setup.firstday;
+  var firstDay=fdStr?new Date(fdStr):null;
+  var today=new Date();var daysUntil=firstDay?Math.ceil((firstDay-today)/86400000):0;
   if(el)el.innerHTML='<div class="sc" style="border-left-color:var(--accent1)"><div class="sc-val">'+total+'</div><div class="sc-lbl">Total students</div></div>'
     +'<div class="sc" style="border-left-color:#059669"><div class="sc-val">'+complete+'</div><div class="sc-lbl">All forms ✓</div></div>'
     +'<div class="sc" style="border-left-color:#d97706"><div class="sc-val">'+partial+'</div><div class="sc-lbl">Partial</div></div>'
@@ -7157,7 +7183,7 @@ function renderBOYDash(){
   var cd=document.getElementById('boy-dash-countdown');
   if(cd)cd.innerHTML=daysUntil>0
     ?'<div style="text-align:center;padding:20px"><div style="font-size:48px;font-weight:900;color:var(--accent1);font-family:Nunito,sans-serif">'+daysUntil+'</div><div style="font-size:14px;color:var(--mid)">days until first day of school</div><div style="font-size:12px;color:var(--mid);margin-top:4px">'+firstDay.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+'</div></div>'
-    :'<div style="text-align:center;padding:20px;font-size:16px;color:#059669;font-weight:700">🎉 School is in session!</div>';
+    :(firstDay?'<div style="text-align:center;padding:20px;font-size:16px;color:#059669;font-weight:700">🎉 School is in session!</div>':'<div style="text-align:center;padding:20px;font-size:13px;color:var(--mid)">Enter your first day of school in Schedule Setup to see the countdown.</div>');
   // BOY forms by student
   var fms=document.getElementById('boy-dash-forms');
   if(fms){
@@ -8198,8 +8224,6 @@ function loadSampleData(){
     {id:'ev7',name:'PD Day — No Students',start:d(5),end:d(5),type:'PD Day'},
     {id:'ev8',name:'Spring Break',start:d(60),end:d(67),type:'Holiday / No School'}
   ];
-  // Setup
-  DB.setup=Object.assign(DB.setup||{},{teacher:'Ms. Rivera',school:'Lincoln Middle School',year:'2026–2027',subject:'7th Grade',firstday:'2026-08-27',lastday:'2027-05-28',starttime:'08:00',endtime:'15:30'});
   // Sample attendance — last 5 school days
   var attCodes=['P','P','A','T','P','P','P','P','A','P'];
   for(var ai=0;ai<5;ai++){
