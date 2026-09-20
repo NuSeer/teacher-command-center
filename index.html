@@ -732,7 +732,12 @@ textarea{resize:vertical;min-height:64px}
     <div class="card">
       <div class="card-hdr">
         <span class="card-title">All students</span>
-        <input type="text" id="stu-search" placeholder="Search..." style="max-width:180px;padding:4px 10px;font-size:12px" oninput="renderStudentTable()">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select id="stu-period-filter" onchange="stuPeriodChanged()" title="Show one period" style="padding:4px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;color:var(--dark);background:var(--card-bg)"><option value="all">All periods</option></select>
+          <select id="stu-pick" onchange="renderStudentTable()" title="Pick a student" style="min-width:170px;padding:4px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;color:var(--dark);background:var(--card-bg)"><option value="">All students</option></select>
+          <input type="text" id="stu-search" placeholder="Search..." style="max-width:150px;padding:4px 10px;font-size:12px" oninput="renderStudentTable()">
+          <span id="stu-count" style="font-size:11px;color:var(--mid)"></span>
+        </div>
       </div>
       <div class="card-body tbl-wrap"><table><thead><tr><th>Name</th><th>Period</th><th>Contact</th><th>Phone</th><th>Dismissal</th><th>Notes</th><th></th></tr></thead><tbody id="stu-tbody"></tbody></table></div>
     </div>
@@ -1106,7 +1111,7 @@ textarea{resize:vertical;min-height:64px}
       <div class="form-row">
         <div class="fg"><label>Date</label><input type="date" id="lf-date"></div>
         <div class="fg" style="max-width:110px"><label>Period</label>
-          <select id="lf-period"></select>
+          <select id="lf-period" onchange="showCurriculumSuggestions()"></select>
         </div>
         <div class="fg"><label>Copy to periods</label>
           <div style="display:flex;flex-wrap:wrap;gap:5px;padding:6px 0" id="lf-copy-periods"></div>
@@ -1120,7 +1125,12 @@ textarea{resize:vertical;min-height:64px}
       </div>
       <!-- CURRICULUM RESOURCE PANEL — auto-populated from Curriculum folder -->
       <div id="lf-curriculum-panel" style="display:none;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 12px;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:6px">📁 Curriculum Resources for this unit — click to open</div>
+        <div id="lf-cur-pull" style="display:none;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:4px">📋 Pull a lesson from your Curriculum Map <span id="lf-cur-count" style="font-weight:600;color:#0369a1"></span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><select id="lf-cur-lesson" style="flex:1;min-width:220px;padding:6px 8px;border:1.5px solid #bae6fd;border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg)"></select><button type="button" class="btn btn-sm btn-primary" onclick="lfPullCurriculum()">⬇ Fill empty fields</button></div>
+          <div style="font-size:10px;color:#0369a1;margin-top:3px">Only empty fields are filled — anything you already typed stays.</div>
+        </div>
+        <div id="lf-cur-links-label" style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:6px">📁 Curriculum Resources for this unit — click to open</div>
         <div id="lf-curriculum-links" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
@@ -1653,7 +1663,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="fp-hdr"><button class="fp-back" onclick="closeFull('curriculum')">← Hub</button><div class="fp-title">📁 Curriculum Resources</div></div>
   <div class="fp-body">
     <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0369a1">
-      <strong>🔗 Auto-linked to Lesson Plans:</strong> When you enter a matching Unit name in a lesson plan, resources from that unit appear automatically in the lesson form — click to open them instantly. Keep unit names consistent (e.g. always use "Unit 3 — Fractions") for the best matching.
+      <strong>🔗 Connected to Lesson Plans:</strong> When you type a matching Unit in a lesson plan, this unit's resources appear as clickable cards, and any lessons you uploaded appear in a “Pull a lesson from your Curriculum Map” list that fills the empty fields for you. Units match by number, so "Unit 3" and "Unit 3 — Fractions" are the same unit. Below, each unit shows which of its lessons are already planned.
     </div>
     <div class="card" id="cur-upload-card"><div class="card-hdr"><span class="card-title">📤 Upload documents — PowerPoint, Excel, Word, PDF</span></div><div class="card-body">
       <div id="cur-drop" ondragover="event.preventDefault();this.style.borderColor='#0369a1'" ondragleave="this.style.borderColor='#bae6fd'" ondrop="ciDrop(event)" style="border:2px dashed #bae6fd;border-radius:10px;padding:16px;text-align:center;background:#f8fcff;margin-bottom:12px">
@@ -3308,7 +3318,7 @@ function openFull(id){
   var fp=document.getElementById('fp-'+id);
   if(fp){
     fp.classList.add('open');
-    if(id==='students'){renderStudentStats();
+    if(id==='students'){renderStudentStats();renderStudentTable();
       var dw=document.getElementById('dismissal-wrap');if(dw){dw.innerHTML=buildSelect('stu-dismissal','dismissal','flex:1;padding:7px 10px;border:1.5px solid #f0cce8;border-radius:7px;font-size:13px;color:#5a2060');var dsEl=document.getElementById('stu-dismissal');if(dsEl)dsEl.addEventListener('change',function(){var bw=document.getElementById('bus-number-wrap');if(bw)bw.style.display=this.value.toLowerCase().includes('bus')?'':'none';});var bw2=document.getElementById('bus-number-wrap');if(bw2){var dsV=(document.getElementById('stu-dismissal')||{}).value||'';bw2.style.display=dsV.toLowerCase().includes('bus')?'':'none';}}}
     if(id==='grades'){renderGradeTabs();renderGradeTable();}
     if(id==='missing'){renderMissingStats();renderMissingTable();populateStudentSelect('mw-student','mw-period');renderMissingCharts();
@@ -4066,14 +4076,47 @@ function renderStudentStats(){
   var g=document.getElementById('stu-stats');if(!g)return;
   var periods={};DB.students.forEach(function(s){periods[s.period]=(periods[s.period]||0)+1;});
   var cols=['#ff8ec6','#7de8cc','#c4adf5','#ffb48a','#ffe066','#6ab8ff','#80e082'];
-  g.innerHTML='<div class="sc" style="border-left-color:#e040a0"><div class="sc-val">'+DB.students.length+'</div><div class="sc-lbl">Total Students</div></div>'
-    +getPeriodNumbers().map(function(p,i){return '<div class="sc" style="border-left-color:'+cols[i]+'"><div class="sc-val">'+(periods[String(p)]||0)+'</div><div class="sc-lbl">Period '+p+'</div></div>';}).join('');
+  g.innerHTML='<div class="sc" onclick="stuPickPeriod(\'all\')" title="Show everyone" style="border-left-color:#e040a0;cursor:pointer"><div class="sc-val">'+DB.students.length+'</div><div class="sc-lbl">Total Students</div></div>'
+    +getPeriodNumbers().map(function(p,i){return '<div class="sc" onclick="stuPickPeriod(\''+p+'\')" title="Show Period '+p+' students" style="border-left-color:'+cols[i%cols.length]+';cursor:pointer"><div class="sc-val">'+(periods[String(p)]||0)+'</div><div class="sc-lbl">Period '+p+'</div></div>';}).join('');
+}
+// Period filter + student dropdown above the student table. The dropdown lists only the students in
+// the chosen period (everyone when "All periods"), and picking one narrows the table to that student.
+function populateStuControls(){
+  var perEl=document.getElementById('stu-period-filter'),pickEl=document.getElementById('stu-pick');
+  if(!perEl||!pickEl)return;
+  var num={numeric:true},periods=[];
+  getPeriodNumbers().concat(DB.students.map(function(s){return String(s.period||'');})).forEach(function(p){if(p&&periods.indexOf(p)<0)periods.push(p);});
+  periods.sort(function(a,b){return a.localeCompare(b,undefined,num);});
+  var curP=perEl.value||'all',curS=pickEl.value;
+  perEl.innerHTML='<option value="all">All periods</option>'+periods.map(function(p){
+    var n=DB.students.filter(function(s){return String(s.period)===p;}).length;
+    return '<option value="'+esc(p)+'">Period '+esc(p)+' ('+n+')</option>';
+  }).join('');
+  perEl.value=periods.indexOf(curP)>=0?curP:'all';
+  var pool=DB.students.filter(function(s){return perEl.value==='all'||String(s.period)===perEl.value;})
+    .sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''));});
+  pickEl.innerHTML='<option value="">'+(perEl.value==='all'?'All students':'All of Period '+esc(perEl.value))+'</option>'
+    +pool.map(function(s){return '<option value="'+esc(s.id)+'">'+esc(s.name)+(perEl.value==='all'?' (P'+esc(s.period)+')':'')+'</option>';}).join('');
+  pickEl.value=pool.some(function(s){return s.id===curS;})?curS:'';
+}
+function stuPeriodChanged(){var pk=document.getElementById('stu-pick');if(pk)pk.value='';renderStudentTable();}
+function stuPickPeriod(p){
+  var perEl=document.getElementById('stu-period-filter');if(!perEl)return;
+  populateStuControls();
+  perEl.value=p;stuPeriodChanged();
+  var t=document.getElementById('stu-tbody');if(t&&t.scrollIntoView)t.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function renderStudentTable(){
+  populateStuControls();
   var q=(document.getElementById('stu-search')||{}).value||'';
-  var list=DB.students.filter(function(s){return !q||s.name.toLowerCase().includes(q.toLowerCase());}).sort(function(a,b){return a.name.localeCompare(b.name);});
+  var perF=(document.getElementById('stu-period-filter')||{}).value||'all';
+  var pick=(document.getElementById('stu-pick')||{}).value||'';
+  var list=DB.students.filter(function(s){
+    return (perF==='all'||String(s.period)===perF)&&(!pick||s.id===pick)&&(!q||s.name.toLowerCase().includes(q.toLowerCase()));
+  }).sort(function(a,b){return a.name.localeCompare(b.name);});
+  var cnt=document.getElementById('stu-count');if(cnt)cnt.textContent=list.length+' of '+DB.students.length+' shown';
   var el=document.getElementById('stu-tbody');if(!el)return;
-  el.innerHTML=list.length===0?'<tr><td colspan="7" class="empty">No students added yet</td></tr>'
+  el.innerHTML=list.length===0?'<tr><td colspan="7" class="empty">'+(DB.students.length?'No students match that period / student / search':'No students added yet')+'</td></tr>'
     :list.map(function(s){
       var dc={Bus:'b-blue',Walker:'b-mint','Pick Up':'b-peach','After School':'b-lav'}[s.dismissal]||'b-gray';
       return '<tr><td><strong>'+esc(s.name)+'</strong></td><td><span class="badge b-pink">P'+s.period+'</span></td><td>'+esc(s.contact)+'</td><td>'+esc(s.phone)+'</td><td><span class="badge '+dc+'">'+esc(s.dismissal)+'</span></td><td style="font-size:11px;max-width:160px">'+esc(s.medical||'—')+'</td><td><button class="btn btn-sm btn-danger" onclick="delStudent(\''+s.id+'\')">Delete</button></td></tr>';
@@ -4384,6 +4427,7 @@ function openLessonForm(lessonId){
     document.getElementById('lf-date').value=today;
   }
   modal.style.display='flex';
+  showCurriculumSuggestions();
 }
 function closeLessonForm(){
   var modal=document.getElementById('lesson-modal');if(modal)modal.style.display='none';
@@ -7687,33 +7731,56 @@ function renderDismissalPage(){
    CURRICULUM ↔ LESSON PLAN INTEGRATION
 ══════════════════════════════════════════════ */
 
-// Called when unit field changes in lesson form — shows matching resources
+// Unit names are matched by their number when both have one ("Unit 3" = "Unit 3 — Fractions",
+// but never "Unit 1" = "Unit 10"), otherwise by plain text containment.
+function curNormUnit(u){return String(u||'').toLowerCase().replace(/[\u2013\u2014\-_:.,]+/g,' ').replace(/\s+/g,' ').trim();}
+function curUnitNum(u){var m=curNormUnit(u).match(/\b(?:unit|module|chapter)\s*(\d+)\b/);return m?m[1]:'';}
+function curUnitMatch(a,b){
+  var x=curNormUnit(a),y=curNormUnit(b);if(!x||!y)return false;
+  if(x===y)return true;
+  var nx=curUnitNum(a),ny=curUnitNum(b);
+  if(nx&&ny)return nx===ny;
+  return x.indexOf(y)>=0||y.indexOf(x)>=0;
+}
+function curResPeriodOk(r,period){return !period||!r.period||r.period==='all'||String(r.period)===String(period);}
+// Lessons stored in the Curriculum Map (from uploaded pacing guides / slides / docs) for a unit.
+function curLessonsFor(unit,period){
+  var out=[];
+  DB.curriculum.forEach(function(r){
+    if(!r.lessons||!r.lessons.length||!curResPeriodOk(r,period))return;
+    r.lessons.forEach(function(l){
+      var u=l.unit||r.unit||'';
+      if(unit&&!curUnitMatch(unit,u))return;
+      out.push({res:r,lesson:l,unit:u});
+    });
+  });
+  return out;
+}
+function curPlannedLesson(l,period){
+  var t=ciNorm(l.title).toLowerCase();if(!t)return null;
+  return DB.lessons.filter(function(x){return (!period||String(x.period)===String(period))&&ciNorm(x.title).toLowerCase()===t;})[0]||null;
+}
+var CUR_PULL=[];
+// Called when the unit or period changes in the lesson form, and when the form opens.
 function showCurriculumSuggestions(){
-  var unitVal=(document.getElementById('lf-unit')||{}).value||'';
+  var unitVal=((document.getElementById('lf-unit')||{}).value||'').trim();
+  var period=(document.getElementById('lf-period')||{}).value||'';
   var panel=document.getElementById('lf-curriculum-panel');
   var links=document.getElementById('lf-curriculum-links');
   if(!panel||!links)return;
 
-  // Populate datalist with existing units from curriculum
   var dl=document.getElementById('lf-unit-datalist');
   if(dl){
-    var units=[...new Set(DB.curriculum.map(function(r){return r.unit||'';}).filter(Boolean))].sort();
-    // Also pull from existing lesson plans
-    DB.lessons.forEach(function(l){if(l.unit&&!units.includes(l.unit))units.push(l.unit);});
+    var units=[];
+    DB.curriculum.forEach(function(r){if(r.unit&&units.indexOf(r.unit)<0)units.push(r.unit);(r.lessons||[]).forEach(function(l){if(l.unit&&units.indexOf(l.unit)<0)units.push(l.unit);});});
+    DB.lessons.forEach(function(l){if(l.unit&&units.indexOf(l.unit)<0)units.push(l.unit);});
     units.sort();
     dl.innerHTML=units.map(function(u){return '<option value="'+esc(u)+'">'+esc(u)+'</option>';}).join('');
   }
 
-  if(!unitVal.trim()){panel.style.display='none';return;}
-
-  // Find matching curriculum resources (fuzzy match on unit)
-  var unitLower=unitVal.toLowerCase().trim();
-  var matches=DB.curriculum.filter(function(r){
-    var rUnit=(r.unit||'').toLowerCase();
-    return rUnit&&(rUnit.includes(unitLower)||unitLower.includes(rUnit)||rUnit===unitLower);
-  });
-
-  if(!matches.length){panel.style.display='none';return;}
+  var matches=unitVal?DB.curriculum.filter(function(r){return r.unit&&curUnitMatch(unitVal,r.unit)&&curResPeriodOk(r,period);}):[];
+  CUR_PULL=curLessonsFor(unitVal,period);
+  if(!matches.length&&!CUR_PULL.length){panel.style.display='none';return;}
 
   var typeIcons={'Google Slides':'🖥️','Google Doc':'📄','Google Sheet':'📊','PDF':'📕','Video':'▶️','Website':'🌐','Worksheet':'📝','Assessment':'📋','Anchor Chart':'📌','PowerPoint':'📽️','Excel Spreadsheet':'📈','Word Doc':'📝','Other':'📎'};
   var typeColors={'Google Slides':'b-yellow','Google Doc':'b-blue','PDF':'b-red','Video':'b-coral','Website':'b-mint','Worksheet':'b-lav','Assessment':'b-peach','Anchor Chart':'b-green','PowerPoint':'b-coral','Excel Spreadsheet':'b-green','Word Doc':'b-blue','Other':'b-gray'};
@@ -7729,8 +7796,31 @@ function showCurriculumSuggestions(){
       +(hasLink?'<span style="font-size:10px;color:#0369a1">↗</span>':'')
       +'</div>';
   }).join('');
+  document.getElementById('lf-cur-links-label').style.display=matches.length?'':'none';
 
+  var pull=document.getElementById('lf-cur-pull'),sel=document.getElementById('lf-cur-lesson'),cnt=document.getElementById('lf-cur-count');
+  if(CUR_PULL.length){
+    var planned=0;
+    sel.innerHTML='<option value="">— choose a lesson —</option>'+CUR_PULL.map(function(p,i){
+      var pl=curPlannedLesson(p.lesson,period);if(pl)planned++;
+      return '<option value="'+i+'">'+(pl?'✓ ':'')+esc(p.lesson.title||'Lesson')+(unitVal?'':' ('+esc(p.unit||'no unit')+')')+(pl&&pl.date?' — planned '+esc(pl.date):'')+'</option>';
+    }).join('');
+    cnt.textContent='('+planned+' of '+CUR_PULL.length+' already planned)';
+    pull.style.display='';
+  }else pull.style.display='none';
   panel.style.display='block';
+}
+// Copies a Curriculum Map lesson into the open lesson form, filling only fields that are still empty.
+function lfPullCurriculum(){
+  var sel=document.getElementById('lf-cur-lesson');var i=sel?parseInt(sel.value,10):NaN;
+  if(isNaN(i)||!CUR_PULL[i]){toast('Choose a lesson from the list first');return;}
+  var p=CUR_PULL[i],l=p.lesson,n=0;
+  function fill(id,v){var e=document.getElementById(id);if(e&&v&&!String(e.value||'').trim()){e.value=v;n++;}}
+  fill('lf-title',l.title);fill('lf-unit',p.unit);fill('lf-std',l.standard);fill('lf-obj',l.objective);fill('lf-donow',l.donow);
+  fill('lf-direct',l.direct);fill('lf-guided',l.guided);fill('lf-independent',l.independent);fill('lf-closure',l.closure);fill('lf-hw',l.hw);fill('lf-materials',l.materials);
+  if(l.vocab){var nt=document.getElementById('lf-notes'),vt='Vocabulary: '+ciNorm(l.vocab).replace(/\s*;\s*/g,', ');if(nt&&nt.value.indexOf(vt)<0){nt.value=(nt.value?nt.value+'\n':'')+vt;n++;}}
+  var as=document.getElementById('lf-assess');if(l.closure&&as&&as.value==='Observation')as.value='Exit ticket';
+  toast(n?'✅ Filled '+n+' empty field'+(n===1?'':'s')+' from the Curriculum Map':'Nothing to fill — those fields already have text');
 }
 
 // Build dynamic copy-period checkboxes in lesson form
@@ -7754,43 +7844,56 @@ function curMatchUnit(){
   dl.innerHTML=units.map(function(u){return '<option value="'+esc(u)+'">'+esc(u)+'</option>';}).join('');
 }
 
-// Updated renderCurriculum — shows linked lesson count per resource
+// Curriculum Map: resources grouped by unit, plus the lessons read from uploaded files and whether each is planned yet.
 function renderCurriculum(){
   var el=document.getElementById('curriculum-list');if(!el)return;
-
-  // Group by unit
-  var units={};
+  var NOUNIT='General / Uncategorized';
+  var units={},lib={};
   DB.curriculum.forEach(function(r){
-    var u=r.unit||'General / Uncategorized';
-    if(!units[u])units[u]=[];
-    units[u].push(r);
+    var u=r.unit||NOUNIT;(units[u]=units[u]||[]).push(r);
+    (r.lessons||[]).forEach(function(l){var lu=l.unit||r.unit||NOUNIT;(lib[lu]=lib[lu]||[]).push({l:l,r:r});if(!units[lu])units[lu]=[];});
   });
-
-  // Sort: units that match active lesson plan units first
+  var unitsWithLessons=function(u){return DB.lessons.filter(function(l){return l.unit&&u!==NOUNIT&&curUnitMatch(l.unit,u);});};
   var activeUnits=[...new Set(DB.lessons.map(function(l){return l.unit||'';}))].filter(Boolean);
+  var isActive=function(u){return activeUnits.some(function(a){return curUnitMatch(a,u);});};
   var unitKeys=Object.keys(units).sort(function(a,b){
-    var aActive=activeUnits.includes(a)?0:1;
-    var bActive=activeUnits.includes(b)?0:1;
-    return aActive-bActive||a.localeCompare(b);
+    var aActive=isActive(a)?0:1,bActive=isActive(b)?0:1;
+    return aActive-bActive||a.localeCompare(b,undefined,{numeric:true});
   });
 
   var typeIcons={'Google Slides':'🖥️','Google Doc':'📄','Google Sheet':'📊','PDF':'📕','Video':'▶️','Website':'🌐','Worksheet':'📝','Assessment':'📋','Anchor Chart':'📌','PowerPoint':'📽️','Excel Spreadsheet':'📈','Word Doc':'📝','Other':'📎'};
   var typeColors={'Google Slides':'b-yellow','Google Doc':'b-blue','Google Sheet':'b-green','PDF':'b-red','Video':'b-coral','Website':'b-mint','Worksheet':'b-lav','Assessment':'b-peach','Anchor Chart':'b-green','PowerPoint':'b-coral','Excel Spreadsheet':'b-green','Word Doc':'b-blue','Other':'b-gray'};
+  var fmt=function(ds){var d=new Date(ds+'T12:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
 
-  el.innerHTML=unitKeys.length===0?'<div class="empty">No resources added yet. Add curriculum resources above — they will automatically appear in lesson plans when the unit matches.</div>'
+  el.innerHTML=unitKeys.length===0?'<div class="empty">Nothing here yet. Upload a pacing guide, slides or lesson documents above, or add a resource link — they show up in your lesson plans automatically when the unit matches.</div>'
     :unitKeys.map(function(u){
-      var resources=units[u];
-      var linkedLessons=DB.lessons.filter(function(l){return l.unit===u;}).length;
-      var isActive=activeUnits.includes(u);
-
-      return '<div class="card" style="margin-bottom:12px;border-left:4px solid '+(isActive?'#0369a1':'var(--border)')+'">'
-        +'<div class="card-hdr" style="background:'+(isActive?'#f0f9ff':'var(--surface)')+'">'
-        +'<span class="card-title" style="color:'+(isActive?'#0369a1':'var(--dark)')+'">📂 '+esc(u)+'</span>'
-        +'<div style="display:flex;align-items:center;gap:8px">'
-        +(isActive?'<span class="badge b-blue" style="font-size:9px">🔗 '+linkedLessons+' lesson'+(linkedLessons!==1?'s':'')+' linked</span>':'')
+      var resources=units[u],ulessons=lib[u]||[];
+      var planned=unitsWithLessons(u);
+      var dates=planned.map(function(l){return l.date;}).filter(Boolean).sort();
+      var active=isActive(u);
+      var plannedCount=ulessons.filter(function(x){return curPlannedLesson(x.l,'');}).length;
+      var badges='';
+      if(planned.length)badges+='<span class="badge b-blue" style="font-size:9px">🔗 '+planned.length+' lesson plan'+(planned.length!==1?'s':'')+(dates.length?' · '+fmt(dates[0])+(dates.length>1&&dates[0]!==dates[dates.length-1]?' – '+fmt(dates[dates.length-1]):''):'')+'</span>';
+      if(ulessons.length)badges+='<span class="badge '+(plannedCount===ulessons.length?'b-green':'b-yellow')+'" style="font-size:9px">'+plannedCount+' of '+ulessons.length+' curriculum lessons planned</span>';
+      var lessonBlock='';
+      if(ulessons.length){
+        lessonBlock='<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#0369a1;margin-bottom:4px">📋 Lessons in this unit <span style="font-weight:500;color:var(--mid)">— open a lesson plan, type this unit, and use “Pull a lesson from your Curriculum Map”</span></div>'
+          +ulessons.map(function(x){
+            var pl=curPlannedLesson(x.l,'');
+            return '<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">'
+              +'<span style="color:'+(pl?'#059669':'#bbb')+'">'+(pl?'✓':'○')+'</span>'
+              +'<span style="flex:1"><strong>'+esc(x.l.title||'Lesson')+'</strong>'+(x.l.standard?' <span style="color:var(--mid);font-size:10px">'+esc(x.l.standard)+'</span>':'')+'</span>'
+              +'<span style="color:var(--mid);font-size:10px;white-space:nowrap">'+(pl?'planned '+(pl.date?fmt(pl.date):'')+' P'+esc(pl.period):'not planned yet')+'</span></div>';
+          }).join('')+'</div>';
+      }
+      return '<div class="card" style="margin-bottom:12px;border-left:4px solid '+(active?'#0369a1':'var(--border)')+'">'
+        +'<div class="card-hdr" style="background:'+(active?'#f0f9ff':'var(--surface)')+'">'
+        +'<span class="card-title" style="color:'+(active?'#0369a1':'var(--dark)')+'">📂 '+esc(u)+'</span>'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+badges
         +'<span style="font-size:11px;color:var(--mid)">'+resources.length+' resource'+(resources.length!==1?'s':'')+'</span>'
         +'</div></div>'
-        +'<div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">'
+        +'<div class="card-body">'+lessonBlock
+        +(resources.length?'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">'
         +resources.map(function(r){
           var icon=typeIcons[r.type]||'📎';
           var hasLink=r.url&&r.url.startsWith('http');
@@ -7806,9 +7909,9 @@ function renderCurriculum(){
             +(r.notes?'<div style="font-size:11px;color:var(--mid);margin-top:3px">'+esc(r.notes)+'</div>':'')
             +(hasLink?'<a href="'+esc(r.url)+'" target="_blank" style="font-size:11px;color:#0369a1;font-weight:700;display:block;margin-top:4px;text-decoration:none">↗ Open resource</a>':'')
             +'</div>'
-            +'<button onclick="delCurriculum(\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;flex-shrink:0" onmouseover="this.style.color=\'#dc2626\'" onmouseout="this.style.color=\'#ccc\'">✕</button>'
+            +'<button onclick="delCurriculum(\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;flex-shrink:0" title="Delete this resource'+(r.lessons&&r.lessons.length?' and its '+r.lessons.length+' stored lessons':'')+'" onmouseover="this.style.color=\'#dc2626\'" onmouseout="this.style.color=\'#ccc\'">✕</button>'
             +'</div>';
-        }).join('')
+        }).join('')+'</div>':'')
         +'</div></div>';
     }).join('');
 }
@@ -8821,7 +8924,7 @@ function ciRenderPanel(){
   }).join('');
   h+='<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px">'
     +'<button id="ci-commit-btn" class="btn btn-primary" onclick="ciCommit()">\u2795 Add to Lesson Plans</button>'
-    +'<label style="text-transform:none;font-size:12px;display:flex;align-items:center;gap:5px"><input type="checkbox" '+(CI.saveRes?'checked ':'')+'onchange="CI.saveRes=this.checked"> Also list these files under Curriculum Resources</label>'
+    +'<label style="text-transform:none;font-size:12px;display:flex;align-items:center;gap:5px"><input type="checkbox" '+(CI.saveRes?'checked ':'')+'onchange="CI.saveRes=this.checked"> Keep all of these lessons in the Curriculum Map (unticked ones too), so any lesson plan can pull them later</label>'
     +'<span style="font-size:11px;color:var(--mid)">If a lesson already exists on that date and period, only its empty fields are filled \u2014 nothing you wrote is overwritten.</span></div>';
   panel.innerHTML=h;ciUpdateCommitLabel();
 }
@@ -8854,12 +8957,23 @@ function ciCommit(){
   });
   var resAdded=0;
   if(CI.saveRes){
+    // Keep the lessons themselves in the Curriculum Map (compact copy under the file that led each lesson),
+    // so any lesson plan can pull them later — not just the ones added right now.
+    var lib={};
+    var cap=function(v){return ciNorm(v)?String(v).slice(0,600):'';};
+    CI.groups.forEach(function(g){
+      // every lesson read is kept, including ones left unticked now, so they can be planned later
+      var d=g.v;(lib[g.files[0]]=lib[g.files[0]]||[]).push({title:cap(d.title),unit:cap(d.unit),standard:cap(d.standard),objective:cap(d.objective),donow:cap(d.donow),
+        direct:cap(d.direct),guided:cap(d.guided),independent:cap(d.independent),closure:cap(d.closure),hw:cap(d.hw),vocab:cap(d.vocab),materials:cap(d.materials)});
+    });
     CI.docs.forEach(function(doc){
-      if(DB.curriculum.some(function(r){return r.fileName===doc.name;}))return;
-      var n=(doc.records||[]).length;
-      DB.curriculum.push({id:Date.now()+'_r'+(uid++),name:ciBaseName(doc.name),unit:doc.mainUnit||'',period:'all',type:CI_RES_TYPE[doc.ext]||'Other',url:'',
-        notes:'Uploaded '+doc.ext.toUpperCase()+' \u2014 '+n+' lesson'+(n===1?'':'s')+' read into Lesson Plans',fileName:doc.name,uploaded:true});
-      resAdded++;
+      var mine=lib[doc.name]||[],n=(doc.records||[]).length;
+      var note='Uploaded '+doc.ext.toUpperCase()+' \u2014 '+n+' lesson'+(n===1?'':'s')+' read'+(mine.length?', '+mine.length+' kept in the Curriculum Map':'');
+      var ex=DB.curriculum.filter(function(r){return r.fileName===doc.name;})[0];
+      if(ex){if(mine.length){ex.lessons=mine;ex.notes=note;}return;}
+      var res={id:Date.now()+'_r'+(uid++),name:ciBaseName(doc.name),unit:doc.mainUnit||'',period:'all',type:CI_RES_TYPE[doc.ext]||'Other',url:'',notes:note,fileName:doc.name,uploaded:true};
+      if(mine.length)res.lessons=mine;
+      DB.curriculum.push(res);resAdded++;
     });
   }
   save();renderCurriculum();
