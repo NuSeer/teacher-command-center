@@ -5,18 +5,21 @@
 // OpenAI-compatible chat endpoint with the image attached.
 //
 // Optional env overrides: GEMINI_MODEL, GROQ_VISION_MODEL.
-const { initializeApp, getApps, cert } = require('firebase-admin/app');
+// Firebase web API key (the same public key the page already ships with; it identifies the
+// project, it is not a secret). Override with FIREBASE_WEB_API_KEY if it is ever rotated.
+const WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyDw_uOgBNmVDSzKzWw8-xQoWzVFyZbQWNo';
 
-function ensureApp() {
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
+// Checks the signed-in teacher's Firebase ID token with Google's public REST endpoint.
+// (firebase-admin's auth module can't be require()d on Vercel's Node runtime — ERR_REQUIRE_ESM.)
+async function tokenIsValid(token) {
+  const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + encodeURIComponent(WEB_API_KEY), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: token }),
+  });
+  if (r.ok) { const d = await r.json().catch(() => ({})); return !!(d.users && d.users.length); }
+  if (r.status === 400 || r.status === 401 || r.status === 403) return false;
+  throw new Error('token lookup HTTP ' + r.status);
 }
 
 // Ordered attempts: each entry is one provider + model. A model that is retired or rate-limited
@@ -48,14 +51,10 @@ module.exports = async function handler(req, res) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) { res.status(401).json({ error: 'unauthorized' }); return; }
   try {
-    // Loaded here (not at the top) so a problem loading the auth module is reported instead of crashing the function.
-    const { getAuth } = require('firebase-admin/auth');
-    ensureApp();
-    await getAuth().verifyIdToken(token);
+    if (!(await tokenIsValid(token))) { res.status(401).json({ error: 'unauthorized' }); return; }
   } catch (e) {
-    const bad = e && /id-token|argument-error|expired|invalid|malformed|decoding/i.test(String(e.code || '') + ' ' + String(e.message || ''));
-    if (!bad) console.error('roster-ai auth check failed', e && e.message);
-    res.status(bad ? 401 : 500).json(bad ? { error: 'unauthorized' } : { error: 'auth_unavailable', detail: String((e && (e.code || e.message)) || e).slice(0, 120) });
+    console.error('roster-ai auth check failed', e && e.message);
+    res.status(500).json({ error: 'auth_unavailable' });
     return;
   }
 
