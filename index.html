@@ -1107,6 +1107,22 @@ textarea{resize:vertical;min-height:64px}
   </div>
 </div>
 
+<!-- WEEK NUMBER (holidays / closings) -->
+<div id="week-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:5100;align-items:center;justify-content:center" onclick="if(event.target===this)closeWeekModal()">
+  <div style="background:var(--card-bg);border-radius:14px;padding:22px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;color:var(--dark)">Week numbering</div>
+    <div id="week-modal-sub" style="font-size:12px;color:var(--mid);margin:4px 0 14px"></div>
+    <div class="fg" style="margin-bottom:8px"><label>This week is Week #</label><input type="number" id="week-modal-num" min="1" max="60" style="max-width:120px"></div>
+    <div style="font-size:11px;color:var(--mid);line-height:1.5;margin-bottom:14px">Later weeks continue counting from this number. Weeks that are entirely <strong>Holiday / No School</strong> on your Calendar are skipped automatically. Use the button below for a closing that isn't on the Calendar (storm, emergency).</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="btn btn-primary" onclick="weekSetNumber()">Save number</button>
+      <button class="btn" onclick="weekSetSkip()">This week doesn't count</button>
+      <button class="btn" onclick="weekSetAuto()">Back to automatic</button>
+      <button class="btn" onclick="closeWeekModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- LESSON FORM MODAL -->
 <div id="lesson-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:5000;align-items:center;justify-content:center">
   <div style="background:var(--card-bg);border-radius:14px;width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -1118,9 +1134,9 @@ textarea{resize:vertical;min-height:64px}
 
       <!-- TOP ROW: Date, Period, Copy -->
       <div class="form-row">
-        <div class="fg"><label>Date</label><input type="date" id="lf-date"></div>
+        <div class="fg"><label>Date</label><input type="date" id="lf-date" onchange="lfWeekInfo()"><div id="lf-weekinfo" style="font-size:11px;font-weight:800;color:var(--accent1);margin-top:3px"></div></div>
         <div class="fg" style="max-width:110px"><label>Period</label>
-          <select id="lf-period" onchange="showCurriculumSuggestions()"></select>
+          <select id="lf-period" onchange="showCurriculumSuggestions();lfWeekInfo()"></select>
         </div>
         <div class="fg"><label>Copy to periods</label>
           <div style="display:flex;flex-wrap:wrap;gap:5px;padding:6px 0" id="lf-copy-periods"></div>
@@ -4499,7 +4515,7 @@ function openLessonForm(lessonId){
     document.getElementById('lf-date').value=today;
   }
   modal.style.display='flex';
-  showCurriculumSuggestions();
+  showCurriculumSuggestions();lfWeekInfo();
 }
 function closeLessonForm(){
   var modal=document.getElementById('lesson-modal');if(modal)modal.style.display='none';
@@ -4570,11 +4586,13 @@ function renderLessons(){
   var weekEnd=new Date(lessonWeekStart);weekEnd.setDate(weekEnd.getDate()+4);
   var lbl=document.getElementById('lesson-week-label');
   if(lbl){
-    var wn=schoolWeekNumber(lessonWeekStart),thisWeek=lessonWeekStart.getTime()===getMondayOf(new Date()).getTime();
-    var pill=wn>0?'<span style="display:inline-block;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-radius:14px;padding:2px 12px;margin-right:8px;font-size:13px;font-weight:900">Week '+wn+'</span>'
-      :(wn<0?'<span style="display:inline-block;background:var(--surface);color:var(--mid);border-radius:14px;padding:2px 10px;margin-right:8px;font-size:11px;font-weight:700">Before school starts</span>'
-      :'<span style="display:inline-block;background:var(--surface);color:var(--mid);border-radius:14px;padding:2px 10px;margin-right:8px;font-size:11px;font-weight:700;cursor:pointer" onclick="openFull(&quot;setup&quot;)" title="Set your first day of school in Schedule Setup">Set first day for week #</span>');
-    lbl.innerHTML=pill+'Week of '+fmtDate(lessonWeekStart)+' – '+fmtDate(weekEnd)+(thisWeek?' <span style="font-size:11px;font-weight:700;color:var(--accent1)">(this week)</span>':'');
+    var wi=schoolWeekInfo(lessonWeekStart),thisWeek=lessonWeekStart.getTime()===getMondayOf(new Date()).getTime();
+    var pillBase='display:inline-block;border-radius:14px;padding:2px 12px;margin-right:8px;font-size:13px;font-weight:900;cursor:pointer;';
+    var pill=wi.none?'<span style="'+pillBase+'background:var(--surface);color:var(--mid);font-size:11px;font-weight:700" onclick="openFull(&quot;setup&quot;)" title="Set your first day of school in Schedule Setup">Set first day for week #</span>'
+      :wi.before?'<span style="'+pillBase+'background:var(--surface);color:var(--mid);font-size:11px;font-weight:700;cursor:default">Before school starts</span>'
+      :wi.closed?'<span style="'+pillBase+'background:#fef3c7;color:#92400e;font-size:12px" onclick="openWeekModal()" title="Click to change">No school week \u270E</span>'
+      :'<span style="'+pillBase+'background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff" onclick="openWeekModal()" title="Click to change the week number (holidays, closings)">Week '+wi.n+(wi.manual?' *':'')+' \u270E</span>';
+    lbl.innerHTML=pill+'Week of '+fmtDate(lessonWeekStart)+' \u2013 '+fmtDate(weekEnd)+(thisWeek?' <span style="font-size:11px;font-weight:700;color:var(--accent1)">(this week)</span>':'');
   }
 
   var sched=getSchedule().filter(function(r){return r.type==='Class'||r.type==='Homeroom';});
@@ -4602,7 +4620,7 @@ function renderLessons(){
         var sc=lesson?(statusColors[lesson.status]||'var(--accent1)'):'var(--border)';
         html+='<div style="border:1.5px solid '+(lesson?sc:'var(--border)')+';border-radius:8px;min-height:90px;background:'+(lesson?'var(--card-bg)':'var(--surface)')+';padding:8px;position:relative;cursor:pointer" onclick="'+(lesson?'openLessonForm(\''+lesson.id+'\')':'openLessonFormForDay(\''+ds+'\',\''+p+'\')')+'">';
         if(lesson){
-          html+='<div style="font-size:10px;font-weight:800;color:'+sc+';margin-bottom:3px">'+esc(lesson.status||'Planned')+'</div>'
+          html+='<div style="font-size:10px;font-weight:800;color:'+sc+';margin-bottom:3px">'+esc(lesson.status||'Planned')+weekLessonTag(lesson)+'</div>'
             +'<div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:3px;line-height:1.3">'+esc(lesson.title)+'</div>'
             +(lesson.unit?'<div style="font-size:10px;color:var(--mid)">'+esc(lesson.unit)+'</div>':'')
             +(lesson.objective?'<div style="font-size:10px;color:var(--mid);margin-top:3px;font-style:italic">'+esc(lesson.objective.slice(0,60))+(lesson.objective.length>60?'...':'')+'</div>':'')
@@ -4628,7 +4646,7 @@ function renderLessons(){
     tbody.innerHTML=lessons.length===0?'<tr><td colspan="10" class="empty">No lessons yet — click "+ Add lesson" to get started</td></tr>'
       :lessons.map(function(l){
         return '<tr onclick="openLessonForm(\''+l.id+'\')" style="cursor:pointer">'
-          +'<td>'+esc(l.date||'—')+'</td>'
+          +'<td>'+esc(l.date||'—')+weekLessonTag(l)+'</td>'
           +'<td><span class="badge b-pink">P'+l.period+'</span></td>'
           +'<td style="max-width:120px">'+esc(l.unit||'—')+'</td>'
           +'<td style="font-size:10px;max-width:100px">'+esc(l.standard||'—')+'</td>'
@@ -9542,13 +9560,69 @@ function flagLegacyComms(){
    follow-ups -> Task List / Daily Planner / Calendar, Missing Work <-> Comm Log, Conferences as parent
    contact, pattern alerts, IEP/504 badges, Lesson Plans -> Tests
 ══════════════════════════════════════════════ */
-// Which week of the school year a date falls in, counted from the week containing the first day of school
-// (Setup). Returns 0 when no first day is set; a value <= 0 means the week is before school starts.
-function schoolWeekNumber(d){
-  var st=getSchoolStart();if(!st)return 0;
-  var w=Math.round((getMondayOf(d)-getMondayOf(st))/604800000)+1;
-  return w===0?-1:w;
+// School-year week numbering. Counted from the week that contains the first day of school (Setup).
+// A week that is entirely Holiday / No School on the Calendar is skipped automatically, and the teacher
+// can override any week (set its number, or mark it as not counting) — later weeks carry on from there.
+// Overrides live in DB.setup.weekOverrides as {mondayISO: number | 'skip' | null(=automatic)}.
+function weekIsClosed(monday){
+  for(var i=0;i<5;i++){if(!lnNoSchool(lnISO(lnAdd(monday,i))))return false;}
+  return true;
 }
+function schoolWeekInfo(d){
+  var st=getSchoolStart();if(!st)return {n:0,none:true};
+  var target=getMondayOf(d),m=getMondayOf(st),ov=(DB.setup&&DB.setup.weekOverrides)||{},n=0,guard=0,info=null;
+  if(target<m)return {n:-1,before:true};
+  while(m<=target&&guard++<120){
+    var o=ov[lnISO(m)],skipped=(o==='skip')||((o==null)&&weekIsClosed(m));
+    if(typeof o==='number')n=o;else if(!skipped)n++;
+    if(m.getTime()===target.getTime())info={n:skipped?0:n,closed:skipped,manual:o!=null,forcedSkip:o==='skip'};
+    m=lnAdd(m,7);
+  }
+  return info||{n:0,none:true};
+}
+function schoolWeekNumber(d){var i=schoolWeekInfo(d);return i.closed?0:i.n;}
+// "Week 4 · Lesson 2": the lesson's position among that class's lessons in the same week
+function lessonWeekLabel(dateStr,period,selfId){
+  if(!dateStr)return '';
+  var d=lnParse(dateStr),info=schoolWeekInfo(d);
+  if(info.none||info.before)return info.before?'Before school starts':'';
+  if(info.closed)return 'No-school week';
+  var mon=getMondayOf(d),monKey=lnISO(mon);
+  var mates=DB.lessons.filter(function(l){return String(l.period)===String(period)&&l.date&&lnISO(getMondayOf(lnParse(l.date)))===monKey&&l.id!==selfId;});
+  var k=mates.filter(function(l){return l.date<dateStr;}).length+1;
+  return 'Week '+info.n+' \u00B7 Lesson '+k;
+}
+function weekLessonTag(l){
+  var t=lessonWeekLabel(l.date,l.period,l.id);if(!t||/^(Before|No-school)/.test(t))return '';
+  return ' <span style="color:var(--mid);font-weight:600">\u00B7 '+esc(t.replace('Week ','Wk ').replace('Lesson ','L'))+'</span>';
+}
+function lfWeekInfo(){
+  var el=document.getElementById('lf-weekinfo');if(!el)return;
+  el.textContent=lessonWeekLabel((document.getElementById('lf-date')||{}).value,(document.getElementById('lf-period')||{}).value,(document.getElementById('lf-edit-id')||{}).value);
+}
+// Change a week's number from the Lesson Plans header
+function openWeekModal(){
+  var m=document.getElementById('week-modal');if(!m)return;
+  var info=schoolWeekInfo(lessonWeekStart),end=lnAdd(lessonWeekStart,4);
+  document.getElementById('week-modal-sub').textContent='Week of '+fmtDate(lessonWeekStart)+' \u2013 '+fmtDate(end)+(info.closed?(info.forcedSkip?' (marked as not counting)':' (whole week is a holiday / no school)'):(info.manual?' (number set by you)':''));
+  document.getElementById('week-modal-num').value=info.n>0?info.n:'';
+  m.style.display='flex';
+}
+function closeWeekModal(){var m=document.getElementById('week-modal');if(m)m.style.display='none';}
+function weekApply(val){
+  if(!DB.setup)DB.setup={};if(!DB.setup.weekOverrides)DB.setup.weekOverrides={};
+  DB.setup.weekOverrides[lnISO(lessonWeekStart)]=val;
+  save();closeWeekModal();renderLessons();
+  var lp=document.getElementById('fp-learning');if(lp&&lp.classList.contains('open'))lnRender();
+  toast('Week numbering updated');
+}
+function weekSetNumber(){
+  var n=parseInt(document.getElementById('week-modal-num').value,10);
+  if(!(n>=1&&n<=60)){toast('Enter a week number from 1 to 60');return;}
+  weekApply(n);
+}
+function weekSetSkip(){weekApply('skip');}
+function weekSetAuto(){weekApply(null);}
 function isStillMissing(m){return !!m&&(m.status==='Missing'||m.status==='Parent Notified');}
 function todayISO(){return new Date().toISOString().slice(0,10);}
 function isoDaysAgo(n){var d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);}
