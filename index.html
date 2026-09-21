@@ -1123,6 +1123,19 @@ textarea{resize:vertical;min-height:64px}
   </div>
 </div>
 
+<!-- DELETE AN UPLOAD -->
+<div id="cur-del-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:5200;align-items:center;justify-content:center" onclick="if(event.target===this)closeDeleteResource()">
+  <div style="background:var(--card-bg);border-radius:14px;padding:22px;max-width:430px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div id="cur-del-title" style="font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px"></div>
+    <div id="cur-del-body" style="font-size:12px;color:var(--mid);line-height:1.6;margin-bottom:14px"></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-danger" onclick="doDeleteResource(false)">Delete the upload only</button>
+      <button id="cur-del-plans-btn" class="btn btn-danger" onclick="doDeleteResource(true)">Delete the upload and its lesson plans</button>
+      <button class="btn" onclick="closeDeleteResource()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- LESSON FORM MODAL -->
 <div id="lesson-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:5000;align-items:center;justify-content:center">
   <div style="background:var(--card-bg);border-radius:14px;width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -1645,7 +1658,8 @@ textarea{resize:vertical;min-height:64px}
       </div>
       <div class="card"><div class="card-hdr"><span class="card-title">What do you want to share?</span></div><div class="card-body">
         <div class="form-row">
-          <div class="fg"><label>Class</label><select id="ln-class" onchange="lnRender()"></select></div>
+          <div class="fg"><label>Class</label><select id="ln-class" onchange="lnClassChanged()"></select></div>
+          <div class="fg"><label>Title on the update</label><input type="text" id="ln-title" oninput="lnTitleChanged()" placeholder="e.g. 6th Grade Math"><div id="ln-title-hint" style="font-size:10px;color:var(--mid);margin-top:2px"></div></div>
           <div class="fg" style="max-width:170px"><label>Show</label><select id="ln-mode" onchange="lnModeChanged()"><option value="week">A week</option><option value="day">One day</option><option value="month">A month</option><option value="custom">Choose dates</option></select></div>
           <div class="fg" id="ln-wrap-date" style="max-width:180px"><label>Date (any day that week)</label><input type="date" id="ln-date" onchange="lnRender()"></div>
           <div class="fg" id="ln-wrap-month" style="max-width:180px;display:none"><label>Month</label><input type="month" id="ln-month" onchange="lnRender()"></div>
@@ -1653,7 +1667,7 @@ textarea{resize:vertical;min-height:64px}
           <div id="ln-step" style="display:flex;gap:4px;align-items:flex-end;padding-bottom:2px"><button class="btn btn-sm" onclick="lnStep(-1)" title="Previous">◀</button><button class="btn btn-sm" onclick="lnStep(1)" title="Next">▶</button></div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;margin:6px 0 10px">
-          <label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-obj" onchange="lnPrefChanged()"> Learning target</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-donow" onchange="lnPrefChanged()"> Do Now</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-exit" onchange="lnPrefChanged()"> Exit ticket</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-hw" onchange="lnPrefChanged()"> Homework</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-std" onchange="lnPrefChanged()"> Standards</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-disc" onchange="lnPrefChanged()"> Note at the bottom</label>
+          <label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-obj" onchange="lnPrefChanged()"> Learning target</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-donow" onchange="lnPrefChanged()"> Do Now</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-exit" onchange="lnPrefChanged()"> Exit ticket</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-seq" onchange="lnPrefChanged()"> Activities (teaching sequence)</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-hw" onchange="lnPrefChanged()"> Homework</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-std" onchange="lnPrefChanged()"> Standards</label><label style="text-transform:none;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ln-opt-disc" onchange="lnPrefChanged()"> Note at the bottom</label>
         </div>
         <div class="fg" style="margin:0"><label>Note at the bottom <span style="font-weight:400;color:var(--mid)">(edit it any time)</span></label><input type="text" id="ln-disclaimer" oninput="lnPrefChanged()" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;width:100%;box-sizing:border-box"></div>
       </div></div>
@@ -8017,7 +8031,7 @@ function renderCurriculum(){
             +(r.notes?'<div style="font-size:11px;color:var(--mid);margin-top:3px">'+esc(r.notes)+'</div>':'')
             +(hasLink?'<a href="'+esc(r.url)+'" target="_blank" style="font-size:11px;color:#0369a1;font-weight:700;display:block;margin-top:4px;text-decoration:none">↗ Open resource</a>':'')
             +'</div>'
-            +'<button onclick="delCurriculum(\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;flex-shrink:0" title="Delete this resource'+(r.lessons&&r.lessons.length?' and its '+r.lessons.length+' stored lessons':'')+'" onmouseover="this.style.color=\'#dc2626\'" onmouseout="this.style.color=\'#ccc\'">✕</button>'
+            +'<button class="btn btn-sm btn-danger" style="font-size:10px;padding:2px 8px;flex-shrink:0;align-self:flex-start" onclick="askDeleteResource(\''+r.id+'\')" title="Delete this '+(r.uploaded?'upload':'resource')+'">\uD83D\uDDD1 Delete</button>'
             +'</div>';
         }).join('')+'</div>':'')
         +'</div></div>';
@@ -9020,7 +9034,7 @@ function ciRenderPanel(){
         +'<span class="badge b-blue" style="font-size:9px">'+esc(CI_KIND_LABEL[ext]||ext.toUpperCase())+'</span>'
         +'<strong style="color:var(--dark)">'+esc(s.name)+'</strong>'
         +'<span style="color:'+col+';flex:1">'+esc(info)+'</span>'
-        +'<button onclick="ciRemoveDoc(\''+esc(s.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;color:#999;font-size:14px" title="Remove this file">\u2715</button></div>';
+        +'<button onclick="ciRemoveDoc(\''+esc(s.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" class="btn btn-sm" style="font-size:10px;padding:1px 8px" title="Remove this file from the list (nothing is saved yet)">Remove</button></div>';
     }).join('')+'</div>';
   }
   if(!CI.groups.length){panel.innerHTML=h;return;}
@@ -9164,7 +9178,7 @@ function lnCourseTitle(sub){
 function lnClasses(){
   return getSchedule().filter(function(r){return r.type==='Class';}).map(function(r){
     var m=r.label.match(/\d+/);var p=m?m[0]:r.label;
-    return {p:String(p),subject:r.subject||'',title:lnCourseTitle(r.subject||'')};
+    return {p:String(p),subject:r.subject||'',title:(lnSetup().lnTitles&&lnSetup().lnTitles[String(p)])||lnCourseTitle(r.subject||'')};
   });
 }
 function lnPrefs(){
@@ -9178,13 +9192,16 @@ function renderLearning(){
   var classes=lnClasses(),prev=sel.value||'all';
   sel.innerHTML='<option value="all">All classes</option>'+classes.map(function(c){return '<option value="'+esc(c.p)+'">Period '+esc(c.p)+' — '+esc(c.title)+'</option>';}).join('');
   sel.value=(prev==='all'||classes.some(function(c){return c.p===prev;}))?prev:'all';
+  lnFillTitle();
   var today=lnISO(new Date());
-  if(!lnVal('ln-date'))document.getElementById('ln-date').value=today;
+  // on a weekend the useful week is the coming one (that's when the update goes out)
+  var dd=new Date();if(dd.getDay()===6)dd=lnAdd(dd,2);else if(dd.getDay()===0)dd=lnAdd(dd,1);
+  if(!lnVal('ln-date'))document.getElementById('ln-date').value=lnISO(dd);
   if(!lnVal('ln-month'))document.getElementById('ln-month').value=today.slice(0,7);
   if(!lnVal('ln-from'))document.getElementById('ln-from').value=today;
   if(!lnVal('ln-to'))document.getElementById('ln-to').value=lnISO(lnAdd(new Date(),13));
   var P=lnPrefs();
-  [['obj','ln-opt-obj'],['donow','ln-opt-donow'],['exit','ln-opt-exit'],['hw','ln-opt-hw'],['std','ln-opt-std'],['disc','ln-opt-disc']].forEach(function(x){document.getElementById(x[1]).checked=!!P[x[0]];});
+  [['obj','ln-opt-obj'],['donow','ln-opt-donow'],['exit','ln-opt-exit'],['seq','ln-opt-seq'],['hw','ln-opt-hw'],['std','ln-opt-std'],['disc','ln-opt-disc']].forEach(function(x){document.getElementById(x[1]).checked=!!P[x[0]];});
   document.getElementById('ln-disclaimer').value=lnDisclaimer();
   lnModeChanged(true);
   lnSylInit();
@@ -9219,9 +9236,21 @@ function lnStep(dir){
   }
   lnRender();
 }
+function lnClassChanged(){lnFillTitle();lnRender();}
+function lnFillTitle(){
+  var sel=lnVal('ln-class'),inp=document.getElementById('ln-title'),hint=document.getElementById('ln-title-hint');if(!inp)return;
+  if(sel==='all'){inp.value='';inp.disabled=true;inp.placeholder='Each class keeps its own title \u2014 pick one class to rename it';hint.textContent='';return;}
+  var c=lnClasses().filter(function(x){return x.p===sel;})[0];
+  inp.disabled=false;inp.placeholder='e.g. 6th Grade Math';inp.value=c?c.title:'';
+  hint.innerHTML=(c&&c.title==='Class')?'Type the class name here (or fill in <b>Grade / Subject</b> in Schedule Setup) so it shows as, e.g., "6th Grade Math".':'';
+}
+function lnTitleChanged(){
+  var sel=lnVal('ln-class');if(sel==='all')return;
+  var st=lnSetup();if(!st.lnTitles)st.lnTitles={};st.lnTitles[sel]=lnVal('ln-title').trim();save();lnRender();
+}
 function lnPrefChanged(){
   var P=lnPrefs();
-  P.obj=lnChk('ln-opt-obj');P.donow=lnChk('ln-opt-donow');P.exit=lnChk('ln-opt-exit');P.hw=lnChk('ln-opt-hw');P.std=lnChk('ln-opt-std');P.disc=lnChk('ln-opt-disc');
+  P.obj=lnChk('ln-opt-obj');P.donow=lnChk('ln-opt-donow');P.exit=lnChk('ln-opt-exit');P.seq=lnChk('ln-opt-seq');P.hw=lnChk('ln-opt-hw');P.std=lnChk('ln-opt-std');P.disc=lnChk('ln-opt-disc');
   lnSetup().learningDisclaimer=lnVal('ln-disclaimer');
   save();lnRender();
 }
@@ -9255,7 +9284,7 @@ function lnNoSchool(ds){
 function lnDayLabel(ds){var d=lnParse(ds);return d.toLocaleDateString('en-US',{weekday:'short'})+' '+(d.getMonth()+1)+'/'+d.getDate();}
 function lnSig(days){
   return days.map(function(d){
-    return d.noSchool?'NS:'+d.noSchool:d.lessons.map(function(l){return [l.title,l.objective,l.donow,l.closure,l.hw,l.standard,l.nocarry,l.status].join('|');}).join('||');
+    return d.noSchool?'NS:'+d.noSchool:d.lessons.map(function(l){return [l.title,l.objective,l.donow,l.closure,l.hw,l.standard,l.nocarry,l.status,JSON.stringify(l.lessonsList||''),JSON.stringify(l.seq||'')].join('|');}).join('||');
   }).join('##');
 }
 function lnBuild(){
@@ -9281,30 +9310,53 @@ function lnSummary(g,model){
   var lessons=[];g.days.forEach(function(d){if(!d.noSchool)d.lessons.forEach(function(l){if(l.status!=='Cancelled — Sub')lessons.push(l);});});
   if(!lessons.length)return '';
   var units=[],titles=[];
-  lessons.forEach(function(l){var u=ciNorm(l.unit);if(u&&units.indexOf(u)<0)units.push(u);var t=ciNorm(l.title);if(t&&titles.indexOf(t)<0)titles.push(t);});
+  lessons.forEach(function(l){var u=ciNorm(l.unit);if(u&&units.indexOf(u)<0)units.push(u);lnParts(l).title.split(' & ').forEach(function(t){t=ciNorm(t);if(t&&titles.indexOf(t)<0)titles.push(t);});});
   var lead=model.mode==='week'?"This week we're working on":model.mode==='month'?"This month we're working on":"During this stretch we're working on";
   var tl=titles.length>6?titles.slice(0,5).join(', ')+', and more':titles.join(', ');
   return lead+' '+(units.length?units.join(' and ')+' ('+tl+').':tl+'.');
+}
+// Drop a label the teacher already typed into the text ("Exit ticket: ..." would print "Exit Ticket: Exit ticket: ...")
+function lnStrip(kind,text){
+  var rx={obj:/^(learning\s+targets?|objectives?|swbat)\s*[:\-\u2013\u2014]\s*/i,donow:/^(do[\s-]*now|warm[\s-]*up)\s*[:\-\u2013\u2014]\s*/i,exit:/^(exit\s+(ticket|slip)|closure|cool[\s-]*down)\s*[:\-\u2013\u2014]\s*/i,hw:/^(home[\s-]*work|hw)\s*[:\-\u2013\u2014]\s*/i}[kind];
+  var t=lnOne(text);return rx?t.replace(rx,''):t;
+}
+// A day can hold several lessons (daily plan form): list them together, each with its own learning target
+function lnParts(l){
+  var ls=(l.lessonsList||[]).filter(function(x){return ciNorm(x.title);});
+  if(ls.length>1)return {multi:true,title:ls.map(function(x){return ciNorm(x.title);}).join(' & '),targets:ls.map(function(x){return {name:ciNorm(x.title),t:lnStrip('obj',x.targets)};}).filter(function(x){return x.t;})};
+  return {multi:false,title:l.title||'Lesson',targets:l.objective?[{name:'',t:lnStrip('obj',l.objective)}]:[]};
+}
+function lnSteps(l){
+  var multi=(l.lessonsList||[]).filter(function(x){return ciNorm(x.title);}).length>1;
+  return (l.seq||[]).map(function(r){
+    var t=ciNorm(r.label)||ciNorm(r.text).slice(0,70);if(!t)return '';
+    var m=multi&&String(r.lesson||'').match(/^(lesson|day|session)\s*\d+/i);   // "Lesson 8: Activity 1" when a day has several lessons
+    return (m?m[0]+': ':'')+t;
+  }).filter(Boolean);
 }
 function lnText(model){
   var L=[],P=model.prefs;
   model.groups.forEach(function(g,gi){
     if(gi)L.push('','------------------------------','');
-    L.push(g.heading+' — '+model.label);
+    L.push(g.heading+' \u2014 '+model.label);
     var sum=lnSummary(g,model);if(sum)L.push(sum);
     L.push('');
     var any=false;
     g.days.forEach(function(d){
       var wd=lnDayLabel(d.date);
-      if(d.noSchool){L.push(wd+' — No school ('+d.noSchool+')','');any=true;return;}
+      if(d.noSchool){L.push(wd+' \u2014 No school ('+d.noSchool+')','');any=true;return;}
       d.lessons.forEach(function(l){
-        any=true;
-        L.push(wd+' — '+(l.title||'Lesson')+(l.status==='Cancelled — Sub'?' (sub day)':''));
-        if(P.obj&&l.objective)L.push('Learning target: '+lnOne(l.objective));
+        any=true;var pt=lnParts(l);
+        L.push(wd+' \u2014 '+pt.title+(l.status==='Cancelled \u2014 Sub'?' (sub day)':''));
+        if(P.obj&&pt.targets.length){
+          if(pt.multi){L.push('Learning targets:');pt.targets.forEach(function(x){L.push('  - '+x.name+': '+x.t);});}
+          else L.push('Learning target: '+pt.targets[0].t);
+        }
         if(P.std&&l.standard)L.push('Standards: '+lnOne(l.standard));
-        if(P.donow&&l.donow)L.push('Do Now: '+lnOne(l.donow));
-        if(P.exit&&l.closure)L.push('Exit Ticket: '+lnOne(l.closure));
-        if(P.hw)L.push('Homework: '+(l.hw?lnOne(l.hw):'None assigned')+(l.nocarry?' (unfinished classwork is not homework today)':''));
+        if(P.donow&&l.donow)L.push('Do Now: '+lnStrip('donow',l.donow));
+        if(P.seq){var st=lnSteps(l);if(st.length)L.push('Activities: '+st.join('; '));}
+        if(P.exit&&l.closure)L.push('Exit Ticket: '+lnStrip('exit',l.closure));
+        if(P.hw)L.push('Homework: '+(l.hw?lnStrip('hw',l.hw):'None assigned')+(l.nocarry?' (unfinished classwork is not homework today)':''));
         L.push('');
       });
     });
@@ -9317,28 +9369,32 @@ function lnText(model){
 function lnHtml(model,preview){
   var P=model.prefs,s=lnSetup();
   var h='<div style="font-family:Arial,Helvetica,sans-serif;color:#222;line-height:1.45">';
-  var meta=[s.teacher,s.school].filter(Boolean).join(' · ');
+  var meta=[s.teacher,s.school].filter(Boolean).join(' \u00B7 ');
   model.groups.forEach(function(g,gi){
     if(gi)h+='<hr style="border:none;border-top:1px solid #ccc;margin:18px 0">';
-    h+='<h2 style="margin:0 0 2px;font-size:19px">'+esc(g.heading)+'</h2><div style="color:#555;margin-bottom:6px">'+esc(model.label)+(meta&&!preview?' · '+esc(meta):'')+'</div>';
+    h+='<h2 style="margin:0 0 2px;font-size:19px">'+esc(g.heading)+'</h2><div style="color:#555;margin-bottom:6px">'+esc(model.label)+(meta&&!preview?' \u00B7 '+esc(meta):'')+'</div>';
     var sum=lnSummary(g,model);if(sum)h+='<p style="margin:6px 0 12px;font-style:italic">'+esc(sum)+'</p>';
     var any=false;
     g.days.forEach(function(d){
       var wd=lnDayLabel(d.date);
-      if(d.noSchool){any=true;h+='<div style="margin:0 0 10px"><strong>'+esc(wd)+' — No school</strong> <span style="color:#666">('+esc(d.noSchool)+')</span></div>';return;}
+      if(d.noSchool){any=true;h+='<div style="margin:0 0 10px"><strong>'+esc(wd)+' \u2014 No school</strong> <span style="color:#666">('+esc(d.noSchool)+')</span></div>';return;}
       if(!d.lessons.length){
-        if(preview&&(model.mode!=='day'||true))h+='<div style="margin:0 0 8px;color:#999;font-size:12px">'+esc(wd)+' — no lesson plan entered <button class="btn btn-sm" style="font-size:10px;padding:1px 7px" onclick="lnAddLesson(\''+d.date+'\',\''+esc(g.periods[0])+'\')">+ add</button></div>';
+        if(preview)h+='<div style="margin:0 0 8px;color:#999;font-size:12px">'+esc(wd)+' \u2014 no lesson plan entered <button class="btn btn-sm" style="font-size:10px;padding:1px 7px" onclick="lnAddLesson(\''+d.date+'\',\''+esc(g.periods[0])+'\')">+ add</button></div>';
         return;
       }
       d.lessons.forEach(function(l){
-        any=true;
-        h+='<div style="margin:0 0 12px"><strong style="font-size:14px">'+esc(wd)+' — '+esc(l.title||'Lesson')+(l.status==='Cancelled — Sub'?' <span style="font-weight:400;color:#666">(sub day)</span>':'')+'</strong><ul style="margin:3px 0 0 18px;padding:0">';
+        any=true;var pt=lnParts(l);
+        h+='<div style="margin:0 0 12px"><strong style="font-size:14px">'+esc(wd)+' \u2014 '+esc(pt.title)+(l.status==='Cancelled \u2014 Sub'?' <span style="font-weight:400;color:#666">(sub day)</span>':'')+'</strong><ul style="margin:3px 0 0 18px;padding:0">';
         function li(k,v){h+='<li style="margin:1px 0"><b>'+k+':</b> '+esc(lnOne(v))+'</li>';}
-        if(P.obj&&l.objective)li('Learning target',l.objective);
+        if(P.obj&&pt.targets.length){
+          if(pt.multi)h+='<li style="margin:1px 0"><b>Learning targets:</b><ul style="margin:1px 0 1px 16px;padding:0">'+pt.targets.map(function(x){return '<li>'+esc(x.name)+': '+esc(x.t)+'</li>';}).join('')+'</ul></li>';
+          else li('Learning target',pt.targets[0].t);
+        }
         if(P.std&&l.standard)li('Standards',l.standard);
-        if(P.donow&&l.donow)li('Do Now',l.donow);
-        if(P.exit&&l.closure)li('Exit Ticket',l.closure);
-        if(P.hw)li('Homework',(l.hw?lnOne(l.hw):'None assigned')+(l.nocarry?' (unfinished classwork is not homework today)':''));
+        if(P.donow&&l.donow)li('Do Now',lnStrip('donow',l.donow));
+        if(P.seq){var st=lnSteps(l);if(st.length)h+='<li style="margin:1px 0"><b>Activities:</b> '+esc(st.join('; '))+'</li>';}
+        if(P.exit&&l.closure)li('Exit Ticket',lnStrip('exit',l.closure));
+        if(P.hw)li('Homework',(l.hw?lnStrip('hw',l.hw):'None assigned')+(l.nocarry?' (unfinished classwork is not homework today)':''));
         h+='</ul></div>';
       });
     });
@@ -10018,6 +10074,40 @@ function subRosterPages(){
           +'</div></div>';
       }).join('')+'</div>';
   }).join('');
+}
+
+/* ── delete an upload (Curriculum Map) ── */
+var CUR_DEL_ID='';
+function curFilesOf(l){return String(l.importedFrom||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
+// lesson plans made only from this upload (ones that also drew on another file are left alone)
+function curPlansFrom(r){return DB.lessons.filter(function(l){var f=curFilesOf(l);return f.length&&f.every(function(x){return x===r.fileName;});});}
+function askDeleteResource(id){
+  var r=DB.curriculum.find(function(x){return x.id===id;});if(!r)return;
+  if(!r.uploaded){if(confirm('Delete "'+r.name+'"?')){delCurriculum(id);}return;}
+  CUR_DEL_ID=id;
+  var n=(r.lessons||[]).length,plans=curPlansFrom(r);
+  document.getElementById('cur-del-title').textContent='Delete "'+r.name+'"?';
+  document.getElementById('cur-del-body').innerHTML='This removes the upload'+(n?' and its <b>'+n+' lesson'+(n===1?'':'s')+'</b> stored in the Curriculum Map':'')+', plus the copy of the file kept on this device.'
+    +(plans.length?'<br><br><b>'+plans.length+' lesson plan'+(plans.length===1?' was':'s were')+'</b> created from this file. Keep them, or delete them too (including anything you edited in them).':'<br><br>No lesson plans were created from this file.');
+  document.getElementById('cur-del-plans-btn').style.display=plans.length?'':'none';
+  document.getElementById('cur-del-plans-btn').textContent='Delete the upload and its '+plans.length+' lesson plan'+(plans.length===1?'':'s');
+  document.getElementById('cur-del-modal').style.display='flex';
+}
+function closeDeleteResource(){var m=document.getElementById('cur-del-modal');if(m)m.style.display='none';CUR_DEL_ID='';}
+function doDeleteResource(alsoPlans){
+  var r=DB.curriculum.find(function(x){return x.id===CUR_DEL_ID;});if(!r){closeDeleteResource();return;}
+  var removed=0;
+  if(alsoPlans){
+    var gone={};curPlansFrom(r).forEach(function(l){gone[l.id]=1;});
+    removed=Object.keys(gone).length;
+    DB.lessons=DB.lessons.filter(function(l){return !gone[l.id];});
+    DB.tests=DB.tests.filter(function(t){return !gone[t.fromLesson];});
+  }
+  DB.curriculum=DB.curriculum.filter(function(x){return x.id!==r.id;});
+  if(r.fileName)lfFileDb().then(function(db){db.transaction('files','readwrite').objectStore('files').delete(r.fileName);}).catch(function(){});
+  save();closeDeleteResource();renderCurriculum();
+  if(typeof renderLessons==='function')renderLessons();
+  toast('Deleted "'+r.name+'"'+(removed?' and '+removed+' lesson plan'+(removed===1?'':'s'):''));
 }
 
 </script>
