@@ -1955,6 +1955,7 @@ textarea{resize:vertical;min-height:64px}
     <button class="fp-back" onclick="closeFull('seating')">← Hub</button>
     <div class="fp-title">🪑 Classroom Seating</div>
     <div style="display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap">
+      <span id="seat-abday" style="display:none;background:rgba(255,255,255,.3);color:#fff;border-radius:12px;padding:4px 12px;font-size:12px;font-weight:800;white-space:nowrap"></span>
       <div id="seat-period-tabs" style="display:flex;gap:4px"></div>
       <button class="btn btn-sm" onclick="addEmptyDesk()" style="background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.5);color:#fff">＋ Add Desk</button>
       <select id="seat-furniture-picker" onchange="if(this.value){addFurniture(this.value);this.value='';}" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.25);color:#fff;font-size:12px;font-weight:700">
@@ -2195,6 +2196,7 @@ textarea{resize:vertical;min-height:64px}
         <option value="all">All Periods</option>
       </select>
       <input type="date" id="att-date" onchange="renderAttendance()" style="padding:5px 10px;border-radius:8px;border:1.5px solid rgba(255,255,255,.5);background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;color-scheme:dark">
+      <span id="att-abday" style="display:none;align-self:center;background:rgba(255,255,255,.3);color:#fff;border-radius:12px;padding:4px 12px;font-size:12px;font-weight:800;white-space:nowrap"></span>
       <button class="fp-back" onclick="saveAttendance()" style="background:rgba(255,255,255,.3)">💾 Save</button>
     </div>
   </div>
@@ -2773,7 +2775,7 @@ textarea{resize:vertical;min-height:64px}
           <div style="padding:8px;background:var(--surface);border-radius:6px">🪑 <strong>Seating chart colors</strong> — green = assigned, amber = missing work, pink = medical alert, purple = IEP/504. Glanceable at a substitute's eye level.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🧑‍🏫 <strong>Seating chart furniture</strong> — the "＋ Add Furniture…" dropdown adds a teacher's desk, tables, bookcase, storage, coat room, whiteboard, or projector — drag anywhere, double-click to rename.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔀 <strong>A/B day schedule</strong> — Schedule Setup → Schedule type → <strong>A / B day schedule</strong>. Fill in a schedule for the A Day and one for the B Day, then tell the app which date is an A or B day. The letter alternates on every school day (weekends, Holiday / No School and PD Day events are skipped) and shows in the header, Daily Planner, Monthly Calendar and Lesson Plans week view. Click the header badge to switch a day if your school's rotation shifts. Switch back to <strong>One fixed schedule</strong> any time.</div>
-          <div style="padding:8px;background:var(--surface);border-radius:6px">📆 <strong>Calendar Sync</strong> — Schedule Setup → Copy Link → subscribe once in Google/Apple/Outlook Calendar. Refreshes every 1–3 hours; use 🔄 Regenerate if you ever need to invalidate an old link.</div>
+          <div style="padding:8px;background:var(--surface);border-radius:6px">📆 <strong>Calendar Sync</strong> — Schedule Setup → Copy Link → subscribe once in Google/Apple/Outlook Calendar. With A/B days on, every school day also shows as an all-day “A Day” / “B Day” with that day's schedule. Refreshes every 1–3 hours; use 🔄 Regenerate if you ever need to invalidate an old link.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔒 <strong>Personal category</strong> — mark any task Personal (Task List, Monthly Calendar, or Personal Planner) to hide its details from the shared Daily Planner/Monthly Calendar — it still syncs to your phone via Calendar Sync.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🏷️ <strong>Task categories</strong> — beyond the defaults (Grading, Admin, Planning, etc.), Training and Meeting are built in. Personal Planner items get their own set: Dr. Appt, Dentist Appt, Mental Health Day, Trip, Family, Errand, Appointment.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">📊 <strong>Comm Report columns</strong> — click any column header (Date, Student, Method, Reason) to sort ascending/descending.</div>
@@ -2885,7 +2887,7 @@ textarea{resize:vertical;min-height:64px}
     <!-- CALENDAR SYNC -->
     <div class="card">
       <div class="card-hdr">
-        <span class="card-title">📆 Calendar Sync <span style="font-size:11px;font-weight:400;color:#a060a0">— get task alerts on your phone, even when this app is closed</span></span>
+        <span class="card-title">📆 Calendar Sync <span style="font-size:11px;font-weight:400;color:#a060a0">— get task alerts and your A/B days on your phone, even when this app is closed</span></span>
       </div>
       <div class="card-body">
         <div style="font-size:12px;color:var(--mid);margin-bottom:12px">Subscribe to this link once in Google Calendar, Apple Calendar, or Outlook. Your tasks (from Task List, Monthly Calendar, and Personal Planner) show up there automatically as events with a reminder — including Personal items, since only you see your own calendar. Calendar apps typically refresh subscriptions every 1–3 hours.</div>
@@ -2914,13 +2916,15 @@ textarea{resize:vertical;min-height:64px}
       <div class="card-body">
         <div id="ab-panel"></div>
         <div style="overflow-x:auto">
-        <div style="min-width:560px">
-        <div style="display:grid;grid-template-columns:32px 160px 120px 120px 80px auto;gap:8px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0cce8">
+        <div style="min-width:680px">
+        <!-- same column template + gap as the rows built in renderScheduleRows() so each heading sits over its column -->
+        <div style="display:grid;grid-template-columns:32px 1fr 160px 100px 100px 110px 40px;gap:6px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0cce8">
           <span></span>
-          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase">Period / Label</span>
-          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase">Start time</span>
-          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase">End time</span>
-          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase">Type</span>
+          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase;padding-left:8px">Period / Label</span>
+          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase;padding-left:8px">Subject</span>
+          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase;padding-left:8px">Start time</span>
+          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase;padding-left:8px">End time</span>
+          <span style="font-size:10px;font-weight:800;color:#a060a0;text-transform:uppercase;padding-left:8px">Type</span>
           <span></span>
         </div>
         <div id="schedule-rows"></div>
@@ -3329,7 +3333,7 @@ function abIsSchoolDay(ds){
 }
 // type of a Holiday / No School or PD Day event covering ds ('' if none)
 function lnNoSchoolType(ds){
-  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school|^pd day/i.test(e.type||'')&&e.start<=ds&&(!e.end||e.end>=ds);})[0];
+  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school|^pd day/i.test(e.type||'')&&e.start<=ds&&ds<=(e.end||e.start);})[0];
   return ev?ev.type:'';
 }
 function abDayFor(ds){
@@ -3378,8 +3382,59 @@ function abUpdateHeader(){
   else if(!(DB.setup.abAnchor&&DB.setup.abAnchor.date)){el.textContent='Set A/B day';el.title='Tell the app which day is A or B';el.onclick=function(){openFull('setup');};}
   else{el.textContent='No A/B today';el.title='Weekend or a no-school day — the rotation skips it';el.onclick=null;}
 }
+/* ── A/B awareness for attendance + seating ── */
+// period id of a schedule row — same rule getPeriodNumbers() uses
+function abPeriodId(r){var m=String(r.label).match(/\d+/);return m?m[0]:r.label;}
+// {periodId:true} for the classes that meet on ds; null when A/B is off or the letter for that date is unknown
+function abPeriodsOn(ds){
+  if(!abOn())return null;
+  var day=abDayFor(ds);if(!day)return null;
+  var o={};abScheduleFor(day).forEach(function(r){if(r.type==='Class')o[abPeriodId(r)]=true;});
+  return o;
+}
+// 'A', 'B' or 'A/B' — the day(s) a period meets ('' when A/B is off)
+function abPeriodDays(p){
+  if(!abOn())return '';
+  var has=function(sc){return (sc||[]).some(function(r){return r.type==='Class'&&abPeriodId(r)===String(p);});};
+  var a=has(baseSchedule()),b=has(DB.setup.scheduleB);
+  return a&&b?'A/B':a?'A':b?'B':'';
+}
+// Does this student's class meet on ds? (true whenever A/B is off, the letter is unknown, or the period isn't on either schedule)
+function abStudentMeets(stu,ds,meets){
+  meets=meets===undefined?abPeriodsOn(ds):meets;
+  if(!meets)return true;
+  var p=String(stu.period);
+  return !!meets[p]||getPeriodNumbers().indexOf(p)<0;
+}
+// The period to open by default: with A/B on, the class meeting right now (else the next / first one) on today's schedule
+function abDefaultPeriod(){
+  var all=getPeriodNumbers(),first=all[0]||'1';
+  if(!abOn())return first;
+  var day=abDayFor(abTodayStr());if(!day)return first;
+  var rows=abScheduleFor(day).filter(function(r){return r.type==='Class';});
+  if(!rows.length)return first;
+  var n=new Date(),now=n.getHours()*60+n.getMinutes();
+  var mins=function(t){var p=String(t||'').split(':');return p.length>1&&p[0]!==''?parseInt(p[0],10)*60+(parseInt(p[1],10)||0):null;};
+  var cur=rows.find(function(r){var s=mins(r.start),e=mins(r.end);return s!==null&&e!==null&&now>=s&&now<e;});
+  var nxt=cur||rows.find(function(r){var s=mins(r.start);return s!==null&&s>now;});
+  return abPeriodId(nxt||rows[0]);
+}
+function abChipHtml(ds){
+  if(!abOn())return '';
+  var day=abDayFor(ds);
+  return day?day+' Day':(DB.setup.abAnchor&&DB.setup.abAnchor.date?'No A/B day':'A/B day not set');
+}
+function abUpdateChips(){
+  var a=document.getElementById('att-abday'),ad=document.getElementById('att-date');
+  if(a){var t=abChipHtml(ad&&ad.value);a.style.display=t?'inline-block':'none';a.textContent=t;}
+  var s=document.getElementById('seat-abday');
+  if(s){var t2=abChipHtml(abTodayStr());s.style.display=t2?'inline-block':'none';s.textContent=t2?'Today: '+t2:'';}
+}
 function abRefreshViews(){
-  abUpdateHeader();
+  abUpdateHeader();abUpdateChips();
+  if(document.getElementById('seat-period-tabs')&&typeof buildPeriodTabs==='function')buildPeriodTabs('seat-period-tabs','switchSeatPeriod',curSeatPeriod);
+  var adt=document.getElementById('att-date');
+  if(adt&&adt.value&&typeof refreshAllPeriodTabs==='function'){try{refreshAllPeriodTabs();renderAttendance();}catch(e){}}
   if(typeof renderScheduleABPanel==='function')renderScheduleABPanel();
   if(document.getElementById('schedule-preview'))renderSetupPreview();
   if(document.getElementById('planner-schedule'))try{renderPlanner();}catch(e){}
@@ -3580,7 +3635,7 @@ function fillReportBanner(key){
     if(id==='rpt-parent-meeting'){fillReportBanner('pm');populatePMSelect();document.getElementById('pm-date').value=new Date().toISOString().split('T')[0];}
     if(id==='rpt-coaching'){fillReportBanner('coach');renderCoachingReport();}
     if(id==='rpt-period-pattern'){fillReportBanner('pp');renderPeriodPatternReport();}
-    if(id==='seating'){curSeatPeriod='1';renderSeatingChart();}
+    if(id==='seating'){curSeatPeriod=abDefaultPeriod();buildPeriodTabs('seat-period-tabs','switchSeatPeriod',curSeatPeriod);abUpdateChips();renderSeatingChart();}
     if(id==='setup')renderSetup();
   }
 }
@@ -5892,8 +5947,13 @@ function renderAttendance(){
   var ds=dateEl?dateEl.value:new Date().toISOString().split('T')[0];
   var per=periodEl?periodEl.value:'all';
   if(!DB.attendance[ds])DB.attendance[ds]={};
+  abUpdateChips();
 
-  var students=DB.students.filter(function(s){return per==='all'||s.period==per;}).sort(function(a,b){return a.period!=b.period?a.period-b.period:a.name.localeCompare(b.name);});
+  var students=attStudents(ds,per).sort(function(a,b){return a.period!=b.period?a.period-b.period:a.name.localeCompare(b.name);});
+  // Picking one specific period that doesn't meet on this A/B day: say so instead of silently listing it
+  var dayMeets=abPeriodsOn(ds);
+  var noMeetNote=(dayMeets&&per!=='all'&&per!=='every'&&!dayMeets[per]&&getPeriodNumbers().indexOf(String(per))>=0)
+    ?'<div style="grid-column:1/-1;padding:8px 10px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700">Period '+esc(per)+' doesn\'t meet on a '+abDayFor(ds)+' Day — pick "Classes meeting that day" to see who is here.</div>':'';
 
   // Stats
   var stats=document.getElementById('att-stats');
@@ -5915,7 +5975,7 @@ function renderAttendance(){
   var grid=document.getElementById('att-grid');
   if(!grid)return;
   var dayData=DB.attendance[ds]||{};
-  grid.innerHTML=students.map(function(s){
+  grid.innerHTML=noMeetNote+students.map(function(s){
     var cur=dayData[s.id]||'';
     var btns=Object.keys(ATT_CODES).map(function(code){
       var active=cur===code;
@@ -5927,6 +5987,14 @@ function renderAttendance(){
   }).join('')||(students.length===0?'<div class="empty">No students for this period.</div>':'');
 
   renderAttTotals();
+}
+
+// Students shown / marked for a date + period filter. 'all' = only the classes that meet that A/B day
+// (all students when A/B is off); 'every' = everyone; otherwise one specific period.
+function attStudents(ds,per){
+  if(per==='every')return DB.students.slice();
+  if(per==='all'){var meets=abPeriodsOn(ds);return DB.students.filter(function(s){return abStudentMeets(s,ds,meets);});}
+  return DB.students.filter(function(s){return s.period==per;});
 }
 
 function setAttCode(sid,code,ds){
@@ -5941,7 +6009,8 @@ function markAllAtt(code){
   var ds=dateEl?dateEl.value:new Date().toISOString().split('T')[0];
   var per=periodEl?periodEl.value:'all';
   if(!DB.attendance[ds])DB.attendance[ds]={};
-  DB.students.filter(function(s){return per==='all'||s.period==per;}).forEach(function(s){DB.attendance[ds][s.id]=code;});
+  // With A/B days on, "All" no longer marks the other day's classes present
+  attStudents(ds,per).forEach(function(s){DB.attendance[ds][s.id]=code;});
   renderAttendance();
 }
 
@@ -7096,9 +7165,15 @@ function getPeriodNumbers(){
 function buildPeriodTabs(containerId, onclickFn, activePeriod){
   var el=document.getElementById(containerId);if(!el)return;
   var periods=getPeriodNumbers();
+  var today=abPeriodsOn(abTodayStr());
   el.innerHTML=periods.map(function(p,i){
     var isActive=(activePeriod?p===activePeriod:i===0);
-    return '<button class="input-tab'+(isActive?' active':'')+'" onclick="'+onclickFn+'(\''+p+'\',this)">P'+p+'</button>';
+    // A/B days on: tab shows which day(s) the class meets; classes meeting today get an accent border
+    var days=abPeriodDays(p);
+    var meetsToday=!!(today&&today[p]);
+    return '<button class="input-tab'+(isActive?' active':'')+'"'+(meetsToday&&!isActive?' style="border-color:var(--accent1);color:var(--accent1)"':'')
+      +(days?' title="Period '+p+' meets on '+(days==='A/B'?'both A and B days':days+' days')+(meetsToday?' — meets today':'')+'"':'')
+      +' onclick="'+onclickFn+'(\''+p+'\',this)">P'+p+(days?' <span style="font-size:9px;opacity:.8">'+days+'</span>':'')+'</button>';
   }).join('');
 }
 
@@ -7170,8 +7245,11 @@ function refreshAllPeriodTabs(){
   var attSel = document.getElementById('att-period-filter');
   if(attSel){
     var cur = attSel.value;
-    attSel.innerHTML = '<option value="all">All Periods</option>'
-      + periods.map(function(p){return '<option value="'+p+'"'+(cur===p?' selected':'')+'>Period '+p+'</option>';}).join('');
+    // With A/B days on, "All" means the classes that meet on the chosen date; "Every period" is both days
+    attSel.innerHTML = '<option value="all">'+(abOn()?'Classes meeting that day':'All Periods')+'</option>'
+      + (abOn()?'<option value="every"'+(cur==='every'?' selected':'')+'>Every period (A + B)</option>':'')
+      + periods.map(function(p){var d=abPeriodDays(p);return '<option value="'+p+'"'+(cur===p?' selected':'')+'>Period '+p+(d?' ('+d+')':'')+'</option>';}).join('');
+    if(cur==='every'&&!abOn())attSel.value='all';
   }
 
   // Behavior period filter (in header)
@@ -7631,8 +7709,8 @@ var FURNITURE_TYPES={
 
 function switchSeatPeriod(p,btn){
   curSeatPeriod=p;
-  document.querySelectorAll('#seat-period-tabs .input-tab').forEach(function(b){b.classList.remove('active');});
-  if(btn)btn.classList.add('active');
+  // rebuild (rather than toggle a class) so the A/B badges and "meets today" accents stay correct
+  buildPeriodTabs('seat-period-tabs','switchSeatPeriod',p);
   renderSeatingChart();
 }
 
@@ -9561,7 +9639,8 @@ function lnRangeLabel(dates){
   return lnLong(a)+' – '+lnLong(b)+', '+y;
 }
 function lnNoSchool(ds){
-  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school/i.test(e.type||'')&&e.start<=ds&&(!e.end||e.end>=ds);})[0];
+  // End date is optional in the event form — an event with no end is a single day, not "forever"
+  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school/i.test(e.type||'')&&e.start<=ds&&ds<=(e.end||e.start);})[0];
   return ev?ev.name:'';
 }
 function lnDayLabel(ds){var d=lnParse(ds);return d.toLocaleDateString('en-US',{weekday:'short'})+' '+(d.getMonth()+1)+'/'+d.getDate();}

@@ -1,7 +1,9 @@
 // Serves a per-teacher ICS/webcal feed of their open tasks (Task List, Monthly
 // Calendar, Personal Planner all write to the same DB.tasks collection), so a
 // teacher can subscribe once in Google/Apple/Outlook and get real device alerts
-// even when Teacher Command Center itself isn't open.
+// even when Teacher Command Center itself isn't open. With A/B days turned on it
+// also carries an all-day "A Day" / "B Day" event per school day (with that day's
+// schedule in the description).
 //
 // The feed URL is /api/calendar.ics?u=<teacherUid>&s=<calendarSecret>. There is no
 // separate token-lookup collection: the uid comes straight from the URL, and this
@@ -45,6 +47,82 @@ function foldLine(line) {
     out += (first ? '' : '\r\n ') + rest.slice(0, chunkLen);
     rest = rest.slice(chunkLen);
     first = false;
+  }
+  return out;
+}
+
+// ── A/B day labels ──────────────────────────────────────────────────────────
+// Mirrors abDayFor() in index.html: the teacher pins one school day to A or B (setup.abAnchor) and the letter
+// flips on every school day after/before it. Weekends and Holiday / No School / PD Day events don't count.
+// Dates are handled as plain YYYY-MM-DD strings in UTC so the server's timezone can't shift a day.
+function addDays(ds, n) {
+  var d = new Date(ds + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function isNoSchool(ds, events) {
+  return events.some(function (e) {
+    // end date is optional in the event form: no end = a single day
+    return e && /holiday|no school|^pd day/i.test(e.type || '') && e.start && e.start <= ds && ds <= (e.end || e.start);
+  });
+}
+function isSchoolDay(ds, events) {
+  var w = new Date(ds + 'T12:00:00Z').getUTCDay();
+  return w !== 0 && w !== 6 && !isNoSchool(ds, events);
+}
+function letterFor(ds, anchor, events) {
+  if (!isSchoolDay(ds, events)) return '';
+  var step = ds >= anchor.date ? 1 : -1;
+  var d = anchor.date;
+  var n = 0;
+  for (var guard = 0; guard < 900 && d !== ds; guard++) {
+    d = addDays(d, step);
+    if (isSchoolDay(d, events)) n++;
+  }
+  return n % 2 === 0 ? anchor.day : anchor.day === 'A' ? 'B' : 'A';
+}
+function fmtTime(t) {
+  var m = /^(\d{1,2}):(\d{2})/.exec(t || '');
+  if (!m) return '';
+  var h = parseInt(m[1], 10);
+  var ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + m[2] + ' ' + ap;
+}
+function scheduleText(rows) {
+  return (rows || [])
+    .map(function (r) {
+      var t = r.start && r.end ? fmtTime(r.start) + '–' + fmtTime(r.end) + '  ' : r.start ? fmtTime(r.start) + '  ' : '';
+      return t + (r.label || '') + (r.subject ? ' (' + r.subject + ')' : '');
+    })
+    .join('\n');
+}
+// One all-day "A Day" / "B Day" event per school day: from 2 weeks back to the last day of school (or a year ahead).
+function abDayEvents(setup, events, todayStr, stamp) {
+  var out = [];
+  var an = setup.abAnchor;
+  if (!setup.abEnabled || !an || !an.date || (an.day !== 'A' && an.day !== 'B')) return out;
+  var start = addDays(todayStr, -14);
+  var maxEnd = addDays(todayStr, 450);
+  var end = setup.lastday && setup.lastday >= todayStr ? setup.lastday : addDays(todayStr, 365);
+  if (end > maxEnd) end = maxEnd;
+  var prev = '';
+  for (var ds = start; ds <= end; ds = addDays(ds, 1)) {
+    if (!isSchoolDay(ds, events)) continue;
+    var letter = prev ? (prev === 'A' ? 'B' : 'A') : letterFor(ds, an, events);
+    prev = letter;
+    var digits = ds.replace(/-/g, '');
+    var rows = letter === 'B' ? setup.scheduleB : setup.schedule;
+    var desc = letter + ' Day' + (rows && rows.length ? ' schedule\n' + scheduleText(rows) : '');
+    out.push('BEGIN:VEVENT');
+    out.push('UID:abday-' + ds + '@teachercommandcenter.app');
+    out.push('DTSTAMP:' + stamp);
+    out.push('DTSTART;VALUE=DATE:' + digits);
+    out.push('DTEND;VALUE=DATE:' + addDays(ds, 1).replace(/-/g, ''));
+    out.push(foldLine('SUMMARY:' + icsEscape(letter + ' Day')));
+    out.push(foldLine('DESCRIPTION:' + icsEscape(desc)));
+    out.push('TRANSP:TRANSPARENT');
+    out.push('END:VEVENT');
   }
   return out;
 }
@@ -126,6 +204,11 @@ module.exports = async (req, res) => {
       lines.push('TRIGGER:-PT30M');
       lines.push('END:VALARM');
       lines.push('END:VEVENT');
+    });
+
+    // A/B day labels (only when the teacher has A/B days turned on and has set which day is A or B)
+    abDayEvents(setup, data.calendarEvents || [], now.toISOString().slice(0, 10), stamp).forEach(function (l) {
+      lines.push(l);
     });
 
     lines.push('END:VCALENDAR');
