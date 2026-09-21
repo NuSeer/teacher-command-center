@@ -1172,7 +1172,7 @@ textarea{resize:vertical;min-height:64px}
 
       <!-- TOP ROW: Date, Period, Copy -->
       <div class="form-row">
-        <div class="fg"><label>Date</label><input type="date" id="lf-date" onchange="lfWeekInfo()"><div id="lf-weekinfo" style="font-size:11px;font-weight:800;color:var(--accent1);margin-top:3px"></div></div>
+        <div class="fg"><label>Date</label><input type="date" id="lf-date" onchange="lfWeekInfo()"><div id="lf-weekinfo" style="font-size:11px;font-weight:800;color:var(--accent1);margin-top:3px"></div><div id="lf-abinfo" style="display:none;font-size:11px;font-weight:800;margin-top:3px"></div></div>
         <div class="fg" style="max-width:110px"><label>Period</label>
           <select id="lf-period" onchange="showCurriculumSuggestions();lfWeekInfo()"></select>
         </div>
@@ -2774,7 +2774,7 @@ textarea{resize:vertical;min-height:64px}
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔗 <strong>Unit name consistency</strong> — use the exact same unit name in Curriculum Resources and Lesson Plans for auto-linking to work best.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🪑 <strong>Seating chart colors</strong> — green = assigned, amber = missing work, pink = medical alert, purple = IEP/504. Glanceable at a substitute's eye level.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🧑‍🏫 <strong>Seating chart furniture</strong> — the "＋ Add Furniture…" dropdown adds a teacher's desk, tables, bookcase, storage, coat room, whiteboard, or projector — drag anywhere, double-click to rename.</div>
-          <div style="padding:8px;background:var(--surface);border-radius:6px">🔀 <strong>A/B day schedule</strong> — Schedule Setup → Schedule type → <strong>A / B day schedule</strong>. Fill in a schedule for the A Day and one for the B Day, then tell the app which date is an A or B day. The letter alternates on every school day (weekends, Holiday / No School and PD Day events are skipped) and shows in the header, Daily Planner, Monthly Calendar and Lesson Plans week view. Click the header badge to switch a day if your school's rotation shifts. Switch back to <strong>One fixed schedule</strong> any time.</div>
+          <div style="padding:8px;background:var(--surface);border-radius:6px">🔀 <strong>A/B day schedule</strong> — Schedule Setup → Schedule type → <strong>A / B day schedule</strong>. Fill in a schedule for the A Day and one for the B Day, then tell the app which date is an A or B day. The letter alternates on every school day (weekends, Holiday / No School and PD Day events are skipped) and shows in the header, Daily Planner, Monthly Calendar and Lesson Plans week view. Click the header badge to switch a day if your school's rotation shifts. Curriculum Map uploads, What We're Learning and the lesson form follow it too: each class gets its lessons on the days it meets, and a class that doesn't meet that day isn't counted as a missing lesson. Switch back to <strong>One fixed schedule</strong> any time.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">📆 <strong>Calendar Sync</strong> — Schedule Setup → Copy Link → subscribe once in Google/Apple/Outlook Calendar. With A/B days on, every school day also shows as an all-day “A Day” / “B Day” with that day's schedule. Refreshes every 1–3 hours; use 🔄 Regenerate if you ever need to invalidate an old link.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔒 <strong>Personal category</strong> — mark any task Personal (Task List, Monthly Calendar, or Personal Planner) to hide its details from the shared Daily Planner/Monthly Calendar — it still syncs to your phone via Calendar Sync.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🏷️ <strong>Task categories</strong> — beyond the defaults (Grading, Admin, Planning, etc.), Training and Meeting are built in. Personal Planner items get their own set: Dr. Appt, Dentist Appt, Mental Health Day, Trip, Family, Errand, Appointment.</div>
@@ -3418,6 +3418,18 @@ function abDefaultPeriod(){
   var cur=rows.find(function(r){var s=mins(r.start),e=mins(r.end);return s!==null&&e!==null&&now>=s&&now<e;});
   var nxt=cur||rows.find(function(r){var s=mins(r.start);return s!==null&&s>now;});
   return abPeriodId(nxt||rows[0]);
+}
+// Does class p meet on ds? true when A/B is off, the letter for ds is unknown, or the period isn't on either schedule
+function abClassMeets(p,ds){var m=abPeriodsOn(ds);return !m||!!m[String(p)]||getPeriodNumbers().indexOf(String(p))<0;}
+// First school day on/after ds that class p meets and that isn't in `used` (a {date:1} map, optional)
+function abNextMeeting(p,ds,used){
+  var d=ds;
+  for(var i=0;i<800;i++){
+    if(ciIsSchoolDay(d)&&abClassMeets(p,d)&&!(used&&used[d]))return d;
+    var x=new Date(d+'T12:00:00');x.setDate(x.getDate()+1);
+    d=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  }
+  return ds;
 }
 function abChipHtml(ds){
   if(!abOn())return '';
@@ -4749,13 +4761,20 @@ function saveLesson(){
     lessonData.id=Date.now()+'';
     DB.lessons.push(lessonData);
     // Copy to additional periods — read dynamic checkboxes
+    var _copyMoved=0;
     getPeriodNumbers().forEach(function(p){
       var cb=document.getElementById('lf-copy-p'+p);
       if(cb&&cb.checked&&String(p)!==lessonData.period){
-        DB.lessons.push(Object.assign({},lessonData,{id:Date.now()+'_'+p,period:String(p)}));
+        // A/B days on: a copy for a class that doesn't meet that day goes to the next day it does
+        var cdate=lessonData.date;
+        if(abOn()&&cdate&&!abClassMeets(p,cdate)){
+          var nd=abNextMeeting(p,cdate);
+          if(nd!==cdate){cdate=nd;_copyMoved++;}
+        }
+        DB.lessons.push(Object.assign({},lessonData,{id:Date.now()+'_'+p,period:String(p),date:cdate}));
       }
     });
-    toast('Lesson saved');
+    toast(_copyMoved?'Lesson saved — '+_copyMoved+' cop'+(_copyMoved===1?'y was':'ies were')+' placed on the next day that class meets (A/B days)':'Lesson saved');
   }
   var _tn=DB.tests.length;
   DB.lessons.forEach(function(l){if(!_prevIds[l.id]||l.id===editId)lessonTestLink(l);});
@@ -9238,27 +9257,53 @@ function ciResolve(g){
   var dated=g.recs.filter(function(r){return r.date;})[0];
   g.date=dated?dated.date:'';g.dateSrc=g.date?'file':'';
 }
+// Weekends, Holiday / No School and PD Day events are not school days (an event with no end date is one day)
 function ciIsSchoolDay(ds){
-  var d=new Date(ds+'T12:00:00');var wd=d.getDay();if(wd===0||wd===6)return false;
-  return !(DB.calendarEvents||[]).some(function(ev){return /holiday|no school/i.test(ev.type||'')&&ev.start<=ds&&(!ev.end||ev.end>=ds);});
+  var wd=new Date(ds+'T12:00:00').getDay();if(wd===0||wd===6)return false;
+  return !lnNoSchoolType(ds);
 }
-function ciNextSchoolDay(ds){
+// Next school day on/after ds. With a period (and A/B days on) it's the next day that class actually meets.
+function ciNextSchoolDay(ds,p){
   var d=new Date(ds+'T12:00:00');
-  for(var i=0;i<400;i++){var s=d.toISOString().slice(0,10);if(ciIsSchoolDay(s))return s;d.setDate(d.getDate()+1);}
+  for(var i=0;i<800;i++){var s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(ciIsSchoolDay(s)&&(p==null||abClassMeets(p,s)))return s;d.setDate(d.getDate()+1);}
   return ds;
 }
-// Lessons with no date in any file get consecutive school days from the start date (weekends
-// and No-School calendar events skipped); dates that came from a file or that you typed are kept.
+// The class the dates shown in the panel are laid out for: the first ticked class (only matters with A/B days on)
+function ciRefPeriod(){
+  if(!abOn())return null;
+  if(CI.periods&&CI.periods.length)return CI.periods[0];
+  return CI.periods===null?(getPeriodNumbers()[0]||null):null; // not chosen yet: the panel will default to the first class
+}
+// Lessons with no date in any file get consecutive class days from the start date (weekends, No-School and
+// PD Day events skipped; with A/B days on, only days the class meets); dates that came from a file or that you typed are kept.
 function ciAssignDates(){
+  var ref=ciRefPeriod();
   var used={};CI.groups.forEach(function(g){if(g.date&&g.dateSrc!=='auto')used[g.date]=1;});
-  var cursor=CI.start?ciNextSchoolDay(CI.start):'';
+  var cursor=CI.start?ciNextSchoolDay(CI.start,ref):'';
   CI.groups.forEach(function(g){
     if(g.dateSrc&&g.dateSrc!=='auto')return;
     if(!cursor){g.date='';g.dateSrc='';return;}
-    while(used[cursor]){var d=new Date(cursor+'T12:00:00');d.setDate(d.getDate()+1);cursor=ciNextSchoolDay(d.toISOString().slice(0,10));}
+    while(used[cursor]){var d=new Date(cursor+'T12:00:00');d.setDate(d.getDate()+1);cursor=ciNextSchoolDay(d.toISOString().slice(0,10),ref);}
     g.date=cursor;g.dateSrc='auto';used[cursor]=1;
-    var n=new Date(cursor+'T12:00:00');n.setDate(n.getDate()+1);cursor=ciNextSchoolDay(n.toISOString().slice(0,10));
+    var n=new Date(cursor+'T12:00:00');n.setDate(n.getDate()+1);cursor=ciNextSchoolDay(n.toISOString().slice(0,10),ref);
   });
+}
+// The date every lesson gets for ONE class. A/B off (or letter unknown): the lesson's own date, unchanged.
+// A/B on: a lesson dated on a day this class doesn't meet moves to the next day it does, and two lessons
+// never land on the same day, so each class works through the lessons in order over its own days.
+// Returns {dates:[per group], moved:n lessons whose file/typed date had to move}.
+function ciDatesForPeriod(p){
+  var dates=[],used={},moved=0;
+  CI.groups.forEach(function(g,i){
+    if(!g.include||!g.date){dates[i]=g.date||'';return;}
+    var d=g.date;
+    if(abOn()){
+      d=abNextMeeting(p,g.date,used);used[d]=1;
+      if(d!==g.date&&g.dateSrc!=='auto')moved++;
+    }
+    dates[i]=d;
+  });
+  return {dates:dates,moved:moved};
 }
 
 /* ── UI ── */
@@ -9359,6 +9404,8 @@ function ciTogglePeriod(p,on){
   if(CI.periods===null)CI.periods=[];
   var s=String(p),ix=CI.periods.indexOf(s);
   if(on&&ix<0)CI.periods.push(s);if(!on&&ix>=0)CI.periods.splice(ix,1);
+  // A/B days on: the auto dates follow the first ticked class's meeting days, so re-lay them out
+  if(abOn()&&CI.groups.length){ciAssignDates();ciRenderPanel();return;}
   ciUpdateCommitLabel();
 }
 function ciUpdateCommitLabel(){
@@ -9404,8 +9451,16 @@ function ciRenderPanel(){
   h+='<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px">'
     +'<div class="fg" style="max-width:190px"><label>Start date for lessons with no date</label><input type="date" value="'+esc(CI.start)+'" onchange="ciSetStart(this.value)"></div>'
     +'<div class="fg"><label>Add to these classes</label><div style="display:flex;flex-wrap:wrap;gap:8px;padding:6px 0">'
-    +periods.map(function(x){return '<label style="text-transform:none;font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" '+(CI.periods.indexOf(x.p)>=0?'checked ':'')+'onchange="ciTogglePeriod(\''+esc(x.p)+'\',this.checked)"> P'+esc(x.p)+(x.subject?' '+esc(x.subject):'')+'</label>';}).join('')
-    +'</div></div>'
+    +periods.map(function(x){var ab=abPeriodDays(x.p);return '<label style="text-transform:none;font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" '+(CI.periods.indexOf(x.p)>=0?'checked ':'')+'onchange="ciTogglePeriod(\''+esc(x.p)+'\',this.checked)"> P'+esc(x.p)+(x.subject?' '+esc(x.subject):'')+(ab?' <span style="font-size:10px;color:var(--mid)">('+ab+')</span>':'')+'</label>';}).join('')
+    +'</div>'
+    +(function(){
+      // A/B days on: say how the dates below relate to each ticked class
+      if(!abOn()||!CI.periods.length)return '';
+      var ref=CI.periods[0],others=CI.periods.slice(1).filter(function(p){return abPeriodDays(p)!==abPeriodDays(ref);});
+      return '<div style="font-size:11px;color:var(--mid);max-width:520px">🔀 A/B days: dates below are laid out for <b>P'+esc(ref)+(abPeriodDays(ref)?' ('+abPeriodDays(ref)+' days)':'')+'</b>, on the days it meets.'
+        +(others.length?' '+others.map(function(p){return 'P'+esc(p)+(abPeriodDays(p)?' ('+abPeriodDays(p)+')':'');}).join(', ')+' get the same lessons in the same order on the days <i>they</i> meet.':'')+'</div>';
+    })()
+    +'</div>'
     +'<div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="ciSelectAll(true)">Select all</button><button class="btn btn-sm" onclick="ciSelectAll(false)">Select none</button></div></div>';
   var ta='width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;min-height:46px;resize:vertical;color:var(--dark);background:var(--card-bg)';
   var inp='width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;color:var(--dark);background:var(--card-bg)';
@@ -9450,15 +9505,17 @@ function ciRenderPanel(){
 var CI_RES_TYPE={pptx:'PowerPoint',xlsx:'Excel Spreadsheet',xls:'Excel Spreadsheet',xlsm:'Excel Spreadsheet',csv:'Excel Spreadsheet',docx:'Word Doc',pdf:'PDF',txt:'Other',md:'Other'};
 function ciCommit(){
   var periods=(CI.periods||[]).slice();if(!periods.length){toast('Choose at least one class');return;}
-  var made=0,filled=0,undated=0,touched=0,uid=0;
+  var made=0,filled=0,undated=0,touched=0,uid=0,movedLessons=0;
   var textFields=['unit','standard','objective','donow','direct','guided','independent','closure','hw','materials'];
-  CI.groups.forEach(function(g){
+  // each class gets its own date per lesson (identical to the lesson's date unless A/B days are on)
+  var pdates={};periods.forEach(function(p){var r=ciDatesForPeriod(p);pdates[p]=r.dates;movedLessons=Math.max(movedLessons,r.moved);});
+  CI.groups.forEach(function(g,gi){
     if(!g.include)return;
     if(!g.date){undated++;return;}
     periods.forEach(function(p){
-      var d=g.v,parts=ciPartsOf(g);
+      var d=g.v,parts=ciPartsOf(g),dt=pdates[p][gi]||g.date;
       var notes=d.vocab?('Vocabulary: '+ciNorm(d.vocab).replace(/\s*;\s*/g,', ')):'';
-      var ex=DB.lessons.find(function(l){return l.date===g.date&&String(l.period)===String(p);});
+      var ex=DB.lessons.find(function(l){return l.date===dt&&String(l.period)===String(p);});
       if(ex){
         var changed=false;
         textFields.forEach(function(f){if(!String(ex[f]||'').trim()&&d[f]){ex[f]=d[f];changed=true;}});
@@ -9467,7 +9524,7 @@ function ciCommit(){
         if(notes&&String(ex.notes||'').indexOf(notes)<0){ex.notes=(ex.notes?ex.notes+'\n':'')+notes;changed=true;}
         if(changed)filled++;else touched++;
       }else{
-        var les={id:Date.now()+'_'+(uid++)+Math.random().toString(36).slice(2,5),title:d.title||'Lesson',date:g.date,period:String(p),
+        var les={id:Date.now()+'_'+(uid++)+Math.random().toString(36).slice(2,5),title:d.title||'Lesson',date:dt,period:String(p),
           unit:d.unit||'',standard:d.standard||'',objective:d.objective||'',donow:d.donow||'',direct:d.direct||'',guided:d.guided||'',
           independent:d.independent||'',closure:d.closure||'',hw:d.hw||'',materials:d.materials||'',tech:'',diff:'',
           assess:d.closure?'Exit ticket':'Observation',link:'',status:'Planned',notes:notes,importedFrom:g.files.join(', '),
@@ -9500,7 +9557,7 @@ function ciCommit(){
     });
   }
   save();renderCurriculum();
-  var msg='Added '+made+' new lesson'+(made===1?'':'s')+(filled?', filled in '+filled+' existing':'')+(touched?', '+touched+' already complete':'')+(undated?'. '+undated+' had no date \u2014 set a start date and try again':'')+(resAdded?'. '+resAdded+' file'+(resAdded===1?'':'s')+' listed under resources':'');
+  var msg='Added '+made+' new lesson'+(made===1?'':'s')+(filled?', filled in '+filled+' existing':'')+(touched?', '+touched+' already complete':'')+(undated?'. '+undated+' had no date \u2014 set a start date and try again':'')+(abOn()?'. Each class got its lessons on the days it meets (A/B days)'+(movedLessons?' \u2014 '+movedLessons+' dated lesson'+(movedLessons===1?' was':'s were')+' moved to the next day that class meets':''):'')+(resAdded?'. '+resAdded+' file'+(resAdded===1?'':'s')+' listed under resources':'');
   toast('\u2705 '+msg);
   var res=document.getElementById('ci-result');
   if(res){
@@ -9640,13 +9697,14 @@ function lnRangeLabel(dates){
 }
 function lnNoSchool(ds){
   // End date is optional in the event form — an event with no end is a single day, not "forever"
-  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school/i.test(e.type||'')&&e.start<=ds&&ds<=(e.end||e.start);})[0];
+  // PD Day counts too (no students), matching the A/B rotation and Curriculum Map dating
+  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school|^pd day/i.test(e.type||'')&&e.start<=ds&&ds<=(e.end||e.start);})[0];
   return ev?ev.name:'';
 }
 function lnDayLabel(ds){var d=lnParse(ds);return d.toLocaleDateString('en-US',{weekday:'short'})+' '+(d.getMonth()+1)+'/'+d.getDate();}
 function lnSig(days){
   return days.map(function(d){
-    return d.noSchool?'NS:'+d.noSchool:d.lessons.map(function(l){return [l.title,l.objective,l.donow,l.closure,l.hw,l.standard,l.nocarry,l.status,JSON.stringify(l.lessonsList||''),JSON.stringify(l.seq||'')].join('|');}).join('||');
+    return d.noSchool?'NS:'+d.noSchool:(d.noMeet&&!d.lessons.length)?'NM:'+d.date:d.lessons.map(function(l){return [l.title,l.objective,l.donow,l.closure,l.hw,l.standard,l.nocarry,l.status,JSON.stringify(l.lessonsList||''),JSON.stringify(l.seq||'')].join('|');}).join('||');
   }).join('##');
 }
 function lnBuild(){
@@ -9655,7 +9713,9 @@ function lnBuild(){
   var groups=[];
   picked.forEach(function(c){
     var days=dates.map(function(ds){
-      return {date:ds,noSchool:lnNoSchool(ds),lessons:DB.lessons.filter(function(l){return l.date===ds&&String(l.period)===c.p;})};
+      var les=DB.lessons.filter(function(l){return l.date===ds&&String(l.period)===c.p;});
+      // A/B days on: a day this class doesn't meet isn't a "missing lesson" (unless a lesson was planned there anyway)
+      return {date:ds,noSchool:lnNoSchool(ds),noMeet:!les.length&&!lnNoSchool(ds)&&!abClassMeets(c.p,ds),lessons:les};
     });
     var sig=c.title+'@@'+lnSig(days);
     var same=groups.filter(function(g){return g.sig===sig;})[0];
@@ -9740,6 +9800,11 @@ function lnHtml(model,preview){
     g.days.forEach(function(d){
       var wd=lnDayLabel(d.date);
       if(d.noSchool){any=true;h+='<div style="margin:0 0 10px"><strong>'+esc(wd)+' \u2014 No school</strong> <span style="color:#666">('+esc(d.noSchool)+')</span></div>';return;}
+      if(d.noMeet){
+        // shown only in the on-screen preview; never in the copied / printed update
+        if(preview)h+='<div style="margin:0 0 8px;color:#aaa;font-size:12px;font-style:italic">'+esc(wd)+' \u2014 '+esc(abDayFor(d.date))+' Day, this class doesn\'t meet</div>';
+        return;
+      }
       if(!d.lessons.length){
         if(preview)h+='<div style="margin:0 0 8px;color:#999;font-size:12px">'+esc(wd)+' \u2014 no lesson plan entered <button class="btn btn-sm" style="font-size:10px;padding:1px 7px" onclick="lnAddLesson(\''+d.date+'\',\''+esc(g.periods[0])+'\')">+ add</button></div>';
         return;
@@ -9772,7 +9837,7 @@ function lnRender(){
   if(!model.dates.length){box.innerHTML='<div class="empty">Pick a date (or a start and end date) to see what\'s planned.</div>';return;}
   box.innerHTML=lnHtml(model,true);
   var n=0,total=0;
-  model.groups.forEach(function(g){g.days.forEach(function(d){if(!d.noSchool){total++;if(d.lessons.length)n++;}});});
+  model.groups.forEach(function(g){g.days.forEach(function(d){if(!d.noSchool&&!d.noMeet){total++;if(d.lessons.length)n++;}});});
   var st=document.getElementById('ln-status');
   if(st)st.textContent=n+' of '+total+' class days have a lesson plan'+(n<total?' — the empty days are left out of the copy/print.':'.');
 }
@@ -10049,6 +10114,14 @@ function weekLessonTag(l){
 function lfWeekInfo(){
   var el=document.getElementById('lf-weekinfo');if(!el)return;
   el.textContent=lessonWeekLabel((document.getElementById('lf-date')||{}).value,(document.getElementById('lf-period')||{}).value,(document.getElementById('lf-edit-id')||{}).value);
+  // A/B days on: show the day's letter, and warn when this class doesn't meet on the chosen date
+  var ab=document.getElementById('lf-abinfo');if(!ab)return;
+  var ds=(document.getElementById('lf-date')||{}).value,p=(document.getElementById('lf-period')||{}).value,day=abOn()&&ds?abDayFor(ds):'';
+  if(!day){ab.style.display='none';return;}
+  var meets=abClassMeets(p,ds);
+  ab.style.display='block';
+  ab.style.color=meets?'var(--mid)':'#b45309';
+  ab.textContent=meets?day+' Day':day+' Day — Period '+p+' doesn\'t meet on '+(day==='A'?'A':'B')+' days (it meets on '+abPeriodDays(p)+' days)';
 }
 // Change a week's number from the Lesson Plans header
 function openWeekModal(){
