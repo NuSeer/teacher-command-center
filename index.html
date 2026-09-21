@@ -287,6 +287,7 @@ textarea{resize:vertical;min-height:64px}
     </div>
   </div>
   <div class="hdr-right" style="display:flex;align-items:center;gap:8px"><div id="save-indicator" style="font-size:11px;color:rgba(255,255,255,.7);opacity:0;transition:opacity .5s;white-space:nowrap"></div><div id="user-display" style="display:flex;align-items:center;gap:6px"></div>
+    <div id="hdr-abday" style="display:none;background:rgba(255,255,255,.22);color:#fff;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap"></div>
     <div class="hdr-date" id="hdr-date"></div>
     <div class="hdr-time" id="hdr-time"></div>
   </div>
@@ -2771,6 +2772,7 @@ textarea{resize:vertical;min-height:64px}
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔗 <strong>Unit name consistency</strong> — use the exact same unit name in Curriculum Resources and Lesson Plans for auto-linking to work best.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🪑 <strong>Seating chart colors</strong> — green = assigned, amber = missing work, pink = medical alert, purple = IEP/504. Glanceable at a substitute's eye level.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🧑‍🏫 <strong>Seating chart furniture</strong> — the "＋ Add Furniture…" dropdown adds a teacher's desk, tables, bookcase, storage, coat room, whiteboard, or projector — drag anywhere, double-click to rename.</div>
+          <div style="padding:8px;background:var(--surface);border-radius:6px">🔀 <strong>A/B day schedule</strong> — Schedule Setup → Schedule type → <strong>A / B day schedule</strong>. Fill in a schedule for the A Day and one for the B Day, then tell the app which date is an A or B day. The letter alternates on every school day (weekends, Holiday / No School and PD Day events are skipped) and shows in the header, Daily Planner, Monthly Calendar and Lesson Plans week view. Click the header badge to switch a day if your school's rotation shifts. Switch back to <strong>One fixed schedule</strong> any time.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">📆 <strong>Calendar Sync</strong> — Schedule Setup → Copy Link → subscribe once in Google/Apple/Outlook Calendar. Refreshes every 1–3 hours; use 🔄 Regenerate if you ever need to invalidate an old link.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🔒 <strong>Personal category</strong> — mark any task Personal (Task List, Monthly Calendar, or Personal Planner) to hide its details from the shared Daily Planner/Monthly Calendar — it still syncs to your phone via Calendar Sync.</div>
           <div style="padding:8px;background:var(--surface);border-radius:6px">🏷️ <strong>Task categories</strong> — beyond the defaults (Grading, Admin, Planning, etc.), Training and Meeting are built in. Personal Planner items get their own set: Dr. Appt, Dentist Appt, Mental Health Day, Trip, Family, Errand, Appointment.</div>
@@ -2910,6 +2912,7 @@ textarea{resize:vertical;min-height:64px}
         </div>
       </div>
       <div class="card-body">
+        <div id="ab-panel"></div>
         <div style="overflow-x:auto">
         <div style="min-width:560px">
         <div style="display:grid;grid-template-columns:32px 160px 120px 120px 80px auto;gap:8px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0cce8">
@@ -3297,7 +3300,92 @@ function rebuildSelect(id,key){
   el.innerHTML=getOpts(key).map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>';}).join('');
 }
 
-function getSchedule(){return (DB.setup&&DB.setup.schedule&&DB.setup.schedule.length)?DB.setup.schedule:DEFAULT_SCHEDULE;}
+/* ── A/B DAY SCHEDULE ──
+   DB.setup.abEnabled=false: one fixed schedule, DB.setup.schedule (the original behaviour).
+   DB.setup.abEnabled=true : A/B rotation. DB.setup.schedule is the A-day schedule, DB.setup.scheduleB the B-day one.
+   DB.setup.abAnchor={date,day} pins a known school day to a letter; the letter then flips on every school day
+   after (and before) it. Weekends, Holiday / No School and PD Day calendar events do not count as school days.
+   getSchedule() stays "every row the teacher has" (all classes from both days) so rosters, period tabs and
+   gradebooks keep working; anything that lays out a real day uses abScheduleForDate() instead. */
+function abOn(){return !!(DB.setup&&DB.setup.abEnabled);}
+function baseSchedule(){return (DB.setup&&DB.setup.schedule&&DB.setup.schedule.length)?DB.setup.schedule:DEFAULT_SCHEDULE;}
+function abScheduleFor(day){return(abOn()&&day==='B')?(DB.setup.scheduleB||[]):baseSchedule();}
+function getSchedule(){
+  var a=baseSchedule();
+  if(!abOn())return a;
+  var seen={},cls=[],rest=[];
+  a.concat(DB.setup.scheduleB||[]).forEach(function(r){
+    var k=r.type+'|'+r.label;if(seen[k])return;seen[k]=1;
+    (r.type==='Class'?cls:rest).push(r);
+  });
+  var num=function(r){var m=String(r.label).match(/\d+/);return m?parseInt(m[0],10):1e9;};
+  cls=cls.map(function(r,i){return{r:r,i:i};}).sort(function(x,y){return num(x.r)-num(y.r)||x.i-y.i;}).map(function(x){return x.r;});
+  return cls.concat(rest);
+}
+function abIsSchoolDay(ds){
+  var w=new Date(ds+'T12:00:00').getDay();
+  if(w===0||w===6)return false;
+  return !lnNoSchoolType(ds);
+}
+// type of a Holiday / No School or PD Day event covering ds ('' if none)
+function lnNoSchoolType(ds){
+  var ev=(DB.calendarEvents||[]).filter(function(e){return /holiday|no school|^pd day/i.test(e.type||'')&&e.start<=ds&&(!e.end||e.end>=ds);})[0];
+  return ev?ev.type:'';
+}
+function abDayFor(ds){
+  if(!abOn()||!ds)return '';
+  var an=DB.setup.abAnchor;
+  if(!an||!an.date||(an.day!=='A'&&an.day!=='B'))return '';
+  if(!abIsSchoolDay(ds))return '';
+  var step=ds>=an.date?1:-1,d=new Date(an.date+'T12:00:00'),n=0,guard=0;
+  while(guard++<900){
+    if(ds===an.date)break;
+    d.setDate(d.getDate()+step);
+    var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(abIsSchoolDay(iso))n++;
+    if(iso===ds)break;
+  }
+  return n%2===0?an.day:(an.day==='A'?'B':'A');
+}
+// The rows that actually happen on a date. Unknown letter (weekend / no school / anchor not set) → every class from both days.
+function abScheduleForDate(ds){
+  if(!abOn())return baseSchedule();
+  var day=abDayFor(ds);
+  return day?abScheduleFor(day):getSchedule();
+}
+function abSetDay(ds,day){
+  if(!DB.setup)DB.setup={};
+  if(!abIsSchoolDay(ds)){toast('That date isn\'t a school day (weekend or no-school event)');return false;}
+  DB.setup.abAnchor={date:ds,day:day};
+  save();abRefreshViews();
+  return true;
+}
+// Flip the letter for a date (fixes the rotation from that day on, and back)
+function abFlipDay(ds){
+  ds=ds||new Date().toISOString().split('T')[0];
+  var cur=abDayFor(ds);
+  if(!cur){openFull('setup');toast('Set which day is A or B in Schedule Setup first');return;}
+  var nd=cur==='A'?'B':'A';
+  if(abSetDay(ds,nd))toast('That day is now a '+nd+' Day — the rotation continues from there');
+}
+function abTodayStr(){var n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+function abUpdateHeader(){
+  var el=document.getElementById('hdr-abday');if(!el)return;
+  if(!abOn()){el.style.display='none';return;}
+  var ds=abTodayStr(),day=abDayFor(ds);
+  el.style.display='inline-block';
+  if(day){el.textContent=day+' Day';el.title='Today is an '+day+' Day — click to switch it (fixes the rotation from today on)';el.onclick=function(){abFlipDay(ds);};}
+  else if(!(DB.setup.abAnchor&&DB.setup.abAnchor.date)){el.textContent='Set A/B day';el.title='Tell the app which day is A or B';el.onclick=function(){openFull('setup');};}
+  else{el.textContent='No A/B today';el.title='Weekend or a no-school day — the rotation skips it';el.onclick=null;}
+}
+function abRefreshViews(){
+  abUpdateHeader();
+  if(typeof renderScheduleABPanel==='function')renderScheduleABPanel();
+  if(document.getElementById('schedule-preview'))renderSetupPreview();
+  if(document.getElementById('planner-schedule'))try{renderPlanner();}catch(e){}
+  if(document.getElementById('monthcal-grid'))try{renderMonthCal();}catch(e){}
+  if(document.getElementById('lesson-week-grid'))try{renderLessons();}catch(e){}
+}
 var BOY_FORMS=['Emergency Form','Media Release','Tech Agreement','Supply List','Parent Contact','Handbook Sig','Lunch App','IEP/504 Form','Health Form'];
 var curGradePeriod=(function(){var s=getSchedule().filter(function(r){return r.type==='Class';});var m=s[0]&&s[0].label.match(/\d+/);return m?m[0]:'1';})();
 
@@ -3334,6 +3422,7 @@ function tick(){
   document.getElementById('hdr-date').textContent=n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
   var h=n.getHours(),m=n.getMinutes(),ap=h>=12?'PM':'AM';h=h%12||12;
   document.getElementById('hdr-time').textContent=h+':'+(m<10?'0':'')+m+' '+ap;
+  try{abUpdateHeader();}catch(e){}
 }
 
 /* NAVIGATION */
@@ -4656,10 +4745,18 @@ function renderLessons(){
       var dd=new Date(lessonWeekStart);dd.setDate(dd.getDate()+di);
       var ds=dd.toISOString().split('T')[0];
       var isToday=ds===new Date().toISOString().split('T')[0];
+      var abD=abDayFor(ds);
+      // With A/B days on, only the periods that meet that letter day are open for planning
+      var meets=null;
+      if(abD){meets={};abScheduleFor(abD).forEach(function(r){if(r.type==='Class')meets[r.label.replace('Period ','')]=1;});}
       html+='<div style="padding:8px 6px;font-family:Nunito,sans-serif;font-size:11px;font-weight:800;color:var(--dark);background:'+(isToday?'var(--light)':'var(--surface)')+';border-radius:6px;border-left:3px solid '+(isToday?'var(--accent1)':'transparent')+'">'
-        +'<div>'+day.slice(0,3)+'</div><div style="font-size:10px;color:var(--mid);font-weight:400">'+fmtDate(dd)+'</div></div>';
+        +'<div>'+day.slice(0,3)+(abD?' <span style="background:var(--accent1);color:#fff;border-radius:8px;padding:0 6px;font-size:9px">'+abD+'</span>':'')+'</div><div style="font-size:10px;color:var(--mid);font-weight:400">'+fmtDate(dd)+'</div></div>';
       displayPeriods.forEach(function(p){
         var lesson=DB.lessons.find(function(l){return l.date===ds&&l.period===p;});
+        if(meets&&!meets[p]&&!lesson){
+          html+='<div style="border:1.5px dashed var(--border);border-radius:8px;min-height:90px;background:var(--surface);opacity:.55;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mid);text-align:center;padding:6px">Doesn\'t meet on a '+abD+' Day</div>';
+          return;
+        }
         var sc=lesson?(statusColors[lesson.status]||'var(--accent1)'):'var(--border)';
         html+='<div style="border:1.5px solid '+(lesson?sc:'var(--border)')+';border-radius:8px;min-height:90px;background:'+(lesson?'var(--card-bg)':'var(--surface)')+';padding:8px;position:relative;cursor:pointer" onclick="'+(lesson?'openLessonForm(\''+lesson.id+'\')':'openLessonFormForDay(\''+ds+'\',\''+p+'\')')+'">';
         if(lesson){
@@ -5280,7 +5377,7 @@ function renderMonthCal(){
       return '<div '+onclick+' style="font-size:9px;padding:1px 4px;margin-top:2px;border-radius:4px;background:'+color+'22;color:'+color+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap'+(personal?';cursor:pointer':'')+'" title="'+(personal?'Open in Personal Planner':esc(t.title))+'">'+(personal?'🔒 Personal':esc(t.title))+'</div>';
     }).join('');
     cells.push('<div onclick="openMonthCalAdd(\''+ds+'\')" style="height:100%;overflow-y:auto;border:1.5px solid '+(isToday?'var(--accent1)':'var(--border)')+';border-radius:8px;padding:5px;cursor:pointer;background:'+(isToday?'var(--light)':'var(--card-bg)')+'">'
-      +'<div style="font-size:11px;font-weight:800;color:'+(isToday?'var(--accent1)':'var(--dark)')+'">'+day+'</div>'
+      +'<div style="font-size:11px;font-weight:800;color:'+(isToday?'var(--accent1)':'var(--dark)')+'">'+day+(abDayFor(ds)?' <span title="'+abDayFor(ds)+' Day" style="background:var(--accent1);color:#fff;border-radius:8px;padding:0 5px;font-size:9px;margin-left:2px">'+abDayFor(ds)+'</span>':'')+'</div>'
       +items+'</div>');
   }
   grid.innerHTML=cells.join('');
@@ -6154,10 +6251,18 @@ function renderPlanner(){
   /* ── LESSONS COLUMN ── */
   var sched=document.getElementById('planner-schedule');
   if(sched){
-    var schedule=getSchedule();
+    var abD=abDayFor(ds);
+    var schedule=abOn()?abScheduleFor(abD):baseSchedule();
+    var abBanner='';
+    if(abOn()){
+      var noAnchor=!(DB.setup.abAnchor&&DB.setup.abAnchor.date);
+      abBanner=abD?'<div onclick="abFlipDay(\''+ds+'\')" title="Click to switch this day between A and B" style="cursor:pointer;padding:6px 10px;font-size:11px;font-weight:800;background:var(--light);color:var(--accent1);border-bottom:1px solid var(--border)">'+abD+' Day schedule <span style="font-weight:600;color:var(--mid)">· click to switch</span></div>'
+        :noAnchor?'<div onclick="openFull(\'setup\')" style="cursor:pointer;padding:6px 10px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;border-bottom:1px solid var(--border)">Set which day is A or B in Schedule Setup — showing the A-day schedule</div>'
+        :'<div style="padding:6px 10px;font-size:11px;font-weight:700;background:var(--surface);color:var(--mid);border-bottom:1px solid var(--border)">No A/B day (weekend or no school) — showing the A-day schedule</div>';
+    }
     var nowMins=(function(){var n=new Date();return n.getHours()*60+n.getMinutes();})();
     var isToday2=ds===today;
-    sched.innerHTML=schedule.map(function(row){
+    sched.innerHTML=abBanner+schedule.map(function(row){
       var isClass=row.type==='Class'||row.type==='Homeroom';
       var isSpecial=!isClass;
       var lesson=isClass?DB.lessons.find(function(l){return l.date===ds&&(l.period===row.label.replace('Period ',''));}) :null;
@@ -6560,9 +6665,10 @@ function printReport(type){
     var subName=(document.getElementById('sub-pkt-name')||{}).value||'';
     var si=DB.subInfo||{};
     var plan=subDate?DB.subPlans.find(function(sp){return sp.date===subDate;}):null;
-    var sched2=getSchedule();
+    var sched2=subDate?abScheduleForDate(subDate):getSchedule();
+    var subAB=subDate?abDayFor(subDate):'';
     title='Sub Packet'+(subDate?' — '+subDate:'');
-    html='<div class="rpt-header"><div><div class="rpt-title">Substitute Teacher Packet</div><div class="rpt-sub">'+(subDate?'Date: '+subDate:'')+(subName?' · Sub: '+esc(subName):'')+'</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>Generated: '+today+'</div></div>'
+    html='<div class="rpt-header"><div><div class="rpt-title">Substitute Teacher Packet</div><div class="rpt-sub">'+(subDate?'Date: '+subDate+(subAB?' ('+subAB+' Day)':''):'')+(subName?' · Sub: '+esc(subName):'')+'</div></div><div class="rpt-info">'+schoolLine+'<br>'+teacherLine+'<br>Generated: '+today+'</div></div>'
     +'<table><thead><tr><th colspan="2">Classroom Procedures</th></tr></thead><tbody>'
     +'<tr><td style="width:140px"><b>🚻 Restroom Policy</b></td><td>'+esc(si.restroom||'Not set')+'</td></tr>'
     +'<tr><td><b>📞 Emergency Contacts</b></td><td>'+esc(si.emergency||'Not set')+'</td></tr>'
@@ -7219,7 +7325,7 @@ function renderSetup(){
   ['teacher','school','year','subject','firstday','lastday','starttime','endtime'].forEach(function(k){
     var e=document.getElementById('setup-'+k);if(e)e.value=s[k]||'';
   });
-  renderScheduleRows();renderSetupPreview();renderCalendarEvents();renderCalendarSyncUI();
+  renderScheduleABPanel();renderScheduleRows();renderSetupPreview();renderCalendarEvents();renderCalendarSyncUI();
 }
 
 /* ── CALENDAR SYNC (ICS feed) ── */
@@ -7289,9 +7395,87 @@ function saveSetupInfo(){
   });
   save();toast('School info saved');
 }
+/* ── Schedule editor: edits the fixed schedule, or the A / B day schedule when A/B days are on ── */
+var abEditing='A';
+function editSchedule(){return(abOn()&&abEditing==='B')?(DB.setup.scheduleB||[]):baseSchedule();}
+function setEditSchedule(arr){
+  if(!DB.setup)DB.setup={};
+  if(abOn()&&abEditing==='B')DB.setup.scheduleB=arr;else DB.setup.schedule=arr;
+}
+// Reads the rows currently typed into the editor (null if the editor isn't on screen)
+function collectScheduleRows(){
+  var rows=document.getElementById('schedule-rows');if(!rows)return null;
+  var sched=[];
+  for(var i=0;i<rows.children.length;i++){
+    var lbl=document.getElementById('sl-'+i);
+    if(!lbl)continue;
+    var st=document.getElementById('ss-'+i),en=document.getElementById('se-'+i),tp=document.getElementById('st-'+i),subj=document.getElementById('sub-'+i);
+    sched.push({label:lbl.value,subject:subj?subj.value:'',start:st?st.value:'',end:en?en.value:'',type:tp?tp.value:'Class'});
+  }
+  return sched;
+}
+function renderScheduleABPanel(){
+  var el=document.getElementById('ab-panel');if(!el)return;
+  var on=abOn();
+  var seg=function(active){return 'padding:7px 14px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;border:1.5px solid '+(active?'transparent':'#f0cce8')+';background:'+(active?'linear-gradient(135deg,var(--accent1),var(--accent2))':'#fff')+';color:'+(active?'#fff':'#a060a0');};
+  var html='<div style="margin-bottom:14px;padding:12px;background:#fff5fc;border-radius:8px;border:1.5px solid #f0cce8">'
+    +'<div style="font-size:11px;font-weight:800;color:#a060a0;text-transform:uppercase;margin-bottom:8px">Schedule type</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button type="button" style="'+seg(!on)+'" onclick="abSetMode(false)">One fixed schedule</button>'
+    +'<button type="button" style="'+seg(on)+'" onclick="abSetMode(true)">A / B day schedule</button>'
+    +'</div>';
+  if(!on){
+    html+='<div style="font-size:11px;color:var(--mid);margin-top:8px">Every day uses the schedule below. Switch to <b>A / B day</b> if your classes rotate — you\'ll get a separate schedule for each day.</div>';
+  } else {
+    var an=DB.setup.abAnchor,today=abTodayStr(),tDay=abDayFor(today);
+    var dflt=(an&&an.date)||today;
+    var status=!(an&&an.date)?'<b style="color:#92400e">Not set yet</b> — pick a date you know and tell me if it was an A or B day.'
+      :tDay?'Today is an <b>'+tDay+' Day</b>.':'Today isn\'t a school day (weekend or no-school event).';
+    html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0cce8">'
+      +'<div style="font-size:11px;font-weight:800;color:#a060a0;text-transform:uppercase;margin-bottom:6px">Which day is it?</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      +'<input type="date" id="ab-anchor-date" value="'+esc(dflt)+'" style="padding:6px 8px;border:1.5px solid #f0cce8;border-radius:6px;font-size:12px;color:#5a2060">'
+      +'<button type="button" class="btn btn-sm" onclick="abSetFromUI(\'A\')">This date is an A Day</button>'
+      +'<button type="button" class="btn btn-sm" onclick="abSetFromUI(\'B\')">This date is a B Day</button>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--mid);margin-top:6px">'+status+' The letter flips on every school day; weekends, <b>Holiday / No School</b> and <b>PD Day</b> events on your calendar are skipped. You can also click the A/B badge in the header (or in the Daily Planner) to switch a day.</div>'
+      +'</div>'
+      +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0cce8">'
+      +'<div style="font-size:11px;font-weight:800;color:#a060a0;text-transform:uppercase;margin-bottom:6px">Edit the schedule for</div>'
+      +'<div style="display:flex;gap:8px"><button type="button" style="'+seg(abEditing==='A')+'" onclick="abSwitchEdit(\'A\')">A Day</button><button type="button" style="'+seg(abEditing==='B')+'" onclick="abSwitchEdit(\'B\')">B Day</button></div>'
+      +'</div>';
+  }
+  el.innerHTML=html+'</div>';
+}
+function abSetMode(on){
+  if(on===abOn())return;
+  var rows=collectScheduleRows();if(rows)setEditSchedule(rows);
+  if(!DB.setup)DB.setup={};
+  DB.setup.abEnabled=on;
+  abEditing='A';
+  if(on&&!(DB.setup.scheduleB&&DB.setup.scheduleB.length)){
+    // start B as a copy of the fixed schedule so times/breaks are already there; rename the periods for B
+    DB.setup.scheduleB=baseSchedule().map(function(r){return Object.assign({},r);});
+    toast('A/B days on — edit the B Day tab to set its periods');
+  } else toast(on?'A/B day schedule on':'Back to one fixed schedule (your B Day schedule is kept if you switch A/B back on)');
+  DB.setup.schedule=baseSchedule().map(function(r){return Object.assign({},r);});
+  save();
+  renderScheduleABPanel();renderScheduleRows();renderSetupPreview();updateHdrSubtitle();abUpdateHeader();
+  if(typeof refreshAllPeriodTabs==='function')try{refreshAllPeriodTabs();}catch(e){}
+}
+function abSwitchEdit(k){
+  var rows=collectScheduleRows();if(rows){setEditSchedule(rows);save();}
+  abEditing=k;
+  renderScheduleABPanel();renderScheduleRows();
+}
+function abSetFromUI(day){
+  var el=document.getElementById('ab-anchor-date');
+  var ds=el&&el.value;if(!ds){toast('Pick a date first');return;}
+  if(abSetDay(ds,day))toast('Saved — '+ds+' is a '+day+' Day, and the rotation follows from there');
+}
 function renderScheduleRows(){
   var el=document.getElementById('schedule-rows');if(!el)return;
-  var sched=getSchedule();
+  var sched=editSchedule();
   el.innerHTML=sched.map(function(row,i){
     return '<div style="display:grid;grid-template-columns:32px 1fr 160px 100px 100px 110px 40px;gap:6px;align-items:center;margin-bottom:6px">'
       +'<span style="font-size:12px;color:#c090c0;text-align:center">☰</span>'
@@ -7308,38 +7492,37 @@ function renderScheduleRows(){
   +'<div style="font-size:10px;color:var(--mid);margin-top:6px">💡 Add a <b>Subject</b> to each period — e.g. "Math", "Reading", "Science". This labels lesson plans and filters for multi-subject teachers.</div>';
 }
 function addScheduleRow(){
-  var sched=getSchedule().slice();sched.push({label:'New Period',start:'',end:'',type:'Class'});
-  if(!DB.setup)DB.setup={};DB.setup.schedule=sched;save();renderScheduleRows();renderSetupPreview();
+  var sched=collectScheduleRows()||editSchedule().slice();sched.push({label:'New Period',start:'',end:'',type:'Class'});
+  setEditSchedule(sched);save();renderScheduleRows();renderSetupPreview();
 }
 function removeScheduleRow(i){
-  var sched=getSchedule().slice();sched.splice(i,1);
-  if(!DB.setup)DB.setup={};DB.setup.schedule=sched;save();renderScheduleRows();renderSetupPreview();
+  var sched=(collectScheduleRows()||editSchedule().slice());sched.splice(i,1);
+  setEditSchedule(sched);save();renderScheduleRows();renderSetupPreview();
 }
 function saveSchedule(){
-  var sched=[];var rows=document.getElementById('schedule-rows');if(!rows)return;
-  var count=rows.children.length;
-  for(var i=0;i<count;i++){
-    var lbl=document.getElementById('sl-'+i);var st=document.getElementById('ss-'+i);
-    var en=document.getElementById('se-'+i);var tp=document.getElementById('st-'+i);
-    var subj=document.getElementById('sub-'+i);
-    if(lbl)sched.push({label:lbl.value,subject:subj?subj.value:'',start:st?st.value:'',end:en?en.value:'',type:tp?tp.value:'Class'});
-  }
-  if(!DB.setup)DB.setup={};DB.setup.schedule=sched;save();
-  toast('Schedule saved — planner updated!');renderSetupPreview();updateHdrSubtitle();
+  var sched=collectScheduleRows();if(!sched)return;
+  setEditSchedule(sched);save();
+  toast(abOn()?'Schedule saved for the '+abEditing+' Day — planner updated!':'Schedule saved — planner updated!');
+  renderSetupPreview();updateHdrSubtitle();
+  if(typeof refreshAllPeriodTabs==='function')try{refreshAllPeriodTabs();}catch(e){}
+  abRefreshViews();
+}
+function schedulePreviewHtml(sched){
+  return sched.map(function(row){
+    var isSpecial=row.type!=='Class'&&row.type!=='Homeroom';
+    var timeStr=(row.start&&row.end)?row.start+'–'+row.end:row.start||'';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid #f0cce8;background:'+(isSpecial?'#fef0fa':'#fff')+'">'
+      +'<span style="font-size:12px;font-weight:800;color:'+(isSpecial?'#c080b0':'#e040a0')+';min-width:120px">'+esc(row.label)+'</span>'
+      +(timeStr?'<span style="font-size:11px;color:#c090c0;min-width:90px">'+timeStr+'</span>':'<span style="min-width:90px"></span>')
+      +'<span class="badge '+(isSpecial?'b-lav':'b-pink')+'" style="font-size:9px">'+esc(row.type)+'</span>'
+      +'</div>';
+  }).join('');
 }
 function renderSetupPreview(){
   var el=document.getElementById('schedule-preview');if(!el)return;
-  var sched=getSchedule();
-  el.innerHTML='<div style="max-width:360px">'
-    +sched.map(function(row){
-      var isSpecial=row.type!=='Class'&&row.type!=='Homeroom';
-      var timeStr=(row.start&&row.end)?row.start+'–'+row.end:row.start||'';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid #f0cce8;background:'+(isSpecial?'#fef0fa':'#fff')+'">'
-        +'<span style="font-size:12px;font-weight:800;color:'+(isSpecial?'#c080b0':'#e040a0')+';min-width:120px">'+esc(row.label)+'</span>'
-        +(timeStr?'<span style="font-size:11px;color:#c090c0;min-width:90px">'+timeStr+'</span>':'<span style="min-width:90px"></span>')
-        +'<span class="badge '+(isSpecial?'b-lav':'b-pink')+'" style="font-size:9px">'+esc(row.type)+'</span>'
-        +'</div>';
-    }).join('')+'</div>';
+  if(!abOn()){el.innerHTML='<div style="max-width:360px">'+schedulePreviewHtml(baseSchedule())+'</div>';return;}
+  var col=function(t,s){return '<div style="flex:1;min-width:280px;max-width:380px"><div style="font-size:12px;font-weight:900;color:var(--accent1);margin-bottom:4px">'+t+'</div>'+(s.length?schedulePreviewHtml(s):'<div style="font-size:11px;color:var(--mid);padding:8px">No periods yet</div>')+'</div>';};
+  el.innerHTML='<div style="display:flex;gap:16px;flex-wrap:wrap">'+col('A Day',baseSchedule())+col('B Day',DB.setup.scheduleB||[])+'</div>';
 }
 function saveCalendarEvent(){
   var name=document.getElementById('cal-event-name').value.trim();
@@ -7348,7 +7531,7 @@ function saveCalendarEvent(){
   if(!DB.calendarEvents)DB.calendarEvents=[];
   DB.calendarEvents.push({id:Date.now()+'',name:name,start:start,end:document.getElementById('cal-event-end').value,type:document.getElementById('cal-event-type').value});
   save();document.getElementById('cal-event-name').value='';document.getElementById('cal-event-start').value='';document.getElementById('cal-event-end').value='';
-  toast('Event saved');renderCalendarEvents();
+  toast('Event saved');renderCalendarEvents();abRefreshViews();
 }
 function renderCalendarEvents(){
   var el=document.getElementById('cal-events-list');if(!el)return;
@@ -7359,7 +7542,7 @@ function renderCalendarEvents(){
       return '<tr><td style="padding:7px 10px;border-bottom:1px solid #f9eef8"><strong>'+esc(ev.name)+'</strong></td><td style="padding:7px 10px;border-bottom:1px solid #f9eef8">'+esc(ev.start)+'</td><td style="padding:7px 10px;border-bottom:1px solid #f9eef8">'+esc(ev.end||'—')+'</td><td style="padding:7px 10px;border-bottom:1px solid #f9eef8"><span class="badge b-lav" style="font-size:10px">'+esc(ev.type)+'</span></td><td style="padding:7px 10px;border-bottom:1px solid #f9eef8"><button class="btn btn-sm btn-danger" onclick="delCalEvent(\''+ev.id+'\')">✕</button></td></tr>';
     }).join('')+'</tbody></table>';
 }
-function delCalEvent(id){DB.calendarEvents=(DB.calendarEvents||[]).filter(function(e){return e.id!==id;});save();renderCalendarEvents();}
+function delCalEvent(id){DB.calendarEvents=(DB.calendarEvents||[]).filter(function(e){return e.id!==id;});save();renderCalendarEvents();abRefreshViews();}
 
 /* ── SUB PACKET ── */
 /* ── BOY DASHBOARD ── */
