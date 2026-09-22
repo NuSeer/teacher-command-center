@@ -2995,6 +2995,11 @@ var fbAuth=firebase.auth();
 var fbDb=firebase.firestore();
 fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 var currentUser=null;var saveTimeout=null;var authMode='signin';
+// True only once the initial cloud fetch for this sign-in has actually succeeded (existing account
+// with real data, or a genuinely brand-new one). Firestore writes are refused while this is false —
+// see saveToFirestore() — so a network blip on load can never silently save an empty DB over real
+// data (Firestore's merge:true still replaces an array field wholesale; it does not union arrays).
+var cloudSynced=false;
 // Invite codes are not in use right now — signup is open (email + password only). Set this to true
 // to bring back the private-beta invite-code gate (also requires publishing FIRESTORE_RULES.md).
 var REQUIRE_INVITE_CODE=false;
@@ -3134,7 +3139,7 @@ function authSuccess(){
 function authSignOut(){
   if(!confirm('Sign out?'))return;
   fbAuth.signOut().then(function(){
-    currentUser=null;
+    currentUser=null;cloudSynced=false;
     Object.keys(DB).forEach(function(k){if(Array.isArray(DB[k]))DB[k]=[];else if(typeof DB[k]==='object'&&k!=='setup')DB[k]={};});
     var o=document.getElementById('auth-overlay');if(o)o.classList.remove('hidden');
     var uel=document.getElementById('user-display');if(uel)uel.innerHTML='';
@@ -3158,6 +3163,10 @@ function save(){if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(
 var MERGE_OPT=function(replaceAll){return replaceAll?{merge:false}:{merge:true};};
 function saveToFirestore(replaceAll){
   if(!currentUser)return;
+  // Refuse to write until the initial load for this sign-in is confirmed — otherwise a failed/slow
+  // fetch on page load would look identical to a brand-new blank account, and the very next save
+  // would overwrite real cloud data (Firestore merge:true still replaces whole array fields).
+  if(!cloudSynced){console.warn('Save blocked: the initial cloud load has not completed for this sign-in yet.');return;}
   var ref=fbDb.collection('teachers').doc(currentUser.uid);
   var b=fbDb.batch();
   b.set(ref.collection('data').doc('main'),{setup:DB.setup||{},tasks:DB.tasks||[],calendarEvents:DB.calendarEvents||[],plannerNotes:DB.plannerNotes||{},subInfo:DB.subInfo||{},customOptions:DB.customOptions||{}},MERGE_OPT(replaceAll));
@@ -3183,16 +3192,44 @@ function dropHomeroomRow(){
 }
 
 function loadFromFirestore(){
-  if(!currentUser){startApp();return;}
+  if(!currentUser){cloudSynced=true;startApp();return;}
+  hideLoadRetry();
   var ref=fbDb.collection('teachers').doc(currentUser.uid);
   Promise.all([ref.collection('data').doc('main').get(),ref.collection('data').doc('students').get()]).then(function(docs){
     var hasData=docs.some(function(d){return d.exists;});
     isBetaTesterAccount=!hasData;
     if(hasData){docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});dropHomeroomRow();}
+    // Only now do we know we have this account's real starting state (existing data, or genuinely
+    // new) — safe to let saves reach the cloud from here on.
+    cloudSynced=true;
     startApp();
-    Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){});
-  }).catch(function(){startApp();});
+    Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){showLoadRetry('Part of your data (attendance, grades, or lesson plans) could not be loaded.');});
+  }).catch(function(){
+    // A real fetch failure (offline, blocked request, permissions) — NOT a brand-new account (a
+    // missing doc resolves with exists:false above and never reaches this branch). Never silently
+    // open the app on blank data: that blank DB would look like "nothing to save" and the next
+    // autosave would overwrite whatever is actually in the cloud.
+    showLoadRetry('Could not load your data. Nothing has been changed or deleted — this only opens once your data loads correctly.');
+  });
 }
+function showLoadRetry(msg){
+  var el=document.getElementById('load-retry');
+  if(!el){
+    el=document.createElement('div');el.id='load-retry';
+    el.style.cssText='position:fixed;inset:0;z-index:100000;background:linear-gradient(135deg,#7b2ff7,#f107a3);display:flex;align-items:center;justify-content:center;font-family:\'Nunito\',sans-serif;text-align:center;padding:20px';
+    el.innerHTML='<div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:420px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.25)">'
+      +'<div style="font-size:36px;margin-bottom:10px">⚠️</div>'
+      +'<div style="font-size:17px;font-weight:900;color:#1a1a2e;margin-bottom:8px">Couldn’t load your data</div>'
+      +'<div id="load-retry-msg" style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.5"></div>'
+      +'<button class="btn btn-primary" style="width:100%;padding:11px" onclick="loadFromFirestore()">🔄 Try again</button>'
+      +'<div style="font-size:11px;color:#999;margin-top:12px">If this keeps happening, check your internet connection, then reload the page.</div>'
+      +'</div>';
+    document.body.appendChild(el);
+  }
+  document.getElementById('load-retry-msg').textContent=msg;
+  el.style.display='flex';
+}
+function hideLoadRetry(){var el=document.getElementById('load-retry');if(el)el.style.display='none';}
 
 function load(){}
 function loadFromLocal(){}
