@@ -2884,6 +2884,17 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
 
+    <!-- AUTOMATIC BACKUPS -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">🛟 Automatic Backups <span style="font-size:11px;font-weight:400;color:#a060a0">— taken on their own, no need to remember</span></span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--mid);margin-bottom:10px">A snapshot of everything (students, grades, lessons, attendance — all of it) is saved to your account automatically, roughly once every 12 hours you use the app. The last <span id="auto-backup-keep-n"></span> are kept. This is separate from ⬇️ Export above — you never have to click anything for these to happen.</div>
+        <div id="auto-backup-list"></div>
+      </div>
+    </div>
+
     <!-- CALENDAR SYNC -->
     <div class="card">
       <div class="card-hdr">
@@ -3174,7 +3185,88 @@ function saveToFirestore(replaceAll){
   b.set(ref.collection('data').doc('tracking'),{missing:DB.missing||[],participation:DB.participation||[],behavior:DB.behavior||[],attendance:DB.attendance||{},iep:DB.iep||[],smallGroups:DB.smallGroups||[]},MERGE_OPT(replaceAll));
   b.set(ref.collection('data').doc('comms'),{comms:DB.comms||[],conferences:DB.conferences||[],concerns:DB.concerns||[],groups:DB.groups||[]},MERGE_OPT(replaceAll));
   b.set(ref.collection('data').doc('planning'),{lessons:DB.lessons||[],subPlans:DB.subPlans||[],curriculum:DB.curriculum||[],tests:DB.tests||[],testScores:DB.testScores||{},assignments:DB.assignments||[]},MERGE_OPT(replaceAll));
-  b.commit().then(function(){var si=document.getElementById('save-indicator');if(si){si.textContent='✓ Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}}).catch(function(e){console.warn('Save:',e);});
+  b.commit().then(function(){var si=document.getElementById('save-indicator');if(si){si.textContent='✓ Saved';si.style.opacity='1';setTimeout(function(){si.style.opacity='0';},2000);}maybeAutoBackup();}).catch(function(e){console.warn('Save:',e);});
+}
+
+/* ── AUTOMATIC BACKUPS ──
+   A full snapshot (same shape as a live save: main/students/tracking/comms/planning, under
+   teachers/{uid}/backups/{id}/data/*) taken on its own after a successful save, at most once every
+   AUTO_BACKUP_MIN_INTERVAL_MS. Exists so a bug or a bad sync can never be the only copy of a
+   roster — see the "students wiped" incident this was built for. Every write here is guarded by
+   cloudSynced (via being called only from inside a successful saveToFirestore) and wrapped so a
+   failure here (e.g. a Firestore rules change) never blocks or interferes with the real save. */
+var AUTO_BACKUP_MIN_INTERVAL_MS=12*60*60*1000;
+var AUTO_BACKUP_KEEP=14;
+var autoBackupInFlight=false;
+function maybeAutoBackup(){
+  if(!currentUser||!cloudSynced||autoBackupInFlight)return;
+  var last=(DB.setup&&DB.setup.lastAutoBackupAt)||0;
+  if(Date.now()-last<AUTO_BACKUP_MIN_INTERVAL_MS)return;
+  autoBackupInFlight=true;
+  takeAutoBackup();
+}
+function takeAutoBackup(){
+  var uid=currentUser&&currentUser.uid;if(!uid){autoBackupInFlight=false;return;}
+  var teacherRef=fbDb.collection('teachers').doc(uid);
+  var backupRef=teacherRef.collection('backups').doc(String(Date.now()));
+  var b=fbDb.batch();
+  b.set(backupRef,{at:new Date().toISOString()});
+  b.set(backupRef.collection('data').doc('main'),{setup:DB.setup||{},tasks:DB.tasks||[],calendarEvents:DB.calendarEvents||[],plannerNotes:DB.plannerNotes||{},subInfo:DB.subInfo||{},customOptions:DB.customOptions||{}});
+  b.set(backupRef.collection('data').doc('students'),{students:DB.students||[],grades:DB.grades||{},seating:DB.seating||{},boyForms:DB.boyForms||{}});
+  b.set(backupRef.collection('data').doc('tracking'),{missing:DB.missing||[],participation:DB.participation||[],behavior:DB.behavior||[],attendance:DB.attendance||{},iep:DB.iep||[],smallGroups:DB.smallGroups||[]});
+  b.set(backupRef.collection('data').doc('comms'),{comms:DB.comms||[],conferences:DB.conferences||[],concerns:DB.concerns||[],groups:DB.groups||[]});
+  b.set(backupRef.collection('data').doc('planning'),{lessons:DB.lessons||[],subPlans:DB.subPlans||[],curriculum:DB.curriculum||[],tests:DB.tests||[],testScores:DB.testScores||{},assignments:DB.assignments||[]});
+  b.commit().then(function(){
+    autoBackupInFlight=false;autoBackupBroken=false;
+    if(!DB.setup)DB.setup={};
+    DB.setup.lastAutoBackupAt=Date.now();
+    // a targeted merge — only this one nested field of setup changes, nothing else in the document is touched
+    teacherRef.collection('data').doc('main').set({setup:{lastAutoBackupAt:DB.setup.lastAutoBackupAt}},{merge:true}).catch(function(){});
+    pruneAutoBackups(teacherRef);
+    if(document.getElementById('auto-backup-list'))loadAutoBackupList();
+  }).catch(function(e){
+    autoBackupInFlight=false;autoBackupBroken=true;console.warn('Automatic backup failed (your regular save is unaffected):',e);
+    if(document.getElementById('auto-backup-list'))loadAutoBackupList();
+  });
+}
+function pruneAutoBackups(teacherRef){
+  teacherRef.collection('backups').orderBy('at','desc').get().then(function(snap){
+    if(snap.size<=AUTO_BACKUP_KEEP)return;
+    snap.docs.slice(AUTO_BACKUP_KEEP).forEach(function(d){
+      var sub=d.ref.collection('data');
+      Promise.all(['main','students','tracking','comms','planning'].map(function(n){return sub.doc(n).delete();}))
+        .then(function(){d.ref.delete();}).catch(function(){});
+    });
+  }).catch(function(){});
+}
+var autoBackupBroken=false;
+function loadAutoBackupList(){
+  var el=document.getElementById('auto-backup-list');if(!el||!currentUser)return;
+  var nEl=document.getElementById('auto-backup-keep-n');if(nEl)nEl.textContent=AUTO_BACKUP_KEEP;
+  el.innerHTML='<div style="font-size:11px;color:var(--mid)">Loading…</div>';
+  fbDb.collection('teachers').doc(currentUser.uid).collection('backups').orderBy('at','desc').limit(AUTO_BACKUP_KEEP).get().then(function(snap){
+    var broken=autoBackupBroken?'<div style="font-size:11px;color:#92400e;background:#fef3c7;border-radius:6px;padding:6px 10px;margin-bottom:8px">The most recent automatic backup attempt didn’t go through (a permissions or connection issue). Your regular saves are not affected, and this will try again later.</div>':'';
+    if(snap.empty){el.innerHTML=broken+'<div style="font-size:11px;color:var(--mid)">No automatic backups yet — the first one is taken a little while after you start using the app.</div>';return;}
+    el.innerHTML=broken+snap.docs.map(function(d){
+      var at=d.data().at,dt=at?new Date(at):null;
+      var label=dt?dt.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):d.id;
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--dark)">'
+        +'<span>'+esc(label)+'</span>'
+        +'<button class="btn btn-sm" onclick="restoreAutoBackup(\''+esc(d.id)+'\')">↩️ Restore this</button></div>';
+    }).join('');
+  }).catch(function(){el.innerHTML='<div style="font-size:11px;color:#dc2626">Couldn’t load the backup list.</div>';});
+}
+function restoreAutoBackup(id){
+  if(!currentUser)return;
+  if(!confirm('Restore this backup?\n\nThis replaces your CURRENT data (students, grades, lessons, attendance — everything) with what was saved at that time. Consider clicking Export first if you want to keep what you have now.\n\nThis cannot be undone. Continue?'))return;
+  var sub=fbDb.collection('teachers').doc(currentUser.uid).collection('backups').doc(id).collection('data');
+  Promise.all(['main','students','tracking','comms','planning'].map(function(n){return sub.doc(n).get();})).then(function(docs){
+    if(docs.every(function(d){return !d.exists;})){toast('That backup could not be found — it may have been pruned.');return;}
+    docs.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});
+    save();updatePills();refreshAllPeriodTabs();applyFeatureToggles();
+    toast('✅ Backup restored');
+    closeFull('setup');setTimeout(function(){openFull('setup');},100);
+  }).catch(function(){toast('Could not restore that backup — try again in a moment.');});
 }
 
 // True only for an account that had NO existing Firestore data at load time — i.e. someone
@@ -3203,6 +3295,10 @@ function loadFromFirestore(){
     // new) — safe to let saves reach the cloud from here on.
     cloudSynced=true;
     startApp();
+    // Covers a read-only session (open the app, look around, never edit anything) so a first
+    // backup still eventually exists even if no save() ever fires; maybeAutoBackup's own interval
+    // check still applies, so this is a no-op once one has already been taken recently.
+    setTimeout(maybeAutoBackup,15000);
     Promise.all([ref.collection('data').doc('tracking').get(),ref.collection('data').doc('comms').get(),ref.collection('data').doc('planning').get()]).then(function(rest){rest.forEach(function(d){if(d.exists)Object.assign(DB,d.data());});updatePills();}).catch(function(){showLoadRetry('Part of your data (attendance, grades, or lesson plans) could not be loaded.');});
   }).catch(function(){
     // A real fetch failure (offline, blocked request, permissions) — NOT a brand-new account (a
@@ -7459,7 +7555,7 @@ function renderSetup(){
   ['teacher','school','year','subject','firstday','lastday','starttime','endtime'].forEach(function(k){
     var e=document.getElementById('setup-'+k);if(e)e.value=s[k]||'';
   });
-  renderScheduleABPanel();renderScheduleRows();renderSetupPreview();renderCalendarEvents();renderCalendarSyncUI();
+  renderScheduleABPanel();renderScheduleRows();renderSetupPreview();renderCalendarEvents();renderCalendarSyncUI();loadAutoBackupList();
 }
 
 /* ── CALENDAR SYNC (ICS feed) ── */
